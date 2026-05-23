@@ -1,0 +1,14 @@
+{
+  "en": {
+    "connect_next": "Next",
+    "connect_changeServer": "Change Server",
+    "connect_enterServerUrl": "Enter Server URL",
+    "connect_invalidUrlError": "Please enter a valid URL"
+  },
+  "it": {
+    "connect_next": "Avanti",
+    "connect_changeServer": "Cambia server",
+    "connect_enterServerUrl": "Inserisci l'URL del server",
+    "connect_invalidUrlError": "Inserisci un URL valido"
+  }
+}

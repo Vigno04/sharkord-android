@@ -1,0 +1,27 @@
+# Build and Dev Cache Folders
+.gradle/
+build/
+**/build/
+.kotlin/
+.cxx/
+.externalNativeBuild/
+
+# Local configuration files
+local.properties
+*.local
+
+# IntelliJ / Android Studio files
+.idea/
+*.iml
+*.ipr
+*.iws
+.navigation/
+captures/
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Log and temporary files
+*.log
+*.zip
