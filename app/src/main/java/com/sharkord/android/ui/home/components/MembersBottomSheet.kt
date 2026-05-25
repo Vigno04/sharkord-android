@@ -1,0 +1,134 @@
+package com.sharkord.android.ui.home.components
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.sharkord.android.R
+import com.sharkord.android.data.model.User
+import com.sharkord.android.data.network.SharkordClient
+import com.sharkord.android.ui.components.rememberAsyncImagePainter
+
+/**
+ * Bottom sheet displaying the directory/list of members in the server.
+ * This slides up to show a scrollable list of everyone hanging out on the server!
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MembersBottomSheet(
+    users: List<User>,
+    ownUserId: Int,
+    cardColor: Color,
+    primaryText: Color,
+    foregroundText: Color,
+    onDismissRequest: () -> Unit
+) {
+    // This is our bottom sheet dialog popup, customized to fill up to 85% of screen height
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        containerColor = cardColor,
+        contentColor = primaryText,
+        modifier = Modifier.fillMaxHeight(0.85f)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Header title inside the sheet
+            Text(
+                text = stringResource(id = R.string.common_members),
+                color = foregroundText,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+            )
+            // A subtle separator divider line
+            Divider(color = Color.White.copy(alpha = 0.05f))
+
+            // LazyColumn is a scrollable list that only builds items that are currently visible on screen!
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentPadding = PaddingValues(16.dp)
+            ) {
+                // Loop through all users and render a row for each one!
+                items(users) { user ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { /* Future: View user profile / start DM */ }
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val avatarUrl = user.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }
+                        val avatarPainter = rememberAsyncImagePainter(avatarUrl, fallbackResourceId = null)
+                        
+                        // Circle box showing the member's profile avatar or their name's first letter
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color.DarkGray),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (avatarPainter != null) {
+                                Image(
+                                    painter = avatarPainter,
+                                    contentDescription = "User Avatar",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                // Fallback: if they have no custom image, draw the first letter of their name in uppercase!
+                                Text(
+                                    text = user.name.take(1).uppercase(),
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        
+                        // Vertical column for username & "(You)" tag if it's the current user
+                        Column {
+                            Text(
+                                text = user.name,
+                                color = foregroundText,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            // If the member in the list is the actual user running the app, add a little tag!
+                            if (user.id == ownUserId) {
+                                Text(
+                                    text = stringResource(id = R.string.common_you),
+                                    color = Color.Gray,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+                    // A tiny semi-transparent divider line between each member in the list
+                    Divider(color = Color.White.copy(alpha = 0.02f))
+                }
+            }
+        }
+    }
+}
+

@@ -25,3 +25,6 @@ Thumbs.db
 # Log and temporary files
 *.log
 *.zip
+
+#used as reference
+sharkord-server-reference/

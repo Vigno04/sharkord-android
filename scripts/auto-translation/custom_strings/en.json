@@ -1,0 +1,13 @@
+{
+  "connect_next": "Next",
+  "connect_changeServer": "Change Server",
+  "connect_enterServerUrl": "Enter Server URL",
+  "connect_invalidUrlError": "Please enter a valid URL",
+  "common_members": "Members",
+  "common_you": "(You)",
+  "common_online": "Online",
+  "common_add": "Add",
+  "profile_user_settings_title": "User Profile & Settings",
+  "profile_show_members": "Show members",
+  "common_member_count": "{{count}} members"
+}

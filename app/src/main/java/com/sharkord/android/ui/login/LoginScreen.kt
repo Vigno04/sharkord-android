@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
@@ -34,36 +35,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sharkord.android.R
 import com.sharkord.android.data.network.SharkordClient
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import okhttp3.Request
-
-@Composable
-fun rememberAsyncImagePainter(url: String?): Painter? {
-    if (url.isNullOrBlank()) return null
-    var bitmap by remember(url) { mutableStateOf<ImageBitmap?>(null) }
-    LaunchedEffect(url) {
-        withContext(Dispatchers.IO) {
-            try {
-                val request = Request.Builder().url(url).build()
-                SharkordClient.client.newCall(request).execute().use { response ->
-                    if (response.isSuccessful) {
-                        val bytes = response.body?.bytes()
-                        if (bytes != null) {
-                            val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                            if (bmp != null) {
-                                bitmap = bmp.asImageBitmap()
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-    return bitmap?.let { BitmapPainter(it) }
-}
+import com.sharkord.android.ui.components.rememberAsyncImagePainter
 
 @Composable
 fun LoginScreen(
@@ -74,18 +46,15 @@ fun LoginScreen(
     
     // Load saved URL on startup
     LaunchedEffect(Unit) {
-        viewModel.initialize(context)
+        viewModel.initialize(context, onLoginSuccess)
     }
     
-    // Original dark theme background (oklch(0.145 0 0) = #1C1C1C)
     val bgColor = Color(0xFF1C1C1C)
-    // Original dark theme card (oklch(0.205 0 0) = #2B2B2B)
     val cardColor = Color(0xFF2B2B2B)
-    val primaryText = Color(0xFFE8E8E8) // oklch(0.922 0 0)
-    val foregroundText = Color(0xFFFAFAFA) // oklch(0.985 0 0)
+    val primaryText = Color(0xFFE8E8E8)
+    val foregroundText = Color(0xFFFAFAFA)
     val accentColor = Color(0xFFE8E8E8)
 
-    val serverLogoPainter = rememberAsyncImagePainter(viewModel.serverLogoUrl)
 
     Box(
         modifier = Modifier
@@ -94,6 +63,31 @@ fun LoginScreen(
             .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
+        if (viewModel.currentStep == LoginStep.CREDENTIALS) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { viewModel.changeServer() }
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = stringResource(id = R.string.connect_changeServer),
+                    tint = foregroundText,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = viewModel.serverUrl.removePrefix("https://").removePrefix("http://").substringBefore('/'),
+                    color = foregroundText,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -101,19 +95,11 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Server logo (dynamic) or fallback to default Sharkord logo
-            if (serverLogoPainter != null) {
+            val serverLogoPainter = rememberAsyncImagePainter(viewModel.serverLogoUrl)
+            serverLogoPainter?.let {
                 Image(
-                    painter = serverLogoPainter,
+                    painter = it,
                     contentDescription = "Server Logo",
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                )
-            } else {
-                Image(
-                    painter = painterResource(id = R.drawable.logo),
-                    contentDescription = "Sharkord Logo",
                     modifier = Modifier
                         .size(80.dp)
                         .clip(RoundedCornerShape(24.dp))
@@ -176,7 +162,7 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.height(20.dp))
 
                     if (viewModel.currentStep == LoginStep.URL) {
-                        // ================= STEP 1: SERVER URL =================
+
                         OutlinedTextField(
                             value = viewModel.serverUrl,
                             onValueChange = { viewModel.serverUrl = it },
@@ -242,49 +228,6 @@ fun LoginScreen(
                         }
 
                     } else {
-                        // ================= STEP 2: CREDENTIALS =================
-                        // Server display row with Change Server button
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color.White.copy(alpha = 0.05f))
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(
-                                    Icons.Default.Share,
-                                    contentDescription = null,
-                                    tint = Color.Gray,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = viewModel.serverUrl,
-                                    color = primaryText,
-                                    fontSize = 14.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            Text(
-                                text = stringResource(id = R.string.connect_changeServer),
-                                color = Color.LightGray,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { viewModel.changeServer() }
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
 
                         // Email / Identity Input
                         OutlinedTextField(
@@ -329,6 +272,35 @@ fun LoginScreen(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Switch button to save login (Login automatically)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { viewModel.autoLogin = !viewModel.autoLogin }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Switch(
+                                checked = viewModel.autoLogin,
+                                onCheckedChange = { viewModel.autoLogin = it },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = foregroundText,
+                                    checkedTrackColor = accentColor.copy(alpha = 0.6f),
+                                    uncheckedThumbColor = Color.Gray,
+                                    uncheckedTrackColor = Color.Black.copy(alpha = 0.3f)
+                                )
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = stringResource(id = R.string.connect_autoLoginLabel),
+                                color = foregroundText,
+                                fontSize = 14.sp
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
