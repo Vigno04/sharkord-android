@@ -38,7 +38,7 @@
     <string name="common_globalErrorDescription">Sharkord hit an unexpected error. Reload the app. If this keeps happening, please open an issue with the error details in github.</string>
     <string name="common_globalErrorTitle">Sorry, Sharkord crashed and couldn\'t recover.</string>
     <string name="common_memberSince">Member since %1$s</string>
-    <string name="common_member_count">{{count}} members</string>
+    <string name="common_member_count">%1$d members</string>
     <string name="common_members">Members</string>
     <string name="common_messageCannotBeEmpty">Message cannot be empty</string>
     <string name="common_messageChannel">Message \&quot;%1$s\&quot;</string>

@@ -190,24 +190,42 @@ fun HomeScreen(
                             item {
                                 val logoState =
                                     rememberExtendedImageState(SharkordClient.currentServerLogoUrl)
-                                if (logoState.painter != null) {
-                                    val bannerBrush = Brush.horizontalGradient(
+                                
+                                val bannerBrush = if (logoState.painter != null) {
+                                    Brush.horizontalGradient(
                                         colors = listOf(logoState.leftColor, logoState.rightColor)
                                     )
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(140.dp)
-                                            .background(bannerBrush)
-                                    ) {
-                                        // Foreground logo
+                                } else {
+                                    Brush.horizontalGradient(
+                                        colors = listOf(Color(0xFF2C3E50), Color(0xFF1A252F)) // Sleek premium dark gradient
+                                    )
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(140.dp)
+                                        .background(bannerBrush),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (logoState.painter != null) {
+                                        // Foreground custom logo
                                         Image(
                                             painter = logoState.painter,
                                             contentDescription = null,
                                             contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        // Fallback premium logo placeholder
+                                        val fallbackPainter = painterResource(id = R.drawable.logo)
+                                        Image(
+                                            painter = fallbackPainter,
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Fit,
                                             modifier = Modifier
-                                                .fillMaxSize()
-                                                .padding(horizontal = 40.dp)
+                                                .size(80.dp)
+                                                .clip(RoundedCornerShape(16.dp))
                                         )
                                     }
                                 }

@@ -2,6 +2,7 @@ package com.sharkord.android.ui.components
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Log
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -41,6 +42,7 @@ data class ImageCacheEntry(
  * request deduplication, and rate-limiting to avoid redundant network requests.
  */
 object ImageCacheManager {
+    private const val TAG = "ImageCacheManager"
     private val cache = ConcurrentHashMap<String, ImageCacheEntry>()
     private val inFlight = ConcurrentHashMap<String, Deferred<ImageCacheEntry?>>()
     private val mutex = Mutex()
@@ -63,6 +65,7 @@ object ImageCacheManager {
             mutex.withLock {
                 inFlight[url] ?: async(Dispatchers.IO) {
                     try {
+                        Log.d(TAG, "Requesting image download from: $url")
                         val request = Request.Builder().url(url).build()
                         SharkordClient.okHttpClient.newCall(request).execute().use { response ->
                             if (response.isSuccessful) {
@@ -70,18 +73,28 @@ object ImageCacheManager {
                                 if (bytes != null) {
                                     val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                                     if (bmp != null) {
+                                        Log.d(TAG, "Successfully downloaded and decoded image from $url (${bytes.size} bytes)")
                                         val entry = ImageCacheEntry(
                                             bitmap = bmp,
                                             timestamp = System.currentTimeMillis()
                                         )
                                         cache[url] = entry
                                         entry
-                                    } else null
-                                } else null
-                            } else null
+                                    } else {
+                                        Log.e(TAG, "Failed to decode bitmap from downloaded bytes for $url")
+                                        null
+                                    }
+                                } else {
+                                    Log.e(TAG, "Downloaded response body was empty for $url")
+                                    null
+                                }
+                            } else {
+                                Log.e(TAG, "Server returned failure code ${response.code} for image $url")
+                                null
+                            }
                         }
                     } catch (e: Exception) {
-                        e.printStackTrace()
+                        Log.e(TAG, "Exception thrown while loading image from $url: ${e.message}", e)
                         null
                     } finally {
                         mutex.withLock {

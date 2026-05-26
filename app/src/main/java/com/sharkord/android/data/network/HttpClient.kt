@@ -110,7 +110,7 @@ class SharkordHttpClient(private val client: OkHttpClient) {
             }
 
             val serverInfo = gson.fromJson(body, ServerInfoResponse::class.java)
-            Log.d(TAG, "Server info fetched: ${serverInfo.name}")
+            Log.d(TAG, "Server info fetched: name=${serverInfo.name}, logo=${serverInfo.logo}")
             Result.success(serverInfo)
         } catch (e: IOException) {
             Log.e(TAG, "Server info network error: ${e.message}")

@@ -38,7 +38,7 @@
     <string name="common_globalErrorDescription">Sharkord ha riscontrato un errore imprevisto. Ricarica l\'app. Se continua a succedere, apri una issue su GitHub con i dettagli dell\'errore.</string>
     <string name="common_globalErrorTitle">Ci dispiace, Sharkord si è arrestato e non è riuscito a riprendersi.</string>
     <string name="common_memberSince">Membro dal %1$s</string>
-    <string name="common_member_count">{{count}} membri</string>
+    <string name="common_member_count">%1$d membri</string>
     <string name="common_members">Membri</string>
     <string name="common_messageCannotBeEmpty">Il messaggio non puo essere vuoto</string>
     <string name="common_messageDeleted">Messaggio eliminato</string>

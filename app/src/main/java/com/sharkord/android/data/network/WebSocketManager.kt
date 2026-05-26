@@ -24,12 +24,17 @@ import okhttp3.WebSocketListener
  * Implements a proper state machine for connection lifecycle:
  * Disconnected → Connecting → Authenticating → HandshakePending → JoinPending → Connected
  *
+ * After reaching [ConnectionState.Connected], all real-time tRPC subscriptions are
+ * automatically registered, mirroring what the web client does in `initSubscriptions()`.
+ * Incoming subscription events are emitted on [incomingEvents] and routed by path to
+ * [ServerEventHandler] for typed parsing.
+ *
  * Features:
  * - Response-based sequencing (no arbitrary delays)
  * - Auto-incrementing tRPC message IDs
  * - Exponential backoff reconnection
+ * - Auto-registration of all server-side real-time subscriptions
  * - Connection state exposed as StateFlow for reactive UI updates
- * - tRPC subscription support infrastructure
  */
 class WebSocketManager(
     private val okHttpClient: OkHttpClient,
@@ -56,7 +61,8 @@ class WebSocketManager(
     private var joinServerId: Int? = null
 
     // Subscription tracking: tRPC id -> subscription path
-    private val activeSubscriptions = mutableMapOf<Int, String>()
+    // Internal visibility for documentation purposes (see TrpcProtocol comment on Success routing)
+    internal val activeSubscriptions = mutableMapOf<Int, String>()
 
     // ─── Public State ─────────────────────────────────────────
 
@@ -144,6 +150,11 @@ class WebSocketManager(
         handshakeId = null
         joinServerId = null
 
+        // Clear stale subscription IDs from any previous connection — IDs are reset above
+        // via resetIdCounter(), so old entries would never match incoming messages anyway
+        // and would accumulate as a memory leak across reconnects.
+        activeSubscriptions.clear()
+
         val url = serverUrl ?: return
         val wsUrl = buildWsUrl(url)
 
@@ -192,14 +203,23 @@ class WebSocketManager(
                 Log.d(TAG, "Sent handshake query [${handshakeId}]")
             }
 
-            override fun onMessage(webSocket: WebSocket, text: String) {
+             override fun onMessage(webSocket: WebSocket, text: String) {
                 Log.d(TAG, "WS Received: $text")
 
                 when (val response = TrpcProtocol.parseResponse(text)) {
                     is TrpcResponse.Success -> handleSuccess(response, webSocket)
                     is TrpcResponse.Error -> handleError(response)
-                    is TrpcResponse.SubscriptionData -> handleSubscriptionData(response)
+                    is TrpcResponse.SubscriptionStarted -> {
+                        Log.d(TAG, "Subscription started [${response.id}]: ${activeSubscriptions[response.id]}")
+                    }
                     is TrpcResponse.SubscriptionComplete -> handleSubscriptionComplete(response)
+                    is TrpcResponse.Ping -> {
+                        Log.d(TAG, "Received tRPC ping, replying with pong")
+                        webSocket.send("{\"id\":null,\"method\":\"pong\"}")
+                    }
+                    is TrpcResponse.Pong -> {
+                        Log.d(TAG, "Received tRPC pong")
+                    }
                     is TrpcResponse.Unknown -> {
                         Log.d(TAG, "Ignoring unrecognized message")
                     }
@@ -236,7 +256,8 @@ class WebSocketManager(
             handshakeId -> onHandshakeResponse(response.data, webSocket)
             joinServerId -> onJoinServerResponse(response.data)
             else -> {
-                // Check if it's a subscription event
+                // All other Success frames are subscription push events — the id is the
+                // tRPC subscription ID stored in activeSubscriptions when subscribe() was called.
                 val subPath = activeSubscriptions[response.id]
                 if (subPath != null) {
                     scope.launch {
@@ -282,6 +303,10 @@ class WebSocketManager(
                 _serverData.emit(joinData)
             }
 
+            // Step 4: Register all real-time subscriptions now that we are fully connected.
+            // This mirrors the web client's initSubscriptions() call after joinServer succeeds.
+            setupRealtimeSubscriptions()
+
             // Reset reconnection state on successful connection
             reconnectJob?.cancel()
 
@@ -310,18 +335,62 @@ class WebSocketManager(
         }
     }
 
-    private fun handleSubscriptionData(response: TrpcResponse.SubscriptionData) {
-        val subPath = activeSubscriptions[response.id]
-        if (subPath != null) {
-            scope.launch {
-                _incomingEvents.emit(IncomingEvent(subPath, response.data))
-            }
-        }
-    }
-
     private fun handleSubscriptionComplete(response: TrpcResponse.SubscriptionComplete) {
         val subPath = activeSubscriptions.remove(response.id)
-        Log.d(TAG, "Subscription completed [${ response.id}]: $subPath")
+        Log.d(TAG, "Subscription completed [${response.id}]: $subPath")
+    }
+
+    // ─── Real-Time Subscriptions ──────────────────────────────
+
+    /**
+     * Registers all real-time tRPC subscriptions after a successful joinServer.
+     *
+     * Mirrors the web client's `initSubscriptions()` which calls:
+     *   subscribeToChannels / subscribeToCategories / subscribeToUsers /
+     *   subscribeToRoles / subscribeToEmojis / subscribeToMessages / subscribeToServer
+     *
+     * Incoming events are emitted on [incomingEvents] and should be parsed by
+     * [ServerEventHandler] to produce typed [ServerEvent] instances for the UI layer.
+     */
+    private fun setupRealtimeSubscriptions() {
+        Log.d(TAG, "Registering real-time subscriptions...")
+
+        // ── Channels ──────────────────────────────────────────
+        subscribe("channels.onCreate")
+        subscribe("channels.onDelete")
+        subscribe("channels.onUpdate")
+
+        // ── Categories ────────────────────────────────────────
+        subscribe("categories.onCreate")
+        subscribe("categories.onDelete")
+        subscribe("categories.onUpdate")
+
+        // ── Users ─────────────────────────────────────────────
+        subscribe("users.onJoin")
+        subscribe("users.onLeave")
+        subscribe("users.onUpdate")
+        subscribe("users.onCreate")
+        subscribe("users.onDelete")
+
+        // ── Roles ─────────────────────────────────────────────
+        subscribe("roles.onCreate")
+        subscribe("roles.onDelete")
+        subscribe("roles.onUpdate")
+
+        // ── Emojis ────────────────────────────────────────────
+        subscribe("emojis.onCreate")
+        subscribe("emojis.onDelete")
+        subscribe("emojis.onUpdate")
+
+        // ── Messages ──────────────────────────────────────────
+        subscribe("messages.onNew")
+        subscribe("messages.onUpdate")
+        subscribe("messages.onDelete")
+
+        // ── Server Settings ───────────────────────────────────
+        subscribe("others.onServerSettingsUpdate")
+
+        Log.d(TAG, "Registered ${activeSubscriptions.size} real-time subscriptions")
     }
 
     // ─── Reconnection ─────────────────────────────────────────
@@ -345,10 +414,10 @@ class WebSocketManager(
                 Log.d(TAG, "Reconnect attempt $attempt...")
                 doConnect()
 
-                // Wait for connection to either succeed or fail
-                // If it succeeds, the reconnect loop will be cancelled by onJoinServerResponse
-                // If it fails, onFailure/onClosed will set shouldReconnect and we loop again
-                delay(2000) // Give the connection attempt time to complete
+                // Wait for connection to either succeed or fail.
+                // If it succeeds, onJoinServerResponse() cancels this reconnect job.
+                // If it fails, onFailure/onClosed will set the error state and we loop again.
+                delay(2000)
 
                 if (_connectionState.value.isConnected) {
                     break
@@ -365,8 +434,8 @@ class WebSocketManager(
  * Represents an incoming real-time event from a tRPC subscription.
  */
 data class IncomingEvent(
-    /** The tRPC subscription path (e.g., "messages.onNew") */
+    /** The tRPC subscription path (e.g., "channels.onCreate", "messages.onNew"). */
     val path: String,
-    /** The event data payload */
+    /** The raw event data payload, to be parsed by [ServerEventHandler]. */
     val data: JsonObject
 )

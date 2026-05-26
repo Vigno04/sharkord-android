@@ -31,8 +31,8 @@ data class LoginResponse(
 data class ServerLogo(
     val id: Int,
     val name: String,
-    val originalName: String,
-    val mimeType: String
+    @SerializedName("originalName", alternate = ["original_name"]) val originalName: String? = null,
+    @SerializedName("mimeType", alternate = ["mime_type"]) val mimeType: String? = null
 )
 
 /**
@@ -58,8 +58,8 @@ data class ServerInfoResponse(
 data class FileInfo(
     val id: Int,
     val name: String,
-    val originalName: String,
-    val mimeType: String,
+    @SerializedName("originalName", alternate = ["original_name"]) val originalName: String? = null,
+    @SerializedName("mimeType", alternate = ["mime_type"]) val mimeType: String? = null,
     val size: Int? = null,
     @SerializedName("_accessToken") val accessToken: String? = null,
     @SerializedName("_accessTokenExpiresAt") val accessTokenExpiresAt: Long? = null
@@ -165,8 +165,8 @@ data class Emoji(
 data class MessageFile(
     val id: Int,
     val name: String,
-    val originalName: String,
-    val mimeType: String,
+    @SerializedName("originalName", alternate = ["original_name"]) val originalName: String? = null,
+    @SerializedName("mimeType", alternate = ["mime_type"]) val mimeType: String? = null,
     val size: Int? = null
 )
 

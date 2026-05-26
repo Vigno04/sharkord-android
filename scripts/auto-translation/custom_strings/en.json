@@ -9,5 +9,5 @@
   "common_add": "Add",
   "profile_user_settings_title": "User Profile & Settings",
   "profile_show_members": "Show members",
-  "common_member_count": "{{count}} members"
+  "common_member_count": "%1$d members"
 }
