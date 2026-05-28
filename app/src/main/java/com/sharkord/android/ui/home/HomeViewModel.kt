@@ -16,6 +16,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+enum class HomePanel {
+    SERVER, CHAT
+}
+
 /**
  * UI state for the home screen.
  * Replaces the ~10 inline `remember { mutableStateOf }` calls that were in HomeScreen.
@@ -28,7 +32,8 @@ data class HomeUiState(
     val errorMessage: String? = null,
     val reconnectAttempts: Int = 0,
     val showProfileSheet: Boolean = false,
-    val showMembersSheet: Boolean = false
+    val showMembersSheet: Boolean = false,
+    val activePanel: HomePanel = HomePanel.SERVER
 )
 
 /**
@@ -132,7 +137,7 @@ class HomeViewModel : ViewModel() {
                         reconnectAttempts = 0,
                         serverData = data,
                         selectedChannelId = it.selectedChannelId
-                            ?: data.channels.firstOrNull()?.id
+                            ?: data.channels.firstOrNull { ch -> !ch.isVoice && !ch.isDm }?.id
                     )
                 }
             }
@@ -375,25 +380,13 @@ class HomeViewModel : ViewModel() {
                 }
 
                 // ── Messages ──────────────────────────────────
-                // Message state is not held in HomeUiState (it belongs to a per-channel
-                // screen that doesn't exist yet). Events are acknowledged here with a log
-                // so they are not silently swallowed, and are available for future screens
-                // via the incomingEvents flow directly.
+                // Message state is managed by ChatViewModel, which observes incomingEvents
+                // directly and applies per-channel mutations. HomeViewModel only sees these
+                // events here as a no-op to keep the exhaustive when() complete.
 
-                is ServerEvent.MessageReceived -> {
-                    Log.d(TAG, "[EVENT] messages.onNew: channel=${event.message.channelId}")
-                    state
-                }
-
-                is ServerEvent.MessageUpdated -> {
-                    Log.d(TAG, "[EVENT] messages.onUpdate: id=${event.message.id}")
-                    state
-                }
-
-                is ServerEvent.MessageDeleted -> {
-                    Log.d(TAG, "[EVENT] messages.onDelete: id=${event.messageId}, channel=${event.channelId}")
-                    state
-                }
+                is ServerEvent.MessageReceived -> state
+                is ServerEvent.MessageUpdated -> state
+                is ServerEvent.MessageDeleted -> state
 
                 // ── Server Settings ───────────────────────────
 
@@ -414,7 +407,11 @@ class HomeViewModel : ViewModel() {
     // ─── UI Actions ───────────────────────────────────────────
 
     fun selectChannel(channelId: Int) {
-        _uiState.update { it.copy(selectedChannelId = channelId) }
+        _uiState.update { it.copy(selectedChannelId = channelId, activePanel = HomePanel.CHAT) }
+    }
+
+    fun setPanel(panel: HomePanel) {
+        _uiState.update { it.copy(activePanel = panel) }
     }
 
     fun toggleCategory(categoryId: Int) {

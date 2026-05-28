@@ -1,10 +1,11 @@
 package com.sharkord.android.ui.home
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,10 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
@@ -26,8 +23,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -42,6 +42,8 @@ import com.sharkord.android.data.network.SharkordClient
 import com.sharkord.android.ui.components.rememberAsyncImagePainter
 import com.sharkord.android.ui.components.rememberExtendedImageState
 import com.sharkord.android.ui.home.components.*
+import kotlinx.coroutines.launch
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,6 +76,7 @@ fun HomeScreen(
             .background(bgColor),
         contentAlignment = Alignment.TopCenter
     ) {
+
         when {
             uiState.isLoading -> {
                 Column(
@@ -137,16 +140,49 @@ fun HomeScreen(
             uiState.serverData != null -> {
                 val data = uiState.serverData!!
 
-                // Find authenticated user in returned list to confirm correct name
-                val currentUser = data.users.find { it.id == data.ownUserId }
-                val userName = currentUser?.name ?: stringResource(id = R.string.common_unknownUser)
+                val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
+                val density = LocalDensity.current
+                val screenWidthPx = remember(screenWidthDp) { with(density) { screenWidthDp.toPx() } }
+                
+                // Track dynamic swipe-to-dismiss offset of the ChatPanel in pixels
+                val swipeOffset = remember { Animatable(if (uiState.activePanel == HomePanel.CHAT) 0f else screenWidthPx) }
+                val coroutineScope = rememberCoroutineScope()
 
-                // Channels Grouping
-                val uncategorizedText =
-                    data.channels.filter { it.categoryId == null && !it.isVoice && !it.isDm }
-                val uncategorizedVoice =
-                    data.channels.filter { it.categoryId == null && it.isVoice && !it.isDm }
-                val categoriesList = data.categories?.sortedBy { it.position } ?: emptyList()
+                // Programmatic panel transitions
+                LaunchedEffect(uiState.activePanel) {
+                    if (uiState.activePanel == HomePanel.CHAT) {
+                        swipeOffset.animateTo(0f)
+                    } else {
+                        swipeOffset.animateTo(screenWidthPx)
+                    }
+                }
+
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // 1. UNDERLAY: Server Channels list (always rendered, so dragging chat right reveals it)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(uiState.activePanel, uiState.selectedChannelId) {
+                                if (uiState.activePanel == HomePanel.SERVER && uiState.selectedChannelId != null) {
+                                    detectHorizontalDragGestures { change, dragAmount ->
+                                        if (dragAmount < -50) {
+                                            viewModel.setPanel(HomePanel.CHAT)
+                                        }
+                                    }
+                                }
+                            },
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Find authenticated user in returned list to confirm correct name
+                        val currentUser = data.users.find { it.id == data.ownUserId }
+                        val userName = currentUser?.name ?: stringResource(id = R.string.common_unknownUser)
+
+                        // Channels Grouping
+                        val uncategorizedText =
+                            data.channels.filter { it.categoryId == null && !it.isVoice && !it.isDm }
+                        val uncategorizedVoice =
+                            data.channels.filter { it.categoryId == null && it.isVoice && !it.isDm }
+                        val categoriesList = data.categories?.sortedBy { it.position } ?: emptyList()
 
                 Box(
                     modifier = Modifier.fillMaxSize()
@@ -246,10 +282,12 @@ fun HomeScreen(
                             if (uncategorizedText.isNotEmpty()) {
                                 items(uncategorizedText) { channel ->
                                     Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                                        ChannelItem(
+                                    ChannelItem(
                                             channel = channel,
                                             isSelected = uiState.selectedChannelId == channel.id,
-                                            onSelect = { viewModel.selectChannel(channel.id) },
+                                            onSelect = {
+                                                if (!channel.isVoice) viewModel.selectChannel(channel.id)
+                                            },
                                             foregroundText = foregroundText,
                                             primaryText = primaryText
                                         )
@@ -259,10 +297,10 @@ fun HomeScreen(
                             if (uncategorizedVoice.isNotEmpty()) {
                                 items(uncategorizedVoice) { channel ->
                                     Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                                        ChannelItem(
+                                    ChannelItem(
                                             channel = channel,
                                             isSelected = uiState.selectedChannelId == channel.id,
-                                            onSelect = { viewModel.selectChannel(channel.id) },
+                                            onSelect = { /* Voice channel — no text chat */ },
                                             foregroundText = foregroundText,
                                             primaryText = primaryText
                                         )
@@ -320,7 +358,9 @@ fun HomeScreen(
                                                 ChannelItem(
                                                     channel = channel,
                                                     isSelected = uiState.selectedChannelId == channel.id,
-                                                    onSelect = { viewModel.selectChannel(channel.id) },
+                                                    onSelect = {
+                                                        if (!channel.isVoice) viewModel.selectChannel(channel.id)
+                                                    },
                                                     foregroundText = foregroundText,
                                                     primaryText = primaryText
                                                 )
@@ -383,6 +423,57 @@ fun HomeScreen(
                         foregroundText = foregroundText,
                         onDismissRequest = { viewModel.dismissMembersSheet() }
                     )
+                }
+                }
+
+                // 2. OVERLAY: Chat Panel (rendered on top if a channel is selected, offset by swipeOffset)
+                if (uiState.selectedChannelId != null) {
+                    val activeChannel = data.channels.find { it.id == uiState.selectedChannelId }
+                    val chatOffset = with(density) { swipeOffset.value.toDp() }
+
+                    ChatPanel(
+                        channelId = uiState.selectedChannelId!!,
+                        channelName = activeChannel?.name ?: "",
+                        users = data.users,
+                        roles = data.roles ?: emptyList(),
+                        onBackClick = {
+                            coroutineScope.launch {
+                                swipeOffset.animateTo(screenWidthPx)
+                                viewModel.setPanel(HomePanel.SERVER)
+                            }
+                        },
+                        modifier = Modifier
+                            .offset(x = chatOffset)
+                            .pointerInput(screenWidthPx) {
+                                detectHorizontalDragGestures(
+                                    onDragEnd = {
+                                        coroutineScope.launch {
+                                            if (swipeOffset.value > screenWidthPx / 3) {
+                                                // Complete swipe back to server channels panel
+                                                swipeOffset.animateTo(screenWidthPx)
+                                                viewModel.setPanel(HomePanel.SERVER)
+                                            } else {
+                                                // Return to current chat panel position
+                                                swipeOffset.animateTo(0f)
+                                            }
+                                        }
+                                    },
+                                    onDragCancel = {
+                                        coroutineScope.launch {
+                                            swipeOffset.animateTo(0f)
+                                        }
+                                    },
+                                    onHorizontalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        coroutineScope.launch {
+                                            val newOffset = (swipeOffset.value + dragAmount).coerceIn(0f, screenWidthPx)
+                                            swipeOffset.snapTo(newOffset)
+                                        }
+                                    }
+                                )
+                            }
+                    )
+                }
                 }
             }
         }

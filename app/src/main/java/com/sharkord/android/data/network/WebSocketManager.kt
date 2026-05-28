@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -64,6 +65,10 @@ class WebSocketManager(
     // Internal visibility for documentation purposes (see TrpcProtocol comment on Success routing)
     internal val activeSubscriptions = mutableMapOf<Int, String>()
 
+    // Pending one-shot calls (query/mutation): tRPC id -> deferred result
+    // Callers suspend via sendQueryAwait / sendMutationAwait until the response arrives.
+    private val pendingCalls = mutableMapOf<Int, CompletableDeferred<JsonObject>>()
+
     // ─── Public State ─────────────────────────────────────────
 
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
@@ -101,6 +106,7 @@ class WebSocketManager(
         reconnectJob?.cancel()
         reconnectJob = null
         activeSubscriptions.clear()
+        cancelPendingCalls("WebSocket disconnected")
 
         webSocket?.close(1000, "Client disconnect")
         webSocket = null
@@ -131,6 +137,44 @@ class WebSocketManager(
     }
 
     /**
+     * Sends a tRPC query and suspends until the server responds.
+     * Throws [WebSocketNotConnectedException] if the socket is null,
+     * or a [TrpcCallException] if the server returns an error.
+     */
+    suspend fun sendQueryAwait(path: String, input: JsonObject = JsonObject()): JsonObject {
+        val id = TrpcProtocol.getNextId()
+        val deferred = CompletableDeferred<JsonObject>()
+        pendingCalls[id] = deferred
+        val message = TrpcProtocol.buildQuery(id, path, input)
+        val sent = webSocket?.send(message) ?: false
+        if (!sent) {
+            pendingCalls.remove(id)
+            throw WebSocketNotConnectedException("WebSocket is not connected")
+        }
+        Log.d(TAG, "Sent query (awaited) [$id]: $path")
+        return deferred.await()
+    }
+
+    /**
+     * Sends a tRPC mutation and suspends until the server responds.
+     * Throws [WebSocketNotConnectedException] if the socket is null,
+     * or a [TrpcCallException] if the server returns an error.
+     */
+    suspend fun sendMutationAwait(path: String, input: JsonObject): JsonObject {
+        val id = TrpcProtocol.getNextId()
+        val deferred = CompletableDeferred<JsonObject>()
+        pendingCalls[id] = deferred
+        val message = TrpcProtocol.buildMutation(id, path, input)
+        val sent = webSocket?.send(message) ?: false
+        if (!sent) {
+            pendingCalls.remove(id)
+            throw WebSocketNotConnectedException("WebSocket is not connected")
+        }
+        Log.d(TAG, "Sent mutation (awaited) [$id]: $path")
+        return deferred.await()
+    }
+
+    /**
      * Subscribes to a tRPC subscription and returns the assigned message ID.
      */
     fun subscribe(path: String, input: JsonObject? = null): Int {
@@ -154,6 +198,7 @@ class WebSocketManager(
         // via resetIdCounter(), so old entries would never match incoming messages anyway
         // and would accumulate as a memory leak across reconnects.
         activeSubscriptions.clear()
+        cancelPendingCalls("WebSocket reconnecting")
 
         val url = serverUrl ?: return
         val wsUrl = buildWsUrl(url)
@@ -256,8 +301,14 @@ class WebSocketManager(
             handshakeId -> onHandshakeResponse(response.data, webSocket)
             joinServerId -> onJoinServerResponse(response.data)
             else -> {
-                // All other Success frames are subscription push events — the id is the
-                // tRPC subscription ID stored in activeSubscriptions when subscribe() was called.
+                // Check if this is a pending one-shot call (query/mutation)
+                val pending = pendingCalls.remove(response.id)
+                if (pending != null) {
+                    pending.complete(response.data)
+                    return
+                }
+
+                // Otherwise it's a subscription push event
                 val subPath = activeSubscriptions[response.id]
                 if (subPath != null) {
                     scope.launch {
@@ -332,6 +383,13 @@ class WebSocketManager(
             } else {
                 scheduleReconnect()
             }
+            return
+        }
+
+        // Reject any pending one-shot call that was waiting for this id
+        val pending = response.id?.let { pendingCalls.remove(it) }
+        if (pending != null) {
+            pending.completeExceptionally(TrpcCallException(errorMsg, response.error.code))
         }
     }
 
@@ -414,19 +472,27 @@ class WebSocketManager(
                 Log.d(TAG, "Reconnect attempt $attempt...")
                 doConnect()
 
-                // Wait for connection to either succeed or fail.
-                // If it succeeds, onJoinServerResponse() cancels this reconnect job.
-                // If it fails, onFailure/onClosed will set the error state and we loop again.
-                delay(2000)
-
-                if (_connectionState.value.isConnected) {
-                    break
+                // Wait for connection to either succeed or fail by observing the state flow.
+                // onJoinServerResponse() sets Connected and cancels this job;
+                // onFailure/onClosed sets Error and we loop to the next attempt.
+                val result = _connectionState.first {
+                    it.isConnected || it is ConnectionState.Error
                 }
+
+                if (result.isConnected) break
 
                 attempt++
                 delay = (delay * BACKOFF_MULTIPLIER).toLong().coerceAtMost(MAX_RETRY_DELAY_MS)
             }
         }
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────
+
+    private fun cancelPendingCalls(reason: String) {
+        val exception = CancellationException(reason)
+        pendingCalls.values.forEach { it.completeExceptionally(exception) }
+        pendingCalls.clear()
     }
 }
 
@@ -439,3 +505,15 @@ data class IncomingEvent(
     /** The raw event data payload, to be parsed by [ServerEventHandler]. */
     val data: JsonObject
 )
+
+/**
+ * Thrown by [WebSocketManager.sendQueryAwait] / [WebSocketManager.sendMutationAwait]
+ * when the server responds with a tRPC error frame.
+ */
+class TrpcCallException(message: String, val code: String? = null) : Exception(message)
+
+/**
+ * Thrown by [WebSocketManager.sendQueryAwait] / [WebSocketManager.sendMutationAwait]
+ * when the WebSocket is not currently open.
+ */
+class WebSocketNotConnectedException(message: String) : Exception(message)
