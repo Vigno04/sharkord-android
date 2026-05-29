@@ -1,5 +1,17 @@
 <resources>
     <string name="app_name">Sharkord</string>
+    <string name="chat_channelBeginning">Questo è l\'inizio del canale #%1$s.</string>
+    <string name="chat_channelBeginningShort">Questo è l\'inizio di #%1$s</string>
+    <string name="chat_messageChannelPlaceholder">Messaggio #%1$s</string>
+    <string name="chat_newMessageSingular">1 nuovo messaggio</string>
+    <string name="chat_newMessagesPlural">%1$d nuovi messaggi</string>
+    <string name="chat_severalPeopleAreTyping">Diverse persone stanno scrivendo</string>
+    <string name="chat_slideToCancel">⬅ Scorri per annullare</string>
+    <string name="chat_someoneTyping">Qualcuno</string>
+    <string name="chat_uploading">Caricamento in corso...</string>
+    <string name="chat_userIsTyping">%1$s sta scrivendo</string>
+    <string name="chat_usersAreTyping">%1$s e %2$s stanno scrivendo</string>
+    <string name="chat_welcomeToChannel">Benvenuto in #%1$s!</string>
     <string name="common_add">Aggiungi</string>
     <string name="common_addReaction">Aggiungi reazione</string>
     <string name="common_andMore">e altri %1$s</string>

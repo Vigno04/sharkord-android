@@ -69,6 +69,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.text.HtmlCompat
 import com.sharkord.android.data.network.ConnectionState
 import com.sharkord.android.data.network.SharkordClient
+import androidx.compose.ui.res.stringResource
+import com.sharkord.android.R
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import com.sharkord.android.ui.components.rememberAsyncImagePainter
 import kotlinx.coroutines.delay
 
@@ -91,6 +95,7 @@ fun ChatPanel(
     viewModel: ChatViewModel = viewModel(key = "chat_$channelId")
 ) {
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
     val bgColor = ChatColors.BgColor
     val headerColor = ChatColors.HeaderColor
     val cardColor = ChatColors.CardColor
@@ -100,14 +105,14 @@ fun ChatPanel(
     val accentColor = ChatColors.AccentColor
 
     val uiState by viewModel.uiState.collectAsState()
-    val listState = rememberLazyListState()
+    val listState = remember(channelId) { androidx.compose.foundation.lazy.LazyListState() }
     val coroutineScope = rememberCoroutineScope()
-    var inputText by remember { mutableStateOf("") }
+    var inputText by remember(channelId) { mutableStateOf("") }
 
     val ownUserId = uiState.ownUserId
 
     // State for message long-press menu overlay
-    var showMenuMessage by remember { mutableStateOf<Message?>(null) }
+    var showMenuMessage by remember(channelId) { mutableStateOf<Message?>(null) }
 
     // Initialise the ViewModel for this channel
     LaunchedEffect(channelId) {
@@ -134,14 +139,26 @@ fun ChatPanel(
         }
     }
 
+    // Flag to track if the initial load of messages has completed and list was scrolled/positioned at the bottom.
+    var hasInitialLoaded by remember(channelId) { mutableStateOf(false) }
+
     // Badge counter: how many new messages arrived while the user was scrolled up
-    var unreadNewCount by remember { mutableIntStateOf(0) }
+    var unreadNewCount by remember(channelId) { mutableIntStateOf(0) }
 
     // Watch the ID of the very last message so we react only when a *new* message
     // is appended — not when older messages are prepended by pagination.
     val lastMessageId = uiState.messages.lastOrNull()?.id
     LaunchedEffect(lastMessageId) {
         if (lastMessageId == null) return@LaunchedEffect
+        if (!hasInitialLoaded) {
+            // First load: snap instantly to the bottom, don't animate, and don't count as unread messages.
+            if (uiState.messages.isNotEmpty()) {
+                listState.scrollToItem(uiState.messages.size - 1)
+            }
+            hasInitialLoaded = true
+            unreadNewCount = 0
+            return@LaunchedEffect
+        }
         if (isAtBottom) {
             listState.animateScrollToItem(uiState.messages.size - 1)
             unreadNewCount = 0
@@ -346,7 +363,14 @@ fun ChatPanel(
                         .fillMaxWidth()
                         .background(Color(0xFFEF4444).copy(alpha = 0.12f))
                         .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .clickable { viewModel.clearError() },
+                        .clickable {
+                            val errorMsg = uiState.errorMessage
+                            if (errorMsg != null) {
+                                clipboardManager.setText(AnnotatedString(errorMsg))
+                                android.widget.Toast.makeText(context, context.getString(R.string.common_errorDetailsCopied), android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                            viewModel.clearError()
+                        },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -384,7 +408,7 @@ fun ChatPanel(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "Loading messages…",
+                                text = stringResource(id = R.string.settings_modViewLoading),
                                 color = textMuted,
                                 fontSize = 14.sp
                             )
@@ -415,7 +439,7 @@ fun ChatPanel(
                             }
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "Welcome to #$channelName!",
+                                text = stringResource(id = R.string.chat_welcomeToChannel, channelName),
                                 color = textPrimary,
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
@@ -423,7 +447,7 @@ fun ChatPanel(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "This is the beginning of the #$channelName channel.",
+                                text = stringResource(id = R.string.chat_channelBeginning, channelName),
                                 color = textSecondary,
                                 fontSize = 14.sp,
                                 textAlign = TextAlign.Center
@@ -455,7 +479,7 @@ fun ChatPanel(
                             } else if (uiState.hasReachedTop && uiState.messages.isNotEmpty()) {
                                 item(key = "top_reached") {
                                     Text(
-                                        text = "This is the beginning of #$channelName",
+                                        text = stringResource(id = R.string.chat_channelBeginningShort, channelName),
                                         color = textMuted,
                                         fontSize = 12.sp,
                                         textAlign = TextAlign.Center,
@@ -528,7 +552,11 @@ fun ChatPanel(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = if (unreadNewCount == 1) "1 new message" else "$unreadNewCount new messages",
+                            text = if (unreadNewCount == 1) {
+                                stringResource(id = R.string.chat_newMessageSingular)
+                            } else {
+                                stringResource(id = R.string.chat_newMessagesPlural, unreadNewCount)
+                            },
                             color = Color.White,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
@@ -555,11 +583,11 @@ fun ChatPanel(
                 // Typing Indicator bar
                 val typingUserIds = uiState.typingUsers
                 if (typingUserIds.isNotEmpty()) {
-                    val typingNames = typingUserIds.map { id -> users.find { it.id == id }?.name ?: "Someone" }
+                    val typingNames = typingUserIds.map { id -> users.find { it.id == id }?.name ?: stringResource(id = R.string.chat_someoneTyping) }
                     val typingText = when {
-                        typingNames.size == 1 -> "${typingNames[0]} is typing"
-                        typingNames.size == 2 -> "${typingNames[0]} and ${typingNames[1]} are typing"
-                        else -> "Several people are typing"
+                        typingNames.size == 1 -> stringResource(id = R.string.chat_userIsTyping, typingNames[0])
+                        typingNames.size == 2 -> stringResource(id = R.string.chat_usersAreTyping, typingNames[0], typingNames[1])
+                        else -> stringResource(id = R.string.chat_severalPeopleAreTyping)
                     }
                     Row(
                         modifier = Modifier.padding(start = 16.dp, bottom = 4.dp),
@@ -625,7 +653,7 @@ fun ChatPanel(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Uploading...",
+                                    text = stringResource(id = R.string.chat_uploading),
                                     color = textSecondary,
                                     fontSize = 12.sp
                                 )
@@ -655,7 +683,7 @@ fun ChatPanel(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Replying to ${replyAuthor?.name ?: "Unknown"}",
+                                    text = stringResource(id = R.string.common_replyingTo, replyAuthor?.name ?: stringResource(id = R.string.common_unknownUser)),
                                     color = textPrimary,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
@@ -706,7 +734,7 @@ fun ChatPanel(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Editing Message",
+                                    text = stringResource(id = R.string.common_editMessage),
                                     color = accentColor,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
@@ -770,7 +798,7 @@ fun ChatPanel(
                         )
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(
-                            text = "⬅ Slide to cancel",
+                            text = stringResource(id = R.string.chat_slideToCancel),
                             color = textSecondary,
                             fontSize = 13.sp,
                             modifier = Modifier.weight(1f)
@@ -827,7 +855,7 @@ fun ChatPanel(
                                 Box {
                                     if (inputText.isEmpty()) {
                                         Text(
-                                            text = "Message #$channelName",
+                                            text = stringResource(id = R.string.chat_messageChannelPlaceholder, channelName),
                                             color = textMuted,
                                             fontSize = 15.sp
                                         )
@@ -933,7 +961,7 @@ fun ChatPanel(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "📌 Pinned Messages",
+                                text = stringResource(id = R.string.common_pinnedMessagesTitle),
                                 color = textPrimary,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold
@@ -950,7 +978,7 @@ fun ChatPanel(
                             }
                         } else if (uiState.pinnedMessages.isEmpty()) {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text(text = "No pinned messages in this channel.", color = textMuted, fontSize = 14.sp)
+                                Text(text = stringResource(id = R.string.common_noPinnedMessages), color = textMuted, fontSize = 14.sp)
                             }
                         } else {
                             LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -1013,7 +1041,7 @@ fun ChatPanel(
                     ) {
                         // Quick Reactions Selection Row
                         Text(
-                            text = "Add Reaction",
+                            text = stringResource(id = R.string.common_addReaction),
                             color = textSecondary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
@@ -1048,7 +1076,7 @@ fun ChatPanel(
                         if (customEmojis.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "Server Custom Emojis",
+                                text = stringResource(id = R.string.common_customTab),
                                 color = textSecondary,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
@@ -1095,7 +1123,7 @@ fun ChatPanel(
                         ) {
                             Icon(Icons.Default.Reply, contentDescription = "Reply", tint = textPrimary)
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text(text = "Reply to Message", color = textPrimary, fontSize = 15.sp)
+                            Text(text = stringResource(id = R.string.common_replyToMessage), color = textPrimary, fontSize = 15.sp)
                         }
 
                         // Toggle Pin
@@ -1117,7 +1145,7 @@ fun ChatPanel(
                                 Icon(Icons.Default.PushPin, contentDescription = "Pin", tint = textPrimary)
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Text(
-                                    text = if (msg.pinned) "Unpin Message" else "Pin Message",
+                                    text = stringResource(id = if (msg.pinned) R.string.common_unpinMessage else R.string.common_pinMessage),
                                     color = textPrimary,
                                     fontSize = 15.sp
                                 )
@@ -1142,7 +1170,7 @@ fun ChatPanel(
                             ) {
                                 Icon(Icons.Default.Edit, contentDescription = "Edit", tint = textPrimary)
                                 Spacer(modifier = Modifier.width(12.dp))
-                                Text(text = "Edit Message", color = textPrimary, fontSize = 15.sp)
+                                Text(text = stringResource(id = R.string.common_editMessage), color = textPrimary, fontSize = 15.sp)
                             }
                         }
 
@@ -1161,7 +1189,7 @@ fun ChatPanel(
                             ) {
                                 Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red.copy(alpha = 0.8f))
                                 Spacer(modifier = Modifier.width(12.dp))
-                                Text(text = "Delete Message", color = Color.Red.copy(alpha = 0.8f), fontSize = 15.sp)
+                                Text(text = stringResource(id = R.string.common_deleteMessageTitle), color = Color.Red.copy(alpha = 0.8f), fontSize = 15.sp)
                             }
                         }
                     }

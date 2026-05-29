@@ -10,5 +10,17 @@
   "profile_user_settings_title": "Profilo Utente & Impostazioni",
   "profile_show_members": "Mostra membri",
   "common_member_count": "%1$d membri",
-  "dialogs_searchTitle": "Cerca"
+  "dialogs_searchTitle": "Cerca",
+  "chat_welcomeToChannel": "Benvenuto in #%1$s!",
+  "chat_channelBeginning": "Questo è l'inizio del canale #%1$s.",
+  "chat_channelBeginningShort": "Questo è l'inizio di #%1$s",
+  "chat_newMessageSingular": "1 nuovo messaggio",
+  "chat_newMessagesPlural": "%1$d nuovi messaggi",
+  "chat_someoneTyping": "Qualcuno",
+  "chat_userIsTyping": "%1$s sta scrivendo",
+  "chat_usersAreTyping": "%1$s e %2$s stanno scrivendo",
+  "chat_severalPeopleAreTyping": "Diverse persone stanno scrivendo",
+  "chat_uploading": "Caricamento in corso...",
+  "chat_slideToCancel": "⬅ Scorri per annullare",
+  "chat_messageChannelPlaceholder": "Messaggio #%1$s"
 }

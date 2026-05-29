@@ -36,6 +36,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import com.sharkord.android.R
 import com.sharkord.android.data.model.Channel
 import com.sharkord.android.data.network.SharkordClient
@@ -52,6 +54,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = viewModel()
 ) {
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
     
     // We collect the uiState here from our ViewModel as a State object,
     // so anytime something in the database/connection updates, our screen recomposes/redraws automatically!
@@ -196,6 +199,13 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(Color(0xFFEF4444).copy(alpha = 0.15f))
+                                    .clickable {
+                                        val errorMsg = uiState.errorMessage
+                                        if (errorMsg != null) {
+                                            clipboardManager.setText(AnnotatedString(errorMsg))
+                                            android.widget.Toast.makeText(context, context.getString(R.string.common_errorDetailsCopied), android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
                                     .padding(horizontal = 12.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center
