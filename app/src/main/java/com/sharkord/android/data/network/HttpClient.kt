@@ -121,6 +121,51 @@ class SharkordHttpClient(private val client: OkHttpClient) {
         }
     }
 
+    /**
+     * POST /upload — upload a raw file attachment.
+     */
+    suspend fun uploadFile(
+        serverUrl: String,
+        token: String,
+        originalName: String,
+        fileBytes: ByteArray
+    ): Result<com.sharkord.android.data.model.FileInfo> {
+        val cleanUrl = serverUrl.trimEnd('/')
+        val requestUrl = "$cleanUrl/upload"
+
+        val mediaType = "application/octet-stream".toMediaType()
+        val requestBody = fileBytes.toRequestBody(mediaType)
+
+        val request = Request.Builder()
+            .url(requestUrl)
+            .post(requestBody)
+            .addHeader("x-token", token)
+            .addHeader("x-file-name", originalName)
+            .addHeader("content-length", fileBytes.size.toString())
+            .build()
+
+        return try {
+            val response = client.awaitCall(request)
+            val body = response.body?.string()
+
+            if (!response.isSuccessful || body == null) {
+                return Result.failure(
+                    SharkordApiException("File upload failed (HTTP ${response.code})", response.code)
+                )
+            }
+
+            val fileInfo = gson.fromJson(body, com.sharkord.android.data.model.FileInfo::class.java)
+            Log.d(TAG, "File uploaded successfully: id=${fileInfo.id}, name=${fileInfo.name}")
+            Result.success(fileInfo)
+        } catch (e: IOException) {
+            Log.e(TAG, "File upload network error: ${e.message}")
+            Result.failure(SharkordApiException("Network error: ${e.message}", cause = e))
+        } catch (e: Exception) {
+            Log.e(TAG, "File upload error", e)
+            Result.failure(SharkordApiException("Unexpected error: ${e.message}", cause = e))
+        }
+    }
+
     // ─── Internal Utilities ───────────────────────────────────
 
     /**

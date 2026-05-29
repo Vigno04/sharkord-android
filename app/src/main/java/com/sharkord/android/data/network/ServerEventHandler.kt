@@ -105,6 +105,9 @@ sealed class ServerEvent {
     /** A message was deleted. */
     data class MessageDeleted(val messageId: Int, val channelId: Int) : ServerEvent()
 
+    /** A user started typing in a channel. */
+    data class UserTyping(val channelId: Int, val userId: Int, val parentMessageId: Int? = null) : ServerEvent()
+
     // ─── Server Settings ──────────────────────────────────────
 
     /** Public server settings (name, description, feature flags, etc.) were updated. */
@@ -208,6 +211,15 @@ object ServerEventHandler {
                         messageId = event.data.get("messageId").asInt,
                         channelId = event.data.get("channelId").asInt
                     )
+
+                "messages.onTyping" -> {
+                    val pId = event.data.get("parentMessageId")
+                    ServerEvent.UserTyping(
+                        channelId = event.data.get("channelId").asInt,
+                        userId = event.data.get("userId").asInt,
+                        parentMessageId = if (pId == null || pId.isJsonNull) null else pId.asInt
+                    )
+                }
 
                 // ── Server Settings ───────────────────────────
                 "others.onServerSettingsUpdate" ->

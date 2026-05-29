@@ -444,6 +444,7 @@ class WebSocketManager(
         subscribe("messages.onNew")
         subscribe("messages.onUpdate")
         subscribe("messages.onDelete")
+        subscribe("messages.onTyping")
 
         // ── Server Settings ───────────────────────────────────
         subscribe("others.onServerSettingsUpdate")

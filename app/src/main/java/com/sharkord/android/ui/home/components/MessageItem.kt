@@ -1,12 +1,24 @@
 package com.sharkord.android.ui.home.components
 
+import android.media.MediaPlayer
+import android.util.Log
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,48 +32,44 @@ import androidx.core.text.HtmlCompat
 import com.sharkord.android.data.model.Message
 import com.sharkord.android.data.model.Role
 import com.sharkord.android.data.model.User
+import com.sharkord.android.data.network.ConnectionState
 import com.sharkord.android.data.network.SharkordClient
 import com.sharkord.android.ui.components.rememberAsyncImagePainter
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.Path
+import kotlinx.coroutines.delay
 
 /**
  * Renders a single chat message in the message list.
  *
  * Groups consecutive messages from the same author (compact mode) to mirror
  * Discord's visual style — only the first message in a run shows the avatar + name.
- *
- * @param message      The message to render.
- * @param previousMessage  The message directly above this one (null if it's the first). Used to
- *                         decide whether to show the author header or render in compact mode.
- * @param users        The full user list, used to resolve the author's name and avatar.
- * @param roles        The full role list, used to color the author's name by their top role.
  */
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun MessageItem(
     message: Message,
     previousMessage: Message?,
     users: List<User>,
     roles: List<Role>,
+    ownUserId: Int,
     modifier: Modifier = Modifier,
     onLongClick: (Message) -> Unit = {},
-    onReplyClick: (Int) -> Unit = {}
+    onReplyClick: (Int) -> Unit = {},
+    onReactionClick: (Int, String) -> Unit = { _, _ -> }
 ) {
-    val bgColor = Color(0xFF1C1C1C)
-    val textPrimary = Color(0xFFE8E8E8)
-    val textSecondary = Color(0xFF9E9E9E)
-    val textMuted = Color(0xFF6E6E6E)
+    val bgColor = ChatColors.BgColor
+    val textPrimary = ChatColors.TextPrimary
+    val textSecondary = ChatColors.TextSecondary
+    val textMuted = ChatColors.TextMuted
 
     val author = users.find { it.id == message.userId }
 
@@ -90,8 +98,11 @@ fun MessageItem(
         HtmlCompat.fromHtml(message.content, HtmlCompat.FROM_HTML_MODE_COMPACT).toString().trim()
     }
 
-    val timestamp = remember(message.createdAt) {
-        formatTimestamp(message.createdAt)
+    val timestamp by produceState(initialValue = formatTimestamp(message.createdAt), message.createdAt) {
+        while (true) {
+            delay(30_000)
+            value = formatTimestamp(message.createdAt)
+        }
     }
 
     Column(
@@ -263,11 +274,14 @@ fun MessageItem(
                 }
 
                 if (plainContent.isNotEmpty()) {
+                    val isEmojiOnly = remember(plainContent) { EmojiMapper.isEmojiOnly(plainContent) }
+                    val fontSize = if (isEmojiOnly) 36.sp else 15.sp
+                    val lineHeight = if (isEmojiOnly) 44.sp else 21.sp
                     Text(
                         text = plainContent,
                         color = textSecondary,
-                        fontSize = 15.sp,
-                        lineHeight = 21.sp
+                        fontSize = fontSize,
+                        lineHeight = lineHeight
                     )
                 }
 
@@ -281,24 +295,243 @@ fun MessageItem(
                     )
                 }
 
-                // File attachments: display names as small chips
+                // Media & File attachments: display photos/audios inline or generic chips
                 if (message.files.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     message.files.forEach { file ->
-                        Text(
-                            text = "📎 ${file.originalName ?: file.name}",
-                            color = Color(0xFF5B9BD5),
-                            fontSize = 13.sp,
-                            modifier = Modifier
-                                .padding(top = 2.dp)
-                                .background(
-                                    Color(0xFF2B2B2B),
-                                    RoundedCornerShape(4.dp)
+                        val extension = file.originalName?.substringAfterLast('.', "")?.lowercase() ?: ""
+                        val mimeType = file.mimeType?.lowercase() ?: ""
+                        val isImage = mimeType.startsWith("image/") || extension in listOf("png", "jpg", "jpeg", "webp", "gif")
+                        val isAudio = mimeType.startsWith("audio/") || extension in listOf("m4a", "mp3", "wav", "aac", "ogg")
+
+                        when {
+                            isImage -> {
+                                val imageUrl = "${SharkordClient.currentServerUrl}/public/${file.name}"
+                                val painter = rememberAsyncImagePainter(imageUrl)
+                                if (painter != null) {
+                                    Image(
+                                        painter = painter,
+                                        contentDescription = file.originalName,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .padding(top = 4.dp)
+                                            .fillMaxWidth(0.85f)
+                                            .heightIn(max = 200.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                    )
+                                }
+                            }
+                            isAudio -> {
+                                val audioUrl = "${SharkordClient.currentServerUrl}/public/${file.name}"
+                                AudioPlayer(
+                                    audioUrl = audioUrl,
+                                    modifier = Modifier.padding(top = 4.dp)
                                 )
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
+                            }
+                            else -> {
+                                // Generic filechip
+                                Text(
+                                    text = "📎 ${file.originalName ?: file.name}",
+                                    color = Color(0xFF5B9BD5),
+                                    fontSize = 13.sp,
+                                    modifier = Modifier
+                                        .padding(top = 4.dp)
+                                        .background(
+                                            Color(0xFF2B2B2B),
+                                            RoundedCornerShape(6.dp)
+                                        )
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
                     }
                 }
+
+                // Reactions Wrap Grid
+                if (message.reactions.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    val grouped = remember(message.reactions) {
+                        message.reactions.groupBy { it.file?.name ?: it.emoji ?: "" }
+                    }
+
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        grouped.forEach { (key, groupList) ->
+                            key(key) {
+                                val firstReaction = groupList.first()
+                                val count = groupList.size
+                                val hasReacted = groupList.any { it.userId == ownUserId }
+                                val emojiCode = firstReaction.emoji ?: ""
+
+                                val chipBg = if (hasReacted) ChatColors.AccentColor.copy(alpha = 0.15f) else ChatColors.CardColor
+                                val chipBorder = if (hasReacted) ChatColors.AccentColor.copy(alpha = 0.8f) else Color.Transparent
+
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(chipBg)
+                                        .border(1.dp, chipBorder, RoundedCornerShape(8.dp))
+                                        .clickable { onReactionClick(message.id, emojiCode) }
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (firstReaction.file != null) {
+                                        val customEmojiUrl = "${SharkordClient.currentServerUrl}/public/${firstReaction.file.name}"
+                                        val emojiPainter = rememberAsyncImagePainter(customEmojiUrl)
+                                        if (emojiPainter != null) {
+                                            Image(
+                                                painter = emojiPainter,
+                                                contentDescription = emojiCode,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        } else {
+                                            Text(
+                                                text = EmojiMapper.map(emojiCode),
+                                                color = Color.White,
+                                                fontSize = 12.sp
+                                            )
+                                        }
+                                    } else {
+                                        Text(
+                                            text = EmojiMapper.map(emojiCode),
+                                            color = Color.White,
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = count.toString(),
+                                        color = if (hasReacted) ChatColors.AccentColor else textSecondary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Custom voice note / audio playback card interface.
+ */
+@Composable
+fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
+    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var isPlaying by remember { mutableStateOf(false) }
+    var duration by remember { mutableIntStateOf(0) }
+    var currentPosition by remember { mutableIntStateOf(0) }
+    var isPrepared by remember { mutableStateOf(false) }
+
+    DisposableEffect(audioUrl) {
+        val player = MediaPlayer().apply {
+            try {
+                setDataSource(audioUrl)
+                setOnPreparedListener {
+                    duration = it.duration
+                    isPrepared = true
+                }
+                setOnCompletionListener {
+                    isPlaying = false
+                    currentPosition = 0
+                }
+                prepareAsync()
+            } catch (e: Exception) {
+                Log.e("AudioPlayer", "Error preparing player", e)
+            }
+        }
+        mediaPlayer = player
+
+        onDispose {
+            player.release()
+            mediaPlayer = null
+        }
+    }
+
+    // Playback progress loop
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            while (isPlaying && mediaPlayer != null) {
+                currentPosition = mediaPlayer?.currentPosition ?: 0
+                delay(200)
+            }
+        }
+    }
+
+    val playPauseAction = {
+        val player = mediaPlayer
+        if (player != null && isPrepared) {
+            if (isPlaying) {
+                player.pause()
+                isPlaying = false
+            } else {
+                player.start()
+                isPlaying = true
+            }
+        }
+    }
+
+    val formatTime = { ms: Int ->
+        val seconds = (ms / 1000) % 60
+        val minutes = (ms / (1000 * 60)) % 60
+        String.format("%d:%02d", minutes, seconds)
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth(0.9f)
+            .background(Color(0xFF242424), RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = playPauseAction, enabled = isPrepared) {
+            Icon(
+                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                contentDescription = if (isPlaying) "Pause" else "Play",
+                tint = Color(0xFF5B9BD5),
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Slider(
+                value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
+                onValueChange = { ratio ->
+                    val player = mediaPlayer
+                    if (player != null && isPrepared) {
+                        val newPos = (ratio * duration).toInt()
+                        player.seekTo(newPos)
+                        currentPosition = newPos
+                    }
+                },
+                colors = SliderDefaults.colors(
+                    thumbColor = Color(0xFF5B9BD5),
+                    activeTrackColor = Color(0xFF5B9BD5),
+                    inactiveTrackColor = Color(0xFF4A4A4A)
+                ),
+                modifier = Modifier.fillMaxWidth().height(18.dp)
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = formatTime(currentPosition),
+                    color = Color(0xFF9E9E9E),
+                    fontSize = 11.sp
+                )
+                Text(
+                    text = formatTime(duration),
+                    color = Color(0xFF9E9E9E),
+                    fontSize = 11.sp
+                )
             }
         }
     }

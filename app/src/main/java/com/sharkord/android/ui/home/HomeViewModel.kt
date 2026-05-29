@@ -387,6 +387,7 @@ class HomeViewModel : ViewModel() {
                 is ServerEvent.MessageReceived -> state
                 is ServerEvent.MessageUpdated -> state
                 is ServerEvent.MessageDeleted -> state
+                is ServerEvent.UserTyping -> state
 
                 // ── Server Settings ───────────────────────────
 

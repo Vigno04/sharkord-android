@@ -436,6 +436,7 @@ fun HomeScreen(
                         channelName = activeChannel?.name ?: "",
                         users = data.users,
                         roles = data.roles ?: emptyList(),
+                        customEmojis = data.emojis ?: emptyList(),
                         onBackClick = {
                             coroutineScope.launch {
                                 swipeOffset.animateTo(screenWidthPx)

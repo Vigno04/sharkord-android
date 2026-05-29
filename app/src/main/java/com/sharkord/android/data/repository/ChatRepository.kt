@@ -59,17 +59,28 @@ class ChatRepository {
     }
 
     /**
-     * Sends a plain-text message to [channelId].
+     * Sends a message to [channelId], optionally with file attachments.
      *
      * @return [Result.success] with the new message id on success.
      */
-    suspend fun sendMessage(channelId: Int, content: String, replyToMessageId: Int? = null): Result<Int> {
+    suspend fun sendMessage(
+        channelId: Int,
+        content: String,
+        replyToMessageId: Int? = null,
+        files: List<String> = emptyList()
+    ): Result<Int> {
         return try {
             val input = JsonObject().apply {
                 addProperty("channelId", channelId)
                 addProperty("content", content)
                 if (replyToMessageId != null) {
                     addProperty("replyToMessageId", replyToMessageId)
+                }
+                if (files.isNotEmpty()) {
+                    val filesArray = com.google.gson.JsonArray().apply {
+                        files.forEach { add(it) }
+                    }
+                    add("files", filesArray)
                 }
             }
             val response = webSocket.sendMutationAwait("messages.send", input)
@@ -88,6 +99,118 @@ class ChatRepository {
             Result.failure(e)
         } catch (e: Exception) {
             Log.e(TAG, "sendMessage: unexpected error", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Uploads a raw file attachment using the HTTP REST endpoint.
+     */
+    suspend fun uploadFile(originalName: String, fileBytes: ByteArray): Result<com.sharkord.android.data.model.FileInfo> {
+        val serverUrl = SharkordClient.currentServerUrl ?: return Result.failure(Exception("Server URL is not initialized"))
+        val token = SharkordClient.currentToken ?: return Result.failure(Exception("Auth token is not initialized"))
+        return SharkordClient.http.uploadFile(serverUrl, token, originalName, fileBytes)
+    }
+
+    /**
+     * Edits an existing message.
+     */
+    suspend fun editMessage(messageId: Int, content: String): Result<Unit> {
+        return try {
+            val input = JsonObject().apply {
+                addProperty("messageId", messageId)
+                addProperty("content", content)
+            }
+            webSocket.sendMutationAwait("messages.edit", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "editMessage error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Deletes a message.
+     */
+    suspend fun deleteMessage(messageId: Int): Result<Unit> {
+        return try {
+            val input = JsonObject().apply {
+                addProperty("messageId", messageId)
+            }
+            webSocket.sendMutationAwait("messages.delete", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "deleteMessage error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Toggles a reaction (adds if absent, removes if present) on a message.
+     */
+    suspend fun toggleReaction(messageId: Int, emoji: String): Result<Unit> {
+        return try {
+            val input = JsonObject().apply {
+                addProperty("messageId", messageId)
+                addProperty("emoji", emoji)
+            }
+            webSocket.sendMutationAwait("messages.toggleReaction", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "toggleReaction error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Toggles a message's pinned state.
+     */
+    suspend fun togglePin(messageId: Int): Result<Unit> {
+        return try {
+            val input = JsonObject().apply {
+                addProperty("messageId", messageId)
+            }
+            webSocket.sendMutationAwait("messages.togglePin", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "togglePin error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Retrieves all pinned messages in a channel.
+     */
+    suspend fun getPinnedMessages(channelId: Int): Result<List<com.sharkord.android.data.model.Message>> {
+        return try {
+            val input = JsonObject().apply {
+                addProperty("channelId", channelId)
+            }
+            val response = webSocket.sendQueryAwait("messages.getPinned", input)
+            val jsonArray = response.getAsJsonArray("value")
+                ?: response.get("value")?.asJsonArray
+                ?: error("getPinnedMessages: unexpected response format: $response")
+            val listType = object : com.google.gson.reflect.TypeToken<List<com.sharkord.android.data.model.Message>>() {}.type
+            val list = gson.fromJson<List<com.sharkord.android.data.model.Message>>(jsonArray, listType)
+            Result.success(list)
+        } catch (e: Exception) {
+            Log.e(TAG, "getPinnedMessages error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Signals that the current user is typing in a channel.
+     */
+    suspend fun signalTyping(channelId: Int): Result<Unit> {
+        return try {
+            val input = JsonObject().apply {
+                addProperty("channelId", channelId)
+            }
+            webSocket.sendMutationAwait("messages.signalTyping", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "signalTyping error: ${e.message}")
             Result.failure(e)
         }
     }
