@@ -1,0 +1,156 @@
+package com.sharkord.android.ui.home.components.chat
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.sharkord.android.data.model.FileInfo
+import com.sharkord.android.data.network.SharkordClient
+import com.sharkord.android.ui.components.AsyncImageState
+import com.sharkord.android.ui.components.rememberAsyncImageState
+import com.sharkord.android.ui.home.components.CustomVideoPlayer
+
+@Composable
+fun MediaLightboxViewer(
+    file: FileInfo,
+    onClose: () -> Unit,
+    onDownload: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val extension = file.originalName?.substringAfterLast('.', "")?.lowercase() ?: ""
+    val mimeType = file.mimeType?.lowercase() ?: ""
+    val isImage = mimeType.startsWith("image/") || extension in listOf("png", "jpg", "jpeg", "webp", "gif")
+    val isVideo = mimeType.startsWith("video/") || extension in listOf("mp4", "mkv", "mov", "webm", "avi")
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.95f))
+    ) {
+        if (isImage) {
+            val imageUrl = "${SharkordClient.currentServerUrl}/public/${file.name}"
+            val imageState = rememberAsyncImageState(imageUrl)
+
+            var scale by remember { mutableFloatStateOf(1f) }
+            var offsetX by remember { mutableFloatStateOf(0f) }
+            var offsetY by remember { mutableFloatStateOf(0f) }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTransformGestures { _, pan, zoom, _ ->
+                            scale = (scale * zoom).coerceIn(1f, 5f)
+                            if (scale > 1f) {
+                                offsetX += pan.x
+                                offsetY += pan.y
+                            } else {
+                                offsetX = 0f
+                                offsetY = 0f
+                            }
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                when (imageState) {
+                    is AsyncImageState.Success -> {
+                        Image(
+                            painter = imageState.painter,
+                            contentDescription = file.displayName,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer(
+                                    scaleX = scale,
+                                    scaleY = scale,
+                                    translationX = offsetX,
+                                    translationY = offsetY
+                                )
+                        )
+                    }
+                    is AsyncImageState.Loading -> {
+                        CircularProgressIndicator(color = Color.White)
+                    }
+                    else -> {
+                        Text(text = "Failed to load image", color = Color.White)
+                    }
+                }
+            }
+        } else if (isVideo) {
+            val videoUrl = "${SharkordClient.currentServerUrl}/public/${file.name}"
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CustomVideoPlayer(
+                    videoUrl = videoUrl,
+                    autoPlay = false,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        } else {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(text = "Unsupported media type", color = Color.White, fontSize = 16.sp)
+            }
+        }
+
+        // Top Controls
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .background(Color.Black.copy(alpha = 0.4f))
+                .statusBarsPadding()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onClose,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.5f))
+            ) {
+                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+            }
+
+            Text(
+                text = file.displayName,
+                color = Color.White,
+                fontSize = 14.sp,
+                maxLines = 1,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 16.dp)
+            )
+
+            IconButton(
+                onClick = onDownload,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.5f))
+            ) {
+                Icon(Icons.Default.Download, contentDescription = "Download", tint = Color.White)
+            }
+        }
+    }
+}

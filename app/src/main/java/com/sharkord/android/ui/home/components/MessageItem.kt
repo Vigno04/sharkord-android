@@ -1,7 +1,9 @@
 package com.sharkord.android.ui.home.components
 
 import android.media.MediaPlayer
+ import android.net.Uri
 import android.util.Log
+import android.widget.VideoView
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -13,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -28,13 +31,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.text.HtmlCompat
 import com.sharkord.android.data.model.Message
 import com.sharkord.android.data.model.Role
 import com.sharkord.android.data.model.User
 import com.sharkord.android.data.network.ConnectionState
 import com.sharkord.android.data.network.SharkordClient
+import com.sharkord.android.ui.components.AsyncImageState
 import com.sharkord.android.ui.components.rememberAsyncImagePainter
+import com.sharkord.android.ui.components.rememberAsyncImageState
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -45,7 +51,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.Path
-import kotlinx.coroutines.delay
 
 /**
  * Renders a single chat message in the message list.
@@ -64,7 +69,9 @@ fun MessageItem(
     modifier: Modifier = Modifier,
     onLongClick: (Message) -> Unit = {},
     onReplyClick: (Int) -> Unit = {},
-    onReactionClick: (Int, String) -> Unit = { _, _ -> }
+    onReactionClick: (Int, String) -> Unit = { _, _ -> },
+    onMediaClick: (com.sharkord.android.data.model.FileInfo) -> Unit = {},
+    onMediaLongClick: (com.sharkord.android.data.model.FileInfo) -> Unit = {}
 ) {
     val bgColor = ChatColors.BgColor
     val textPrimary = ChatColors.TextPrimary
@@ -142,12 +149,8 @@ fun MessageItem(
 
                 Spacer(modifier = Modifier.width(4.dp))
 
-                // Resolve target author
+                // Resolve target author for the reply preview
                 val replyAuthor = users.find { it.id == message.replyTo.userId }
-                val replyAvatarUrl = replyAuthor?.avatar?.name?.let { name ->
-                    "${SharkordClient.currentServerUrl}/public/$name"
-                }
-                val replyAvatarPainter = rememberAsyncImagePainter(replyAvatarUrl)
 
                 Box(
                     modifier = Modifier
@@ -156,15 +159,23 @@ fun MessageItem(
                         .background(Color(0xFF3A3A3A)),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (replyAvatarPainter != null) {
-                        Image(
-                            painter = replyAvatarPainter,
+                    val replyAvatarUrl = replyAuthor?.avatar?.name?.let { name ->
+                        "${SharkordClient.currentServerUrl}/public/$name"
+                    }
+                    val replyAvatarState = rememberAsyncImageState(replyAvatarUrl)
+                    when (replyAvatarState) {
+                        is AsyncImageState.Success -> Image(
+                            painter = replyAvatarState.painter,
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
                         )
-                    } else {
-                        Text(
+                        is AsyncImageState.Loading -> CircularProgressIndicator(
+                            color = ChatColors.AccentColor,
+                            modifier = Modifier.size(8.dp),
+                            strokeWidth = 1.dp
+                        )
+                        else -> Text(
                             text = (replyAuthor?.name ?: "?").take(1).uppercase(),
                             color = textPrimary,
                             fontSize = 9.sp,
@@ -215,10 +226,6 @@ fun MessageItem(
         ) {
             // Left column: avatar or spacer
             if (showHeader) {
-                val avatarUrl = author?.avatar?.name?.let { name ->
-                    "${SharkordClient.currentServerUrl}/public/$name"
-                }
-                val avatarPainter = rememberAsyncImagePainter(avatarUrl)
                 Box(
                     modifier = Modifier
                         .size(40.dp)
@@ -226,21 +233,38 @@ fun MessageItem(
                         .background(Color(0xFF3A3A3A)),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (avatarPainter != null) {
-                        Image(
-                            painter = avatarPainter,
+                    val avatarUrl = author?.avatar?.name?.let { name ->
+                        "${SharkordClient.currentServerUrl}/public/$name"
+                    }
+                    val avatarState = rememberAsyncImageState(avatarUrl)
+                    when (avatarState) {
+                        is AsyncImageState.Success -> Image(
+                            painter = avatarState.painter,
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
                         )
-                    } else {
-                        // Initial letter fallback
-                        Text(
-                            text = (author?.name ?: "?").take(1).uppercase(),
-                            color = textPrimary,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                        is AsyncImageState.Loading -> CircularProgressIndicator(
+                            color = ChatColors.AccentColor,
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
                         )
+                        else -> {
+                            // Empty (no avatar) or Failure — show initials
+                            val initials = getInitials(author?.name ?: "?")
+                            val bgColor = getUsernameColor(author?.name ?: "?")
+                            Box(
+                                modifier = Modifier.fillMaxSize().background(bgColor),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = initials,
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
                 }
             } else {
@@ -302,26 +326,67 @@ fun MessageItem(
                         val extension = file.originalName?.substringAfterLast('.', "")?.lowercase() ?: ""
                         val mimeType = file.mimeType?.lowercase() ?: ""
                         val isImage = mimeType.startsWith("image/") || extension in listOf("png", "jpg", "jpeg", "webp", "gif")
+                        val isVideo = mimeType.startsWith("video/") || extension in listOf("mp4", "mkv", "mov", "webm", "avi")
                         val isAudio = mimeType.startsWith("audio/") || extension in listOf("m4a", "mp3", "wav", "aac", "ogg")
 
                         when {
-                            isImage -> {
+                            isImage && file.name != null -> {
                                 val imageUrl = "${SharkordClient.currentServerUrl}/public/${file.name}"
-                                val painter = rememberAsyncImagePainter(imageUrl)
-                                if (painter != null) {
-                                    Image(
-                                        painter = painter,
-                                        contentDescription = file.originalName,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .padding(top = 4.dp)
-                                            .fillMaxWidth(0.85f)
-                                            .heightIn(max = 200.dp)
-                                            .clip(RoundedCornerShape(8.dp))
+                                val imageState = rememberAsyncImageState(imageUrl)
+                                Box(
+                                    modifier = Modifier
+                                        .padding(top = 4.dp)
+                                        .fillMaxWidth(0.85f)
+                                        .heightIn(min = 80.dp, max = 260.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFF2B2B2B))
+                                        .combinedClickable(
+                                            onClick = { onMediaClick(file) },
+                                            onLongClick = { onMediaLongClick(file) }
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    when (imageState) {
+                                        is AsyncImageState.Success -> Image(
+                                            painter = imageState.painter,
+                                            contentDescription = file.displayName,
+                                            contentScale = ContentScale.FillWidth,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                        is AsyncImageState.Loading -> CircularProgressIndicator(
+                                            color = ChatColors.AccentColor,
+                                            modifier = Modifier.size(28.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                        else -> Text(
+                                            text = "🖼️",
+                                            fontSize = 24.sp
+                                        )
+                                    }
+                                }
+                            }
+                            isVideo && file.name != null -> {
+                                val videoUrl = "${SharkordClient.currentServerUrl}/public/${file.name}"
+                                Box(
+                                    modifier = Modifier
+                                        .padding(top = 4.dp)
+                                        .fillMaxWidth(0.85f)
+                                        .heightIn(max = 240.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .combinedClickable(
+                                            onClick = { onMediaClick(file) },
+                                            onLongClick = { onMediaLongClick(file) }
+                                        )
+                                ) {
+                                    CustomVideoPlayer(
+                                        videoUrl = videoUrl,
+                                        autoPlay = false,
+                                        onFullscreenClick = { onMediaClick(file) },
+                                        modifier = Modifier.fillMaxSize()
                                     )
                                 }
                             }
-                            isAudio -> {
+                            isAudio && file.name != null -> {
                                 val audioUrl = "${SharkordClient.currentServerUrl}/public/${file.name}"
                                 AudioPlayer(
                                     audioUrl = audioUrl,
@@ -329,25 +394,38 @@ fun MessageItem(
                                 )
                             }
                             else -> {
-                                // Generic filechip
-                                Text(
-                                    text = "📎 ${file.originalName ?: file.name}",
-                                    color = Color(0xFF5B9BD5),
-                                    fontSize = 13.sp,
+                                val fileIcon = getFileIcon(file.displayName, file.mimeType)
+                                Row(
                                     modifier = Modifier
                                         .padding(top = 4.dp)
                                         .background(
                                             Color(0xFF2B2B2B),
                                             RoundedCornerShape(6.dp)
                                         )
-                                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                                )
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .combinedClickable(
+                                            onClick = { onMediaClick(file) },
+                                            onLongClick = { onMediaLongClick(file) }
+                                        )
+                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = fileIcon,
+                                        fontSize = 14.sp
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = file.displayName,
+                                        color = Color(0xFF5B9BD5),
+                                        fontSize = 13.sp
+                                    )
+                                }
                             }
                         }
                     }
                 }
 
-                // Reactions Wrap Grid
                 if (message.reactions.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(6.dp))
 
@@ -379,7 +457,7 @@ fun MessageItem(
                                         .padding(horizontal = 8.dp, vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    if (firstReaction.file != null) {
+                                    if (firstReaction.file != null && firstReaction.file.name != null) {
                                         val customEmojiUrl = "${SharkordClient.currentServerUrl}/public/${firstReaction.file.name}"
                                         val emojiPainter = rememberAsyncImagePainter(customEmojiUrl)
                                         if (emojiPainter != null) {
@@ -553,4 +631,53 @@ private fun formatTimestamp(epochMs: Long): String {
         }
         else -> SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(epochMs))
     }
+}
+
+private fun getFileIcon(fileName: String, mimeType: String?): String {
+    val extension = fileName.substringAfterLast('.', "").lowercase()
+    val mime = mimeType?.lowercase() ?: ""
+    return when {
+        mime.startsWith("image/") || extension in listOf("png", "jpg", "jpeg", "webp", "gif", "svg") -> "🖼️"
+        mime.startsWith("audio/") || extension in listOf("mp3", "wav", "m4a", "aac", "ogg", "flac") -> "🎵"
+        mime.startsWith("video/") || extension in listOf("mp4", "mkv", "avi", "mov", "webm") -> "🎥"
+        mime.startsWith("text/") || extension in listOf("txt", "log", "md", "csv") -> "📄"
+        extension == "pdf" -> "📕"
+        extension in listOf("zip", "rar", "tar", "gz", "7z") -> "📦"
+        extension in listOf("doc", "docx", "odt") -> "📘"
+        extension in listOf("xls", "xlsx", "ods") -> "📗"
+        extension in listOf("ppt", "pptx", "odp") -> "📙"
+        extension in listOf("js", "ts", "kt", "java", "py", "cpp", "c", "html", "css", "json", "xml", "gradle") -> "💻"
+        else -> "📎"
+    }
+}
+
+/**
+ * Returns initials from a display name, mirroring the web app's getInitialsFromName():
+ * single-word names -> first letter; multi-word -> first letter of first two words.
+ */
+private fun getInitials(name: String): String {
+    val words = name.trim().split(" ").filter { it.isNotEmpty() }
+    return when {
+        words.isEmpty() -> "?"
+        words.size == 1 -> words[0].take(1).uppercase()
+        else -> (words[0].take(1) + words[1].take(1)).uppercase()
+    }
+}
+
+/** Stable deterministic background color for a user's avatar based on their name. */
+private fun getUsernameColor(name: String): Color {
+    val palette = listOf(
+        Color(0xFF5865F2), // Discord blurple
+        Color(0xFF57F287), // green
+        Color(0xFFFEE75C), // yellow
+        Color(0xFFEB459E), // fuchsia
+        Color(0xFFED4245), // red
+        Color(0xFF3BA55C), // dark green
+        Color(0xFF1ABC9C), // teal
+        Color(0xFF9B59B6), // purple
+        Color(0xFFE67E22), // orange
+        Color(0xFF2980B9), // blue
+    )
+    val index = Math.abs(name.hashCode()) % palette.size
+    return palette[index]
 }

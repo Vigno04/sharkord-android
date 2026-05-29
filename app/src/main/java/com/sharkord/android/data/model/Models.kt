@@ -54,16 +54,24 @@ data class ServerInfoResponse(
 /**
  * File metadata, matching TFile in shared/tables.ts.
  * Used for avatars, banners, message attachments, emojis, and server logo.
+ *
+ * Note: the upload response (TTempFile) does NOT include a `name` field,
+ * only `originalName`. Therefore `name` is nullable here. Use
+ * `displayName` for UI to get a safe non-null display string.
  */
 data class FileInfo(
-    val id: Int,
-    val name: String,
+    val id: String,
+    val name: String? = null,
     @SerializedName("originalName", alternate = ["original_name"]) val originalName: String? = null,
     @SerializedName("mimeType", alternate = ["mime_type"]) val mimeType: String? = null,
     val size: Int? = null,
     @SerializedName("_accessToken") val accessToken: String? = null,
-    @SerializedName("_accessTokenExpiresAt") val accessTokenExpiresAt: Long? = null
-)
+    @SerializedName("_accessTokenExpiresAt") val accessTokenExpiresAt: Long? = null,
+    val localUri: String? = null
+) {
+    /** Safe display name: prefer originalName, fall back to name, then id. */
+    val displayName: String get() = originalName ?: name ?: id
+}
 
 // ========================
 // Categories
@@ -163,11 +171,12 @@ data class Emoji(
  * Message file attachment.
  */
 data class MessageFile(
-    val id: Int,
+    val id: String,
     val name: String,
     @SerializedName("originalName", alternate = ["original_name"]) val originalName: String? = null,
     @SerializedName("mimeType", alternate = ["mime_type"]) val mimeType: String? = null,
-    val size: Int? = null
+    val size: Int? = null,
+    val localUri: String? = null
 )
 
 /**

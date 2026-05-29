@@ -55,7 +55,9 @@ data class ChatUiState(
     /** True while an attachment upload is in-flight. */
     val isUploadingAttachment: Boolean = false,
     /** Expose the current user's ID reactively from the server connection state. */
-    val ownUserId: Int = -1
+    val ownUserId: Int = -1,
+    /** The media file currently being viewed in full-screen lightbox. */
+    val viewingMediaFile: com.sharkord.android.data.model.FileInfo? = null
 ) {
     /** Helper check to see if the user is authorized to edit/delete a message. */
     fun canManageMessage(message: Message, roles: List<Role>, users: List<User>): Boolean {
@@ -201,11 +203,11 @@ class ChatViewModel : ViewModel() {
         val attached = _uiState.value.attachedFiles
         if (trimmed.isEmpty() && attached.isEmpty()) return
         val replyToId = _uiState.value.replyTarget?.id
-        val fileNames = attached.map { it.name }
+        val fileIds = attached.map { it.id }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSending = true, errorMessage = null) }
-            repository.sendMessage(channelId, trimmed, replyToMessageId = replyToId, files = fileNames).fold(
+            repository.sendMessage(channelId, trimmed, replyToMessageId = replyToId, files = fileIds).fold(
                 onSuccess = {
                     _uiState.update { it.copy(
                         isSending = false,
@@ -331,13 +333,14 @@ class ChatViewModel : ViewModel() {
     // ─── File Upload & Voice Messaging ─────────────────────────
 
     /** Uploads a file and attaches it to the draft. */
-    fun uploadAndAttachFile(originalName: String, fileBytes: ByteArray) {
+    fun uploadAndAttachFile(originalName: String, fileBytes: ByteArray, localUri: String? = null) {
         viewModelScope.launch {
             _uiState.update { it.copy(isUploadingAttachment = true, errorMessage = null) }
             repository.uploadFile(originalName, fileBytes).fold(
                 onSuccess = { fileInfo ->
+                    val updatedFileInfo = fileInfo.copy(localUri = localUri)
                     _uiState.update { it.copy(
-                        attachedFiles = it.attachedFiles + fileInfo,
+                        attachedFiles = it.attachedFiles + updatedFileInfo,
                         isUploadingAttachment = false
                     )}
                 },
@@ -353,7 +356,7 @@ class ChatViewModel : ViewModel() {
     }
 
     /** Removes a previously uploaded file from the attachment list. */
-    fun removeAttachedFile(fileId: Int) {
+    fun removeAttachedFile(fileId: String) {
         _uiState.update { state ->
             state.copy(
                 attachedFiles = state.attachedFiles.filter { file -> file.id != fileId }
@@ -367,7 +370,7 @@ class ChatViewModel : ViewModel() {
             _uiState.update { it.copy(isSending = true, errorMessage = null) }
             repository.uploadFile(fileName, fileBytes).fold(
                 onSuccess = { fileInfo ->
-                    repository.sendMessage(channelId, "", files = listOf(fileInfo.name)).fold(
+                    repository.sendMessage(channelId, "", files = listOf(fileInfo.id)).fold(
                         onSuccess = {
                             _uiState.update { it.copy(isSending = false) }
                         },
@@ -388,6 +391,114 @@ class ChatViewModel : ViewModel() {
                     )}
                 }
             )
+        }
+    }
+
+    // ─── Media Lightbox & Download ─────────────────────────────
+
+    fun setViewingMediaFile(file: com.sharkord.android.data.model.FileInfo?) {
+        _uiState.update { it.copy(viewingMediaFile = file) }
+    }
+
+    fun downloadFile(context: android.content.Context, file: com.sharkord.android.data.model.FileInfo) {
+        if (file.name == null) return
+        try {
+            val url = "${SharkordClient.currentServerUrl}/public/${file.name}"
+            val request = android.app.DownloadManager.Request(android.net.Uri.parse(url))
+                .setTitle(file.displayName)
+                .setDescription("Downloading file from Sharkord")
+                .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, file.displayName)
+                .setAllowedOverMetered(true)
+                .setAllowedOverRoaming(true)
+            
+            val downloadManager = context.getSystemService(android.content.Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+            downloadManager.enqueue(request)
+            
+            android.widget.Toast.makeText(context, "Download started: ${file.displayName}", android.widget.Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start download", e)
+            android.widget.Toast.makeText(context, "Failed to download file", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun downloadAndOpenFile(context: android.content.Context, file: com.sharkord.android.data.model.FileInfo) {
+        if (file.name == null) return
+        
+        android.widget.Toast.makeText(context, "Opening ${file.displayName}...", android.widget.Toast.LENGTH_SHORT).show()
+        
+        clearOldTempFiles(context)
+        
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val urlString = "${SharkordClient.currentServerUrl}/public/${file.name}"
+                val request = okhttp3.Request.Builder().url(urlString).build()
+                val response = SharkordClient.okHttpClient.newCall(request).execute()
+
+                if (!response.isSuccessful) {
+                    Log.e(TAG, "Server returned HTTP ${response.code} ${response.message}")
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        android.widget.Toast.makeText(context, "Failed to download file.", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
+
+                val tempFile = java.io.File(context.cacheDir, file.displayName)
+                response.body?.byteStream()?.use { input ->
+                    java.io.FileOutputStream(tempFile).use { output ->
+                        input.copyTo(output)
+                    }
+                } ?: run {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        android.widget.Toast.makeText(context, "Empty file.", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
+
+                val uri = androidx.core.content.FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    tempFile
+                )
+
+                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, file.mimeType ?: "*/*")
+                    flags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    try {
+                        context.startActivity(intent)
+                    } catch (e: android.content.ActivityNotFoundException) {
+                        android.widget.Toast.makeText(context, "No app found to open this file.", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to download and open file", e)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    android.widget.Toast.makeText(context, "Failed to open file.", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun clearOldTempFiles(context: android.content.Context) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val cacheDir = context.cacheDir
+                if (cacheDir != null && cacheDir.exists()) {
+                    val now = System.currentTimeMillis()
+                    val oneDayMs = 24 * 60 * 60 * 1000L
+                    cacheDir.listFiles()?.forEach { file ->
+                        if (now - file.lastModified() > oneDayMs) {
+                            file.delete()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to clear temp files", e)
+            }
         }
     }
 

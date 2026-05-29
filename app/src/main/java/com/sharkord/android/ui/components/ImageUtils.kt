@@ -112,36 +112,61 @@ object ImageCacheManager {
 }
 
 /**
+ * Three-state result for async image loading.
+ */
+sealed class AsyncImageState {
+    object Loading : AsyncImageState()
+    data class Success(val painter: Painter) : AsyncImageState()
+    object Failure : AsyncImageState()
+    object Empty : AsyncImageState() // url was null/blank
+}
+
+/**
+ * Loads an image from a URL and returns a tri-state [AsyncImageState].
+ *
+ * - [AsyncImageState.Empty]   — url was null / blank
+ * - [AsyncImageState.Loading] — fetch in-flight
+ * - [AsyncImageState.Success] — bitmap ready
+ * - [AsyncImageState.Failure] — network / decode error
+ */
+@Composable
+fun rememberAsyncImageState(url: String?): AsyncImageState {
+    if (url.isNullOrBlank()) return AsyncImageState.Empty
+
+    var state by remember(url) { mutableStateOf<AsyncImageState>(AsyncImageState.Loading) }
+
+    LaunchedEffect(url) {
+        state = AsyncImageState.Loading
+        val entry = ImageCacheManager.loadImage(url)
+        state = if (entry != null) {
+            AsyncImageState.Success(BitmapPainter(entry.bitmap.asImageBitmap()))
+        } else {
+            AsyncImageState.Failure
+        }
+    }
+
+    return state
+}
+
+/**
  * Loads an image from a URL asynchronously and returns a [Painter].
- * If the image fails to load, is loading, or has an empty/null URL, it returns
- * the default fallbackResource painter (or null if fallbackResourceId is null).
+ *
+ * - Returns **null** while loading OR when [url] is null/blank.
+ *   Callers should render their own placeholder (spinner, initials, etc.).
+ * - Returns the [fallbackResourceId] painter only on a real load **failure**.
+ *   Pass `null` for [fallbackResourceId] to get `null` on failure too.
  */
 @Composable
 fun rememberAsyncImagePainter(
     url: String?,
-    fallbackResourceId: Int? = R.drawable.logo
+    fallbackResourceId: Int? = null
 ): Painter? {
-    if (url.isNullOrBlank()) {
-        return fallbackResourceId?.let { painterResource(id = it) }
-    }
-
-    var bitmap by remember(url) { mutableStateOf<ImageBitmap?>(null) }
-    var isFailed by remember(url) { mutableStateOf(false) }
-
-    LaunchedEffect(url) {
-        val entry = ImageCacheManager.loadImage(url)
-        if (entry != null) {
-            bitmap = entry.bitmap.asImageBitmap()
-            isFailed = false
-        } else {
-            isFailed = true
-        }
-    }
-
-    return when {
-        bitmap != null -> BitmapPainter(bitmap!!)
-        isFailed -> fallbackResourceId?.let { painterResource(id = it) }
-        else -> fallbackResourceId?.let { painterResource(id = it) } // while loading
+    val imageState = rememberAsyncImageState(url)
+    return when (imageState) {
+        is AsyncImageState.Success -> imageState.painter
+        is AsyncImageState.Failure -> fallbackResourceId?.let { painterResource(id = it) }
+        is AsyncImageState.Loading -> null   // caller shows spinner
+        is AsyncImageState.Empty   -> null   // caller shows initials / icon
     }
 }
 
