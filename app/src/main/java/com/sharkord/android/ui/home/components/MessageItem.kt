@@ -41,6 +41,7 @@ import com.sharkord.android.data.network.SharkordClient
 import com.sharkord.android.ui.components.AsyncImageState
 import com.sharkord.android.ui.components.rememberAsyncImagePainter
 import com.sharkord.android.ui.components.rememberAsyncImageState
+import com.sharkord.android.ui.components.rememberVideoThumbnailState
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -67,6 +68,7 @@ fun MessageItem(
     roles: List<Role>,
     ownUserId: Int,
     modifier: Modifier = Modifier,
+    fullscreenMediaId: String? = null,
     onLongClick: (Message) -> Unit = {},
     onReplyClick: (Int) -> Unit = {},
     onReactionClick: (Int, String) -> Unit = { _, _ -> },
@@ -336,8 +338,8 @@ fun MessageItem(
                                 Box(
                                     modifier = Modifier
                                         .padding(top = 4.dp)
-                                        .fillMaxWidth(0.85f)
-                                        .heightIn(min = 80.dp, max = 260.dp)
+                                        .width(240.dp)
+                                        .height(160.dp)
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(Color(0xFF2B2B2B))
                                         .combinedClickable(
@@ -350,8 +352,8 @@ fun MessageItem(
                                         is AsyncImageState.Success -> Image(
                                             painter = imageState.painter,
                                             contentDescription = file.displayName,
-                                            contentScale = ContentScale.FillWidth,
-                                            modifier = Modifier.fillMaxWidth()
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
                                         )
                                         is AsyncImageState.Loading -> CircularProgressIndicator(
                                             color = ChatColors.AccentColor,
@@ -367,23 +369,83 @@ fun MessageItem(
                             }
                             isVideo && file.name != null -> {
                                 val videoUrl = "${SharkordClient.currentServerUrl}/public/${file.name}"
+                                val thumbnailState = rememberVideoThumbnailState(videoUrl)
+                                var isPlayingInline by remember(message.id) { mutableStateOf(false) }
+                                val isOverlayActive = fullscreenMediaId == file.id
+
+                                LaunchedEffect(isOverlayActive) {
+                                    if (isOverlayActive) {
+                                        isPlayingInline = true
+                                    }
+                                }
+
                                 Box(
                                     modifier = Modifier
                                         .padding(top = 4.dp)
-                                        .fillMaxWidth(0.85f)
-                                        .heightIn(max = 240.dp)
+                                        .width(240.dp)
+                                        .height(160.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .combinedClickable(
-                                            onClick = { onMediaClick(file) },
-                                            onLongClick = { onMediaLongClick(file) }
-                                        )
+                                        .background(Color.Black)
+                                        .then(
+                                            if (!isPlayingInline) {
+                                                Modifier.combinedClickable(
+                                                    onClick = { onMediaClick(file) },
+                                                    onLongClick = { onMediaLongClick(file) }
+                                                )
+                                            } else {
+                                                Modifier
+                                            }
+                                        ),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    CustomVideoPlayer(
-                                        videoUrl = videoUrl,
-                                        autoPlay = false,
-                                        onFullscreenClick = { onMediaClick(file) },
-                                        modifier = Modifier.fillMaxSize()
-                                    )
+                                    if (isPlayingInline) {
+                                        CustomVideoPlayer(
+                                            videoUrl = videoUrl,
+                                            autoPlay = true,
+                                            isOverlayActive = fullscreenMediaId == file.id,
+                                            onFullscreenClick = { onMediaClick(file) },
+                                            onReturnToThumbnail = { isPlayingInline = false },
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        when (thumbnailState) {
+                                            is AsyncImageState.Success -> {
+                                                Image(
+                                                    painter = thumbnailState.painter,
+                                                    contentDescription = file.displayName,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            }
+                                            is AsyncImageState.Loading -> {
+                                                CircularProgressIndicator(
+                                                    color = ChatColors.AccentColor,
+                                                    modifier = Modifier.size(28.dp),
+                                                    strokeWidth = 2.dp
+                                                )
+                                            }
+                                            else -> {
+                                                // Fallback background or nothing
+                                            }
+                                        }
+
+                                        // Play icon overlay ALWAYS visible when not playing
+                                        Box(
+                                            modifier = Modifier
+                                                .size(48.dp)
+                                                .clip(CircleShape)
+                                                .background(Color.Black.copy(alpha = 0.5f))
+                                                .clickable { isPlayingInline = true },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.PlayArrow,
+                                                contentDescription = "Play",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                        }
+                                    }
                                 }
                             }
                             isAudio && file.name != null -> {

@@ -10,9 +10,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -37,13 +39,47 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.delay
 
+@UnstableApi
+object SharedExoPlayerManager {
+    private val players = mutableMapOf<String, ExoPlayer>()
+    private val refCounts = mutableMapOf<String, Int>()
+
+    fun getPlayer(context: android.content.Context, url: String): ExoPlayer {
+        refCounts[url] = (refCounts[url] ?: 0) + 1
+        return players.getOrPut(url) {
+            ExoPlayer.Builder(context.applicationContext).build().apply {
+                val audioAttributes = AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                    .build()
+                setAudioAttributes(audioAttributes, true)
+                setMediaItem(MediaItem.fromUri(Uri.parse(url)))
+                prepare()
+            }
+        }
+    }
+
+    fun releasePlayer(url: String) {
+        val count = (refCounts[url] ?: 0) - 1
+        if (count <= 0) {
+            players[url]?.release()
+            players.remove(url)
+            refCounts.remove(url)
+        } else {
+            refCounts[url] = count
+        }
+    }
+}
+
 @OptIn(UnstableApi::class)
 @Composable
 fun CustomVideoPlayer(
     videoUrl: String,
     modifier: Modifier = Modifier,
     autoPlay: Boolean = false,
-    onFullscreenClick: (() -> Unit)? = null
+    isOverlayActive: Boolean = false,
+    onFullscreenClick: (() -> Unit)? = null,
+    onReturnToThumbnail: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(autoPlay) }
@@ -52,39 +88,47 @@ fun CustomVideoPlayer(
     var currentPosition by remember { mutableLongStateOf(0L) }
     var showControls by remember { mutableStateOf(true) }
 
-    val exoPlayer = remember {
-        ExoPlayer.Builder(context).build().apply {
-            val audioAttributes = AudioAttributes.Builder()
-                .setUsage(C.USAGE_MEDIA)
-                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
-                .build()
-            // Setting handleAudioFocus=true ensures ExoPlayer pauses other apps ONLY when playback starts.
-            setAudioAttributes(audioAttributes, true)
-            setMediaItem(MediaItem.fromUri(Uri.parse(videoUrl)))
-            prepare()
-            playWhenReady = autoPlay
-            
-            addListener(object : Player.Listener {
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (playbackState == Player.STATE_READY) {
-                        isPrepared = true
-                        duration = this@apply.duration
-                    } else if (playbackState == Player.STATE_ENDED) {
-                        isPlaying = false
-                        showControls = true
-                        seekTo(0)
-                        playWhenReady = false
-                    }
+    val exoPlayer = remember(videoUrl) {
+        SharedExoPlayerManager.getPlayer(context, videoUrl).apply {
+            if (autoPlay && playbackState == Player.STATE_IDLE) {
+                playWhenReady = true
+            } else if (autoPlay) {
+                playWhenReady = true
+            }
+        }
+    }
+
+    DisposableEffect(exoPlayer) {
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY) {
+                    isPrepared = true
+                    duration = exoPlayer.duration
+                } else if (playbackState == Player.STATE_ENDED) {
+                    isPlaying = false
+                    showControls = true
+                    exoPlayer.seekTo(0)
+                    exoPlayer.playWhenReady = false
                 }
-                override fun onIsPlayingChanged(isPlayingState: Boolean) {
-                    isPlaying = isPlayingState
-                }
-            })
+            }
+            override fun onIsPlayingChanged(isPlayingState: Boolean) {
+                isPlaying = isPlayingState
+            }
+        }
+        exoPlayer.addListener(listener)
+        // Initialize state
+        isPlaying = exoPlayer.isPlaying
+        isPrepared = exoPlayer.playbackState == Player.STATE_READY
+        duration = exoPlayer.duration.coerceAtLeast(0)
+        
+        onDispose {
+            exoPlayer.removeListener(listener)
+            SharedExoPlayerManager.releasePlayer(videoUrl)
         }
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, exoPlayer) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_PAUSE) {
                 exoPlayer.pause()
@@ -93,7 +137,6 @@ fun CustomVideoPlayer(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            exoPlayer.release()
         }
     }
 
@@ -108,6 +151,13 @@ fun CustomVideoPlayer(
         while (isPlaying) {
             currentPosition = exoPlayer.currentPosition
             delay(200)
+        }
+    }
+
+    LaunchedEffect(isPlaying, currentPosition) {
+        if (!isPlaying) {
+            delay(60_000) // 1 minute timeout
+            onReturnToThumbnail?.invoke()
         }
     }
 
@@ -131,19 +181,21 @@ fun CustomVideoPlayer(
         modifier = modifier
             .background(Color.Black)
             .clickable {
-                if (onFullscreenClick != null) {
-                    onFullscreenClick()
-                } else {
-                    showControls = !showControls
-                }
+                showControls = !showControls
             },
         contentAlignment = Alignment.Center
     ) {
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
-                    player = exoPlayer
                     useController = false
+                    player = if (isOverlayActive) null else exoPlayer
+                }
+            },
+            update = { view ->
+                val targetPlayer = if (isOverlayActive) null else exoPlayer
+                if (view.player != targetPlayer) {
+                    view.player = targetPlayer
                 }
             },
             modifier = Modifier.fillMaxSize()
@@ -169,11 +221,7 @@ fun CustomVideoPlayer(
                         .clip(CircleShape)
                         .background(Color.Black.copy(alpha = 0.5f))
                         .clickable {
-                            if (onFullscreenClick != null) {
-                                onFullscreenClick()
-                            } else {
-                                playPauseToggle()
-                            }
+                            playPauseToggle()
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -185,7 +233,7 @@ fun CustomVideoPlayer(
                     )
                 }
 
-                if (isPrepared && onFullscreenClick == null) {
+                if (isPrepared) {
                     Row(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -222,6 +270,19 @@ fun CustomVideoPlayer(
                             color = Color.White,
                             fontSize = 12.sp
                         )
+                        if (onFullscreenClick != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            IconButton(
+                                onClick = onFullscreenClick,
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Fullscreen,
+                                    contentDescription = "Fullscreen",
+                                    tint = Color.White
+                                )
+                            }
+                        }
                     }
                 }
             }

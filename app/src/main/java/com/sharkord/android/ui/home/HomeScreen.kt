@@ -99,45 +99,16 @@ fun HomeScreen(
             }
 
             uiState.errorMessage != null && uiState.serverData == null -> {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = cardColor),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = stringResource(id = R.string.disconnected_connectionLost),
-                                color = Color(0xFFEF4444),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = uiState.errorMessage
-                                    ?: stringResource(id = R.string.disconnected_lostConnectionMessage),
-                                color = primaryText,
-                                fontSize = 14.sp,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(20.dp))
-                            Button(
-                                onClick = { viewModel.reconnect(showFullscreenLoading = true) },
-                                colors = ButtonDefaults.buttonColors(containerColor = primaryText)
-                            ) {
-                                Text(
-                                    stringResource(id = R.string.settings_marketplaceRetry),
-                                    color = bgColor
-                                )
-                            }
-                        }
+                ConnectionErrorScreen(
+                    errorMessage = uiState.errorMessage,
+                    onBackClick = {
+                        viewModel.logout(context)
+                        onLogout()
+                    },
+                    onRetryClick = {
+                        viewModel.reconnect(showFullscreenLoading = true)
                     }
-                }
+                )
             }
 
             uiState.serverData != null -> {

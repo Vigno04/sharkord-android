@@ -1918,6 +1918,13 @@ object EmojiMapper {
     }
 
     /**
+     * Exposes the entire database of shortcode-to-unicode emoji mappings.
+     */
+    fun getAllEmojis(): Map<String, String> {
+        return emojiMap
+    }
+
+    /**
      * Checks if the given text consists entirely of emojis and whitespace.
      */
     fun isEmojiOnly(text: String): Boolean {

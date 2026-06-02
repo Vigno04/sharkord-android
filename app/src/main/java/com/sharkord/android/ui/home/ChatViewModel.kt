@@ -132,18 +132,48 @@ class ChatViewModel : ViewModel() {
     // ─── Message Loading ──────────────────────────────────────
 
     private fun loadInitialMessages() {
+        val cached = MessagesCacheManager.getChannelCache(channelId)
+        if (cached != null) {
+            _uiState.update {
+                it.copy(
+                    messages = cached.messages,
+                    nextCursor = cached.nextCursor,
+                    hasReachedTop = cached.hasReachedTop,
+                    isLoadingHistory = false
+                )
+            }
+            // Background sync to catch any messages missed while disconnected
+            viewModelScope.launch {
+                repository.getMessages(channelId).onSuccess { page ->
+                    val sorted = page.messages.sortedBy { it.createdAt }
+                    _uiState.update { state ->
+                        val newState = state.copy(
+                            messages = sorted,
+                            nextCursor = page.nextCursor,
+                            hasReachedTop = page.nextCursor == null
+                        )
+                        MessagesCacheManager.updateChannelCache(channelId, ChannelCacheEntry(newState.messages, newState.nextCursor, newState.hasReachedTop))
+                        newState
+                    }
+                }
+            }
+            return
+        }
+
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingHistory = true, errorMessage = null) }
             repository.getMessages(channelId).fold(
                 onSuccess = { page ->
                     val sorted = page.messages.sortedBy { it.createdAt }
                     _uiState.update {
-                        it.copy(
+                        val newState = it.copy(
                             messages = sorted,
                             isLoadingHistory = false,
                             nextCursor = page.nextCursor,
                             hasReachedTop = page.nextCursor == null
                         )
+                        MessagesCacheManager.updateChannelCache(channelId, ChannelCacheEntry(newState.messages, newState.nextCursor, newState.hasReachedTop))
+                        newState
                     }
                 },
                 onFailure = { error ->
@@ -172,12 +202,14 @@ class ChatViewModel : ViewModel() {
                 onSuccess = { page ->
                     val older = page.messages.sortedBy { it.createdAt }
                     _uiState.update { current ->
-                        current.copy(
+                        val newState = current.copy(
                             messages = (older + current.messages).distinctBy { it.id },
                             isLoadingOlder = false,
                             nextCursor = page.nextCursor,
                             hasReachedTop = page.nextCursor == null
                         )
+                        MessagesCacheManager.updateChannelCache(channelId, ChannelCacheEntry(newState.messages, newState.nextCursor, newState.hasReachedTop))
+                        newState
                     }
                 },
                 onFailure = { error ->
@@ -556,10 +588,12 @@ class ChatViewModel : ViewModel() {
                 activeTypingUsers.remove(event.message.userId)
                 _uiState.update { state ->
                     if (state.messages.any { it.id == event.message.id }) return@update state
-                    state.copy(
+                    val newState = state.copy(
                         messages = state.messages + event.message,
                         typingUsers = activeTypingUsers.keys.toSet()
                     )
+                    MessagesCacheManager.updateChannelCache(channelId, ChannelCacheEntry(newState.messages, newState.nextCursor, newState.hasReachedTop))
+                    newState
                 }
             }
 
@@ -567,11 +601,13 @@ class ChatViewModel : ViewModel() {
                 if (event.message.channelId != channelId) return
                 Log.d(TAG, "[EVENT] messages.onUpdate: id=${event.message.id}")
                 _uiState.update { state ->
-                    state.copy(
+                    val newState = state.copy(
                         messages = state.messages.map { msg ->
                             if (msg.id == event.message.id) event.message else msg
                         }
                     )
+                    MessagesCacheManager.updateChannelCache(channelId, ChannelCacheEntry(newState.messages, newState.nextCursor, newState.hasReachedTop))
+                    newState
                 }
             }
 
@@ -579,7 +615,9 @@ class ChatViewModel : ViewModel() {
                 if (event.channelId != channelId) return
                 Log.d(TAG, "[EVENT] messages.onDelete: id=${event.messageId}")
                 _uiState.update { state ->
-                    state.copy(messages = state.messages.filter { it.id != event.messageId })
+                    val newState = state.copy(messages = state.messages.filter { it.id != event.messageId })
+                    MessagesCacheManager.updateChannelCache(channelId, ChannelCacheEntry(newState.messages, newState.nextCursor, newState.hasReachedTop))
+                    newState
                 }
             }
 

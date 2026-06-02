@@ -29,6 +29,10 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SentimentSatisfiedAlt
+import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,6 +47,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -66,14 +71,16 @@ fun ChatInputBar(
     channelName: String,
     users: List<User>,
     uiState: ChatUiState,
-    inputText: String,
-    onInputTextChanged: (String) -> Unit,
+    inputText: TextFieldValue,
+    onInputTextChanged: (TextFieldValue) -> Unit,
     onSend: (String) -> Unit,
     onCancelReply: () -> Unit,
     onCancelEdit: () -> Unit,
     onFileUpload: (String, ByteArray, String?) -> Unit,
     onRemoveAttachment: (String) -> Unit,
     onSendAudioRecording: (String, ByteArray) -> Unit,
+    isEmojiPickerOpen: Boolean = false,
+    onToggleEmojiPicker: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -82,6 +89,7 @@ fun ChatInputBar(
     val textSecondary = ChatColors.TextSecondary
     val textMuted = ChatColors.TextMuted
     val accentColor = ChatColors.AccentColor
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     // Voice Recorder State
     var isRecording by remember { mutableStateOf(false) }
@@ -212,12 +220,19 @@ fun ChatInputBar(
         }
     }
 
-    val hasText = inputText.isNotBlank()
+    val focusRequester = remember { FocusRequester() }
+
+    val hasText = inputText.text.isNotBlank()
+
+    val baseModifier = modifier.fillMaxWidth()
+    val finalModifier = if (isEmojiPickerOpen) {
+        baseModifier
+    } else {
+        baseModifier.navigationBarsPadding()
+    }
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
+        modifier = finalModifier
             .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 10.dp)
     ) {
         // Typing Indicator
@@ -514,11 +529,18 @@ fun ChatInputBar(
                     )
                 }
             } else {
-                IconButton(onClick = { filePickerLauncher.launch("*/*") }) {
+                // Left: Emoji Smiley button
+                IconButton(onClick = {
+                    onToggleEmojiPicker()
+                    if (isEmojiPickerOpen) {
+                        focusRequester.requestFocus()
+                        keyboardController?.show()
+                    }
+                }) {
                     Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Attach File",
-                        tint = textSecondary
+                        imageVector = if (isEmojiPickerOpen) Icons.Default.Keyboard else Icons.Default.SentimentSatisfiedAlt,
+                        contentDescription = "Emoji",
+                        tint = if (isEmojiPickerOpen) accentColor else textSecondary
                     )
                 }
 
@@ -527,6 +549,7 @@ fun ChatInputBar(
                     onValueChange = onInputTextChanged,
                     modifier = Modifier
                         .weight(1f)
+                        .focusRequester(focusRequester)
                         .padding(vertical = 8.dp),
                     textStyle = TextStyle(
                         color = textPrimary,
@@ -538,12 +561,12 @@ fun ChatInputBar(
                         imeAction = ImeAction.Send
                     ),
                     keyboardActions = KeyboardActions(
-                        onSend = { onSend(inputText) }
+                        onSend = { onSend(inputText.text) }
                     ),
                     maxLines = 6,
                     decorationBox = { innerTextField ->
                         Box {
-                            if (inputText.isEmpty()) {
+                            if (inputText.text.isEmpty()) {
                                 Text(
                                     text = stringResource(id = R.string.chat_messageChannelPlaceholder, channelName),
                                     color = textMuted,
@@ -555,17 +578,18 @@ fun ChatInputBar(
                     }
                 )
 
-                IconButton(onClick = { }) {
+                // Right: Attach File button
+                IconButton(onClick = { filePickerLauncher.launch("*/*") }) {
                     Icon(
-                        imageVector = Icons.Default.SentimentSatisfiedAlt,
-                        contentDescription = "Emoji",
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Attach File",
                         tint = textSecondary
                     )
                 }
 
                 if (hasText || uiState.attachedFiles.isNotEmpty() || uiState.editingMessage != null) {
                     IconButton(
-                        onClick = { onSend(inputText) },
+                        onClick = { onSend(inputText.text) },
                         enabled = !uiState.isSending
                     ) {
                         if (uiState.isSending) {

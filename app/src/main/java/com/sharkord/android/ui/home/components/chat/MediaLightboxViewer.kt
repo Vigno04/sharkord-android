@@ -103,7 +103,7 @@ fun MediaLightboxViewer(
             ) {
                 CustomVideoPlayer(
                     videoUrl = videoUrl,
-                    autoPlay = false,
+                    autoPlay = true,
                     modifier = Modifier.fillMaxSize()
                 )
             }

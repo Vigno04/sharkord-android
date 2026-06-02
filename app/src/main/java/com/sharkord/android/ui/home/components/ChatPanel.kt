@@ -3,10 +3,9 @@ package com.sharkord.android.ui.home.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -23,14 +22,23 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.text.HtmlCompat
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import com.sharkord.android.R
 import com.sharkord.android.data.model.Emoji
 import com.sharkord.android.data.model.Message
@@ -41,8 +49,12 @@ import com.sharkord.android.ui.home.components.chat.ChatInputBar
 import com.sharkord.android.ui.home.components.chat.ChatTopBar
 import com.sharkord.android.ui.home.components.chat.MessageContextMenu
 import com.sharkord.android.ui.home.components.chat.PinnedMessagesSheet
+import androidx.compose.foundation.Image
+import com.sharkord.android.ui.components.rememberAsyncImagePainter
+import com.sharkord.android.data.network.SharkordClient
 import kotlinx.coroutines.launch
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun ChatPanel(
     channelId: Int,
@@ -66,25 +78,34 @@ fun ChatPanel(
     val uiState by viewModel.uiState.collectAsState()
     val listState = remember(channelId) { androidx.compose.foundation.lazy.LazyListState() }
     val coroutineScope = rememberCoroutineScope()
-    var inputText by remember(channelId) { mutableStateOf("") }
+    var inputText by remember(channelId) { mutableStateOf(TextFieldValue("")) }
 
     val ownUserId = uiState.ownUserId
 
     var showMenuMessage by remember(channelId) { mutableStateOf<Message?>(null) }
+    var isEmojiPickerOpen by remember(channelId) { mutableStateOf(false) }
+    var selectedEmojiTab by remember(channelId) { mutableStateOf("standard") }
 
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+
+    // ── Initialise ViewModel ─────────────────────────────────────────────────
     LaunchedEffect(channelId) {
         viewModel.init(channelId)
     }
 
+    // ── Edit mode: populate input field ─────────────────────────────────────
     LaunchedEffect(uiState.editingMessage) {
         val editing = uiState.editingMessage
         if (editing != null) {
-            inputText = HtmlCompat.fromHtml(editing.content, HtmlCompat.FROM_HTML_MODE_COMPACT).toString().trim()
+            val text = HtmlCompat.fromHtml(editing.content, HtmlCompat.FROM_HTML_MODE_COMPACT).toString().trim()
+            inputText = TextFieldValue(text = text, selection = TextRange(text.length))
         } else {
-            inputText = ""
+            inputText = TextFieldValue("")
         }
     }
 
+    // ── Auto-scroll to bottom ────────────────────────────────────────────────
     val isAtBottom by remember {
         derivedStateOf {
             val layout = listState.layoutInfo
@@ -97,7 +118,8 @@ fun ChatPanel(
     var hasInitialLoaded by remember(channelId) { mutableStateOf(false) }
     var unreadNewCount by remember(channelId) { mutableIntStateOf(0) }
 
-    val lastMessageId = uiState.messages.lastOrNull()?.id
+    val lastMessage = uiState.messages.lastOrNull()
+    val lastMessageId = lastMessage?.id
     LaunchedEffect(lastMessageId) {
         if (lastMessageId == null) return@LaunchedEffect
         if (!hasInitialLoaded) {
@@ -108,7 +130,8 @@ fun ChatPanel(
             unreadNewCount = 0
             return@LaunchedEffect
         }
-        if (isAtBottom) {
+        val isOwnMessage = lastMessage?.userId == ownUserId
+        if (isAtBottom || isOwnMessage) {
             listState.animateScrollToItem(uiState.messages.size - 1)
             unreadNewCount = 0
         } else {
@@ -120,6 +143,7 @@ fun ChatPanel(
         if (isAtBottom) unreadNewCount = 0
     }
 
+    // ── Paginate old messages ────────────────────────────────────────────────
     val firstVisibleIndex by remember { derivedStateOf { listState.firstVisibleItemIndex } }
     LaunchedEffect(firstVisibleIndex) {
         if (firstVisibleIndex == 0 && !uiState.isLoadingHistory && !uiState.isLoadingOlder && !uiState.hasReachedTop) {
@@ -127,13 +151,19 @@ fun ChatPanel(
         }
     }
 
-    // Intercept system back button
+    // ── Helper to close the keyboard ────────────────────────
+    val dismissInputPanel = {
+        keyboardController?.hide()
+    }
+
+    // ── System back button interception ─────────────────────────────────────
     BackHandler {
         when {
             uiState.viewingMediaFile != null -> viewModel.setViewingMediaFile(null)
-            showMenuMessage != null -> showMenuMessage = null
-            uiState.showPinnedMessages -> viewModel.setPinnedMessagesVisible(false)
-            else -> onBackClick()
+            showMenuMessage != null          -> showMenuMessage = null
+            isEmojiPickerOpen                -> isEmojiPickerOpen = false
+            uiState.showPinnedMessages       -> viewModel.setPinnedMessagesVisible(false)
+            else                             -> onBackClick()
         }
     }
 
@@ -143,7 +173,8 @@ fun ChatPanel(
             .background(bgColor)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Top Bar
+
+            // ── Top Bar ──────────────────────────────────────────────────────
             ChatTopBar(
                 channelName = channelName,
                 showPinnedMessages = uiState.showPinnedMessages,
@@ -151,7 +182,7 @@ fun ChatPanel(
                 onTogglePinnedMessages = { viewModel.setPinnedMessagesVisible(true) }
             )
 
-            // Error Banner
+            // ── Error Banner ─────────────────────────────────────────────────
             AnimatedVisibility(
                 visible = uiState.errorMessage != null,
                 enter = fadeIn(),
@@ -183,7 +214,9 @@ fun ChatPanel(
                 }
             }
 
-            // Message List Area
+            // ── Message List Area ────────────────────────────────────────────
+            // Tapping anywhere in this area dismisses the keyboard,
+            // matching WhatsApp's "tap the chat to dismiss" behaviour.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -253,7 +286,13 @@ fun ChatPanel(
                     else -> {
                         LazyColumn(
                             state = listState,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onTap = { dismissInputPanel() }
+                                    )
+                                },
                             contentPadding = PaddingValues(vertical = 8.dp)
                         ) {
                             if (uiState.isLoadingOlder) {
@@ -296,6 +335,7 @@ fun ChatPanel(
                                     users = users,
                                     roles = roles,
                                     ownUserId = ownUserId,
+                                    fullscreenMediaId = uiState.viewingMediaFile?.id,
                                     onLongClick = { target -> showMenuMessage = target },
                                     onReplyClick = { parentId ->
                                         val targetIndex = uiState.messages.indexOfFirst { it.id == parentId }
@@ -334,14 +374,14 @@ fun ChatPanel(
                     }
                 }
 
-                // New Messages Pill
+                // ── New Messages Pill ────────────────────────────────────────
                 androidx.compose.animation.AnimatedVisibility(
                     visible = unreadNewCount > 0,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 12.dp),
-                    enter = fadeIn() + slideInVertically { fullHeight -> fullHeight },
-                    exit  = fadeOut() + slideOutVertically { fullHeight -> fullHeight }
+                    enter = fadeIn() + androidx.compose.animation.slideInVertically { fullHeight -> fullHeight },
+                    exit  = fadeOut() + androidx.compose.animation.slideOutVertically { fullHeight -> fullHeight }
                 ) {
                     Row(
                         modifier = Modifier
@@ -377,15 +417,15 @@ fun ChatPanel(
                 }
             }
 
-            // Input Bar
+            // ── Input Bar ────────────────────────────────────────────────────
             ChatInputBar(
                 channelName = channelName,
                 users = users,
                 uiState = uiState,
                 inputText = inputText,
-                onInputTextChanged = { text ->
-                    inputText = text
-                    viewModel.onType(text)
+                onInputTextChanged = { textVal ->
+                    inputText = textVal
+                    viewModel.onType(textVal.text)
                 },
                 onSend = { text ->
                     val editing = uiState.editingMessage
@@ -394,17 +434,151 @@ fun ChatPanel(
                     } else {
                         viewModel.sendMessage(text)
                     }
-                    inputText = ""
+                    inputText = TextFieldValue("")
                 },
                 onCancelReply = { viewModel.setReplyTarget(null) },
                 onCancelEdit = { viewModel.setEditingMessage(null) },
                 onFileUpload = { name, bytes, uri -> viewModel.uploadAndAttachFile(name, bytes, uri) },
                 onRemoveAttachment = { id -> viewModel.removeAttachedFile(id) },
-                onSendAudioRecording = { name, bytes -> viewModel.sendAudioVoiceNote(name, bytes) }
+                onSendAudioRecording = { name, bytes -> viewModel.sendAudioVoiceNote(name, bytes) },
+                isEmojiPickerOpen = isEmojiPickerOpen,
+                onToggleEmojiPicker = {
+                    isEmojiPickerOpen = !isEmojiPickerOpen
+                    if (isEmojiPickerOpen) dismissInputPanel()
+                }
             )
+
+            // ── Navigation bar and keyboard padding ──────────────────────────
+            val density = LocalDensity.current
+            val imeBottom = WindowInsets.ime.getBottom(density)
+            val navBottom = WindowInsets.navigationBars.getBottom(density)
+            val isImeVisible = WindowInsets.isImeVisible
+            
+            var keyboardHeight by remember { mutableIntStateOf(0) }
+            
+            LaunchedEffect(imeBottom) {
+                if (imeBottom > navBottom && imeBottom > keyboardHeight) {
+                    keyboardHeight = imeBottom
+                }
+            }
+
+            LaunchedEffect(isImeVisible) {
+                if (isImeVisible && isEmojiPickerOpen) {
+                    isEmojiPickerOpen = false
+                }
+            }
+
+            if (isEmojiPickerOpen) {
+                val fallbackHeight = with(density) { 300.dp.toPx().toInt() } + navBottom
+                val activeHeightPx = if (keyboardHeight > navBottom) keyboardHeight else fallbackHeight
+                val emojiBoxHeight = with(density) { (activeHeightPx - navBottom).coerceAtLeast(0).toDp() }
+                
+                val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+                val emojiViewModel: com.sharkord.android.ui.emojipicker.presentation.EmojiPickerViewModel = remember {
+                    com.sharkord.android.ui.emojipicker.di.RepositoryModule.provideEmojiPickerViewModel(context)
+                }
+
+                LaunchedEffect(isEmojiPickerOpen) {
+                    if (isEmojiPickerOpen) {
+                        selectedEmojiTab = "standard"
+                    }
+                    emojiViewModel.onSearchTextChanged("")
+                    gridState.scrollToItem(0)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(bgColor)
+                        .navigationBarsPadding()
+                        .height(emojiBoxHeight)
+                ) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        TabRow(
+                            selectedTabIndex = if (selectedEmojiTab == "standard") 0 else 1,
+                            containerColor = cardColor,
+                            contentColor = textPrimary
+                        ) {
+                            Tab(
+                                selected = selectedEmojiTab == "standard",
+                                onClick = { selectedEmojiTab = "standard" },
+                                text = { Text(text = stringResource(id = R.string.common_emojiTab), fontWeight = FontWeight.Bold, fontSize = 14.sp) }
+                            )
+                            Tab(
+                                selected = selectedEmojiTab == "custom",
+                                onClick = { selectedEmojiTab = "custom" },
+                                text = { Text(text = stringResource(id = R.string.common_customTab), fontWeight = FontWeight.Bold, fontSize = 14.sp) }
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                        ) {
+                            if (selectedEmojiTab == "standard") {
+                                com.sharkord.android.ui.emojipicker.presentation.EmojiPickerContent(
+                                    state = emojiViewModel.state.collectAsState().value,
+                                    gridState = gridState,
+                                    colors = com.sharkord.android.ui.emojipicker.presentation.EmojiPickerDefaults.emojiPickerColors(
+                                        backgroundColor = cardColor,
+                                        textColor = textPrimary,
+                                        searchBarBackgroundColor = bgColor,
+                                        searchBarIconTint = textSecondary,
+                                        searchBarTextColor = textPrimary,
+                                        activeCategoryTint = accentColor,
+                                        inactiveCategoryTint = textSecondary
+                                    ),
+                                    onCategoryTabClick = { index ->
+                                        coroutineScope.launch { gridState.animateScrollToItem(index) }
+                                    },
+                                    onSearchTextChange = emojiViewModel::onSearchTextChanged,
+                                    onEmojiSelected = { emoji ->
+                                        val currentText = inputText.text
+                                        val selection = inputText.selection
+                                        val insertPos = if (selection.start >= 0) selection.start else currentText.length
+                                        val textBefore = currentText.substring(0, insertPos)
+                                        val textAfter = currentText.substring(if (selection.end >= 0) selection.end else currentText.length)
+                                        val newText = textBefore + emoji.emoji + textAfter
+                                        val newSelection = androidx.compose.ui.text.TextRange(insertPos + emoji.emoji.length)
+                                        inputText = androidx.compose.ui.text.input.TextFieldValue(newText, newSelection)
+                                        viewModel.onType(newText)
+                                    },
+                                    onAddToRecent = emojiViewModel::onAddToRecent
+                                )
+                            } else {
+                                CustomEmojiPickerContent(
+                                    customEmojis = customEmojis,
+                                    colors = com.sharkord.android.ui.emojipicker.presentation.EmojiPickerDefaults.emojiPickerColors(
+                                        backgroundColor = cardColor,
+                                        textColor = textPrimary,
+                                        searchBarBackgroundColor = bgColor,
+                                        searchBarIconTint = textSecondary,
+                                        searchBarTextColor = textPrimary,
+                                        activeCategoryTint = accentColor,
+                                        inactiveCategoryTint = textSecondary
+                                    ),
+                                    onEmojiSelected = { emoji ->
+                                        val currentText = inputText.text
+                                        val selection = inputText.selection
+                                        val insertPos = if (selection.start >= 0) selection.start else currentText.length
+                                        val textBefore = currentText.substring(0, insertPos)
+                                        val textAfter = currentText.substring(if (selection.end >= 0) selection.end else currentText.length)
+                                        val code = ":${emoji.name}:"
+                                        val newText = textBefore + code + textAfter
+                                        val newSelection = androidx.compose.ui.text.TextRange(insertPos + code.length)
+                                        inputText = androidx.compose.ui.text.input.TextFieldValue(newText, newSelection)
+                                        viewModel.onType(newText)
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
 
-        // Pinned Messages Overlay
+        // ── Pinned Messages Overlay ──────────────────────────────────────────
         if (uiState.showPinnedMessages) {
             PinnedMessagesSheet(
                 isLoading = uiState.isLoadingPinned,
@@ -415,7 +589,7 @@ fun ChatPanel(
             )
         }
 
-        // Context Menu Overlay
+        // ── Context Menu Overlay ─────────────────────────────────────────────
         if (showMenuMessage != null) {
             val msg = showMenuMessage!!
             MessageContextMenu(
@@ -436,7 +610,7 @@ fun ChatPanel(
             )
         }
 
-        // Media Lightbox Overlay
+        // ── Media Lightbox Overlay ───────────────────────────────────────────
         val viewingFile = uiState.viewingMediaFile
         if (viewingFile != null) {
             com.sharkord.android.ui.home.components.chat.MediaLightboxViewer(
@@ -447,3 +621,88 @@ fun ChatPanel(
         }
     }
 }
+
+@Composable
+fun CustomEmojiPickerContent(
+    customEmojis: List<com.sharkord.android.data.model.Emoji>,
+    colors: com.sharkord.android.ui.emojipicker.presentation.EmojiPickerColors,
+    onEmojiSelected: (com.sharkord.android.data.model.Emoji) -> Unit
+) {
+    if (customEmojis.isEmpty()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = ":(",
+                color = colors.textColor.copy(alpha = 0.6f),
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = stringResource(id = R.string.common_noCustomEmojis),
+                color = colors.textColor,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = stringResource(id = R.string.common_serverAdminsCanUpload),
+                color = colors.textColor.copy(alpha = 0.5f),
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center
+            )
+        }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = stringResource(id = R.string.common_serverEmojis, customEmojis.size),
+                color = colors.textColor.copy(alpha = 0.7f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(8),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(customEmojis.size) { index ->
+                    val emoji = customEmojis[index]
+                    val customUrl = "${com.sharkord.android.data.network.SharkordClient.currentServerUrl}/public/${emoji.file?.name}"
+                    val painter = rememberAsyncImagePainter(customUrl)
+                    
+                    Box(
+                        modifier = Modifier
+                            .aspectRatio(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onEmojiSelected(emoji) }
+                            .padding(4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (painter != null) {
+                            Image(
+                                painter = painter,
+                                contentDescription = emoji.name,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

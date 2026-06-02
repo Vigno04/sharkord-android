@@ -21,6 +21,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.Request
 import java.util.concurrent.ConcurrentHashMap
+import android.util.LruCache
 
 /**
  * Shared image loading composables.
@@ -33,8 +34,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Represents a cached image with decoded bitmap and fetch timestamp.
  */
 data class ImageCacheEntry(
-    val bitmap: Bitmap,
-    val timestamp: Long
+    val bitmap: Bitmap
 )
 
 /**
@@ -43,7 +43,15 @@ data class ImageCacheEntry(
  */
 object ImageCacheManager {
     private const val TAG = "ImageCacheManager"
-    private val cache = ConcurrentHashMap<String, ImageCacheEntry>()
+    
+    private val maxMemoryKb = (Runtime.getRuntime().maxMemory() / 1024).toInt()
+    private val cacheSizeKb = maxMemoryKb / 8
+
+    private val cache = object : LruCache<String, ImageCacheEntry>(cacheSizeKb) {
+        override fun sizeOf(key: String, value: ImageCacheEntry): Int {
+            return value.bitmap.byteCount / 1024
+        }
+    }
     private val inFlight = ConcurrentHashMap<String, Deferred<ImageCacheEntry?>>()
     private val mutex = Mutex()
 
@@ -53,10 +61,8 @@ object ImageCacheManager {
     suspend fun loadImage(url: String): ImageCacheEntry? {
         if (url.isBlank()) return null
 
-        val now = System.currentTimeMillis()
-        val cached = cache[url]
-        // If the image was successfully fetched less than 10 seconds ago, reuse it directly
-        if (cached != null && (now - cached.timestamp) < 10000) {
+        val cached = cache.get(url)
+        if (cached != null) {
             return cached
         }
 
@@ -75,10 +81,9 @@ object ImageCacheManager {
                                     if (bmp != null) {
                                         Log.d(TAG, "Successfully downloaded and decoded image from $url (${bytes.size} bytes)")
                                         val entry = ImageCacheEntry(
-                                            bitmap = bmp,
-                                            timestamp = System.currentTimeMillis()
+                                            bitmap = bmp
                                         )
-                                        cache[url] = entry
+                                        cache.put(url, entry)
                                         entry
                                     } else {
                                         Log.e(TAG, "Failed to decode bitmap from downloaded bytes for $url")
@@ -107,7 +112,51 @@ object ImageCacheManager {
 
         val result = deferred.await()
         // Fallback to older cached entry if network fetch failed
-        return result ?: cache[url]
+        return result ?: cache.get(url)
+    }
+
+    /**
+     * Extracts and caches a thumbnail frame from a remote video.
+     */
+    suspend fun loadVideoThumbnail(videoUrl: String): Bitmap? {
+        if (videoUrl.isBlank()) return null
+        
+        val cached = cache.get(videoUrl)
+        if (cached != null) {
+            return cached.bitmap
+        }
+        
+        return withContext(Dispatchers.IO) {
+            var retriever: android.media.MediaMetadataRetriever? = null
+            try {
+                Log.d(TAG, "Retrieving video thumbnail from: $videoUrl")
+                retriever = android.media.MediaMetadataRetriever()
+                retriever.setDataSource(videoUrl, HashMap<String, String>())
+                val bmp = retriever.getFrameAtTime(1_000_000, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                if (bmp != null) {
+                    val entry = ImageCacheEntry(bmp)
+                    cache.put(videoUrl, entry)
+                    bmp
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to retrieve video thumbnail for $videoUrl: ${e.message}")
+                null
+            } finally {
+                try {
+                    retriever?.release()
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    /**
+     * Clears the cache.
+     */
+    fun clearCache() {
+        cache.evictAll()
+        inFlight.clear()
     }
 }
 
@@ -140,6 +189,28 @@ fun rememberAsyncImageState(url: String?): AsyncImageState {
         val entry = ImageCacheManager.loadImage(url)
         state = if (entry != null) {
             AsyncImageState.Success(BitmapPainter(entry.bitmap.asImageBitmap()))
+        } else {
+            AsyncImageState.Failure
+        }
+    }
+
+    return state
+}
+
+/**
+ * Loads a video thumbnail from a URL and returns a tri-state [AsyncImageState].
+ */
+@Composable
+fun rememberVideoThumbnailState(url: String?): AsyncImageState {
+    if (url.isNullOrBlank()) return AsyncImageState.Empty
+
+    var state by remember(url) { mutableStateOf<AsyncImageState>(AsyncImageState.Loading) }
+
+    LaunchedEffect(url) {
+        state = AsyncImageState.Loading
+        val bmp = ImageCacheManager.loadVideoThumbnail(url)
+        state = if (bmp != null) {
+            AsyncImageState.Success(BitmapPainter(bmp.asImageBitmap()))
         } else {
             AsyncImageState.Failure
         }
