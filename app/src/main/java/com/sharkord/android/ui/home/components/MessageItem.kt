@@ -573,6 +573,12 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
     DisposableEffect(audioUrl) {
         val player = MediaPlayer().apply {
             try {
+                setAudioAttributes(
+                    android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
                 setDataSource(audioUrl)
                 setOnPreparedListener {
                     duration = it.duration
@@ -624,23 +630,111 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
         String.format("%d:%02d", minutes, seconds)
     }
 
-    Row(
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val sensorManager = remember { context.getSystemService(android.content.Context.SENSOR_SERVICE) as android.hardware.SensorManager }
+    val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager }
+    val powerManager = remember { context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager }
+    val proximitySensor = remember { sensorManager.getDefaultSensor(android.hardware.Sensor.TYPE_PROXIMITY) }
+
+    val wakeLock = remember {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            powerManager.newWakeLock(android.os.PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "Sharkord:AudioPlayerProximity")
+        } else {
+            null
+        }
+    }
+
+    var isNear by remember { mutableStateOf(false) }
+
+    val onPausePlayback = rememberUpdatedState {
+        val player = mediaPlayer
+        if (player != null && isPrepared && isPlaying) {
+            player.pause()
+            isPlaying = false
+        }
+    }
+
+    val sensorEventListener = remember {
+        object : android.hardware.SensorEventListener {
+            override fun onSensorChanged(event: android.hardware.SensorEvent?) {
+                if (event?.sensor?.type == android.hardware.Sensor.TYPE_PROXIMITY) {
+                    val distance = event.values[0]
+                    val maxRange = proximitySensor?.maximumRange ?: 5f
+                    val near = distance < maxRange && distance < 5f
+                    if (isNear != near) {
+                        isNear = near
+                        if (near) {
+                            audioManager.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
+                            audioManager.isSpeakerphoneOn = false
+                        } else {
+                            audioManager.mode = android.media.AudioManager.MODE_NORMAL
+                            audioManager.isSpeakerphoneOn = true
+                            onPausePlayback.value()
+                        }
+                    }
+                }
+            }
+            override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
+        }
+    }
+
+    DisposableEffect(isPlaying) {
+        if (isPlaying) {
+            proximitySensor?.let {
+                sensorManager.registerListener(sensorEventListener, it, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
+            }
+            try {
+                wakeLock?.takeIf { !it.isHeld }?.acquire()
+            } catch (e: Exception) {
+                Log.e("AudioPlayer", "WakeLock acquire failed", e)
+            }
+        } else {
+            sensorManager.unregisterListener(sensorEventListener)
+            try {
+                wakeLock?.takeIf { it.isHeld }?.release()
+            } catch (e: Exception) {
+                Log.e("AudioPlayer", "WakeLock release failed", e)
+            }
+            audioManager.mode = android.media.AudioManager.MODE_NORMAL
+            audioManager.isSpeakerphoneOn = true
+            isNear = false
+        }
+        onDispose {
+            sensorManager.unregisterListener(sensorEventListener)
+            try {
+                wakeLock?.takeIf { it.isHeld }?.release()
+            } catch (e: Exception) {
+                Log.e("AudioPlayer", "WakeLock release failed", e)
+            }
+            audioManager.mode = android.media.AudioManager.MODE_NORMAL
+            audioManager.isSpeakerphoneOn = true
+            isNear = false
+        }
+    }
+
+    Column(
         modifier = modifier
             .fillMaxWidth(0.9f)
             .background(Color(0xFF242424), RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(start = 14.dp, end = 14.dp, top = 16.dp, bottom = 8.dp)
     ) {
-        IconButton(onClick = playPauseAction, enabled = isPrepared) {
-            Icon(
-                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = if (isPlaying) "Pause" else "Play",
-                tint = Color(0xFF5B9BD5),
-                modifier = Modifier.size(24.dp)
-            )
-        }
-        Spacer(modifier = Modifier.width(8.dp))
-        Column(modifier = Modifier.weight(1f)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = playPauseAction, 
+                enabled = isPrepared,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    tint = Color(0xFF5B9BD5),
+                    modifier = Modifier.size(30.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
             Slider(
                 value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
                 onValueChange = { ratio ->
@@ -656,23 +750,25 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
                     activeTrackColor = Color(0xFF5B9BD5),
                     inactiveTrackColor = Color(0xFF4A4A4A)
                 ),
-                modifier = Modifier.fillMaxWidth().height(18.dp)
+                modifier = Modifier.weight(1f).height(18.dp)
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = formatTime(currentPosition),
-                    color = Color(0xFF9E9E9E),
-                    fontSize = 11.sp
-                )
-                Text(
-                    text = formatTime(duration),
-                    color = Color(0xFF9E9E9E),
-                    fontSize = 11.sp
-                )
-            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 48.dp, top = 4.dp), // 36dp (button) + 12dp (spacer) = 48dp
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = formatTime(currentPosition),
+                color = Color(0xFF9E9E9E),
+                fontSize = 11.sp
+            )
+            Text(
+                text = formatTime(duration),
+                color = Color(0xFF9E9E9E),
+                fontSize = 11.sp
+            )
         }
     }
 }

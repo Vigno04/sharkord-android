@@ -25,6 +25,7 @@ Thumbs.db
 # Log and temporary files
 *.log
 *.zip
+*.apk
 
 #used as reference
 sharkord-server-reference/

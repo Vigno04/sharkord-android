@@ -58,6 +58,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.text.HtmlCompat
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.ui.input.pointer.positionChange
 import com.sharkord.android.R
 import com.sharkord.android.data.model.User
 import com.sharkord.android.ui.components.AsyncImageState
@@ -65,6 +69,7 @@ import com.sharkord.android.ui.components.rememberAsyncImageState
 import com.sharkord.android.ui.home.ChatUiState
 import com.sharkord.android.ui.home.components.ChatColors
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun ChatInputBar(
@@ -90,9 +95,11 @@ fun ChatInputBar(
     val textMuted = ChatColors.TextMuted
     val accentColor = ChatColors.AccentColor
     val keyboardController = LocalSoftwareKeyboardController.current
+    val coroutineScope = rememberCoroutineScope()
 
     // Voice Recorder State
     var isRecording by remember { mutableStateOf(false) }
+    var isHoldToRecordMode by remember { mutableStateOf(false) }
     var recordingTimer by remember { mutableIntStateOf(0) }
     var recordCancelDistance by remember { mutableFloatStateOf(0f) }
     var hasSwipeCancelled by remember { mutableStateOf(false) }
@@ -183,6 +190,14 @@ fun ChatInputBar(
                     stopAndSendRecording()
                 }
             }
+        }
+    }
+
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (!isGranted) {
+            android.widget.Toast.makeText(context, "Microphone permission required to send voice notes.", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -500,9 +515,18 @@ fun ChatInputBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (isRecording) {
+                if (!isHoldToRecordMode) {
+                    IconButton(onClick = { cancelRecording() }) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cancel",
+                            tint = textSecondary
+                        )
+                    }
+                }
                 Box(
                     modifier = Modifier
-                        .padding(start = 12.dp)
+                        .padding(start = if (isHoldToRecordMode) 12.dp else 8.dp)
                         .size(10.dp)
                         .clip(CircleShape)
                         .background(Color.Red)
@@ -512,20 +536,16 @@ fun ChatInputBar(
                     text = String.format("%d:%02d", recordingTimer / 60, recordingTimer % 60),
                     color = textPrimary,
                     fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = if (isHoldToRecordMode) Modifier else Modifier.weight(1f)
                 )
-                Spacer(modifier = Modifier.width(16.dp))
-                Text(
-                    text = stringResource(id = R.string.chat_slideToCancel),
-                    color = textSecondary,
-                    fontSize = 13.sp,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(onClick = { cancelRecording() }) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Cancel",
-                        tint = textSecondary
+                if (isHoldToRecordMode) {
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = stringResource(id = R.string.chat_slideToCancel),
+                        color = textSecondary,
+                        fontSize = 13.sp,
+                        modifier = Modifier.weight(1f)
                     )
                 }
             } else {
@@ -586,54 +606,104 @@ fun ChatInputBar(
                         tint = textSecondary
                     )
                 }
+            }
 
-                if (hasText || uiState.attachedFiles.isNotEmpty() || uiState.editingMessage != null) {
-                    IconButton(
-                        onClick = { onSend(inputText.text) },
-                        enabled = !uiState.isSending
-                    ) {
-                        if (uiState.isSending) {
-                            CircularProgressIndicator(
-                                color = accentColor,
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
+            // Rightmost: Send or Mic
+            val showSendButton = hasText || uiState.attachedFiles.isNotEmpty() || uiState.editingMessage != null || (isRecording && !isHoldToRecordMode)
+            if (showSendButton) {
+                IconButton(
+                    onClick = { 
+                        if (isRecording && !isHoldToRecordMode) {
+                            stopAndSendRecording()
                         } else {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Send,
-                                contentDescription = "Send",
-                                tint = accentColor
-                            )
+                            onSend(inputText.text)
                         }
-                    }
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .pointerInput(Unit) {
-                                detectDragGesturesAfterLongPress(
-                                    onDragStart = { startRecording() },
-                                    onDragEnd = { stopAndSendRecording() },
-                                    onDragCancel = { cancelRecording() },
-                                    onDrag = { change, dragAmount ->
-                                        change.consume()
-                                        recordCancelDistance += dragAmount.x
-                                        if (recordCancelDistance < -200f) {
-                                            if (!hasSwipeCancelled) {
-                                                cancelRecording()
-                                            }
-                                        }
-                                    }
-                                )
-                            }
-                            .padding(12.dp)
-                    ) {
+                    },
+                    enabled = !uiState.isSending
+                ) {
+                    if (uiState.isSending) {
+                        CircularProgressIndicator(
+                            color = accentColor,
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
                         Icon(
-                            imageVector = Icons.Default.Mic,
-                            contentDescription = "Record Voice Message",
-                            tint = textSecondary
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Send",
+                            tint = accentColor
                         )
                     }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .pointerInput(Unit) {
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false)
+                                var isLongPress = false
+                                var dragCancelled = false
+                                var currentDragX = 0f
+
+                                val longPressTimeout = viewConfiguration.longPressTimeoutMillis
+                                val longPressJob = coroutineScope.launch {
+                                    delay(longPressTimeout)
+                                    isLongPress = true
+                                    isHoldToRecordMode = true
+                                    if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                                        startRecording() 
+                                    } else {
+                                        audioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                                    }
+                                }
+
+                                val pointerId = down.id
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val anyUp = event.changes.any { it.changedToUp() }
+
+                                    if (anyUp) {
+                                        longPressJob.cancel()
+                                        if (isLongPress) {
+                                            if (!dragCancelled) {
+                                                stopAndSendRecording()
+                                            }
+                                        } else {
+                                            // Single Tap to Toggle record mode!
+                                            isHoldToRecordMode = false
+                                            if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                                                startRecording() 
+                                            } else {
+                                                audioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                                            }
+                                        }
+                                        break
+                                    }
+
+                                    if (isLongPress) {
+                                        val change = event.changes.firstOrNull { it.id == pointerId }
+                                        if (change != null) {
+                                            val positionChange = change.positionChange()
+                                            currentDragX += positionChange.x
+                                            recordCancelDistance = currentDragX
+                                            if (currentDragX < -200f && !dragCancelled) {
+                                                dragCancelled = true
+                                                cancelRecording()
+                                            }
+                                            change.consume()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .padding(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = "Record Voice Message",
+                        tint = if (isRecording) Color.Red else textSecondary
+                    )
                 }
             }
         }

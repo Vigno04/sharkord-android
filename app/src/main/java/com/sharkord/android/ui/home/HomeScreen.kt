@@ -118,32 +118,85 @@ fun HomeScreen(
                 val density = LocalDensity.current
                 val screenWidthPx = remember(screenWidthDp) { with(density) { screenWidthDp.toPx() } }
                 
-                // Track dynamic swipe-to-dismiss offset of the ChatPanel in pixels
-                val swipeOffset = remember { Animatable(if (uiState.activePanel == HomePanel.CHAT) 0f else screenWidthPx) }
+                // Track dynamic swipe-to-dismiss offset of the Channels List in pixels
+                val swipeOffset = remember { Animatable(if (uiState.activePanel == HomePanel.SERVER) 0f else -screenWidthPx) }
                 val coroutineScope = rememberCoroutineScope()
 
                 // Programmatic panel transitions
                 LaunchedEffect(uiState.activePanel) {
-                    if (uiState.activePanel == HomePanel.CHAT) {
+                    if (uiState.activePanel == HomePanel.SERVER) {
                         swipeOffset.animateTo(0f)
                     } else {
-                        swipeOffset.animateTo(screenWidthPx)
+                        swipeOffset.animateTo(-screenWidthPx)
                     }
                 }
 
                 Box(modifier = Modifier.fillMaxSize()) {
-                    // 1. UNDERLAY: Server Channels list (always rendered, so dragging chat right reveals it)
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .pointerInput(uiState.activePanel, uiState.selectedChannelId) {
-                                if (uiState.activePanel == HomePanel.SERVER && uiState.selectedChannelId != null) {
-                                    detectHorizontalDragGestures { change, dragAmount ->
-                                        if (dragAmount < -50) {
-                                            viewModel.setPanel(HomePanel.CHAT)
+                    // 1. UNDERLAY: Chat Panel (rendered on bottom if a channel is selected)
+                    if (uiState.selectedChannelId != null) {
+                        val activeChannel = data.channels.find { it.id == uiState.selectedChannelId }
+                        
+                        ChatPanel(
+                            channelId = uiState.selectedChannelId!!,
+                            channelName = activeChannel?.name ?: "",
+                            users = data.users,
+                            roles = data.roles ?: emptyList(),
+                            customEmojis = data.emojis ?: emptyList(),
+                            onBackClick = {
+                                coroutineScope.launch {
+                                    swipeOffset.animateTo(0f)
+                                    viewModel.setPanel(HomePanel.SERVER)
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(uiState.activePanel) {
+                                    if (uiState.activePanel == HomePanel.CHAT) {
+                                        detectHorizontalDragGestures { change, dragAmount ->
+                                            if (dragAmount > 50) {
+                                                viewModel.setPanel(HomePanel.SERVER)
+                                            }
                                         }
                                     }
                                 }
+                        )
+                    }
+
+                    // 2. OVERLAY: Server Channels list (rendered on top, offset by swipeOffset)
+                    val channelsOffset = with(density) { swipeOffset.value.toDp() }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .offset(x = channelsOffset)
+                            .background(bgColor)
+                            .pointerInput(screenWidthPx) {
+                                detectHorizontalDragGestures(
+                                    onDragEnd = {
+                                        coroutineScope.launch {
+                                            if (swipeOffset.value < -screenWidthPx / 3) {
+                                                // Complete swipe back to chat panel
+                                                swipeOffset.animateTo(-screenWidthPx)
+                                                viewModel.setPanel(HomePanel.CHAT)
+                                            } else {
+                                                // Return to current server panel position
+                                                swipeOffset.animateTo(0f)
+                                            }
+                                        }
+                                    },
+                                    onDragCancel = {
+                                        coroutineScope.launch {
+                                            swipeOffset.animateTo(0f)
+                                        }
+                                    },
+                                    onHorizontalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        coroutineScope.launch {
+                                            val newOffset = (swipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                            swipeOffset.snapTo(newOffset)
+                                        }
+                                    }
+                                )
                             },
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -405,56 +458,6 @@ fun HomeScreen(
                         onDismissRequest = { viewModel.dismissMembersSheet() }
                     )
                 }
-                }
-
-                // 2. OVERLAY: Chat Panel (rendered on top if a channel is selected, offset by swipeOffset)
-                if (uiState.selectedChannelId != null) {
-                    val activeChannel = data.channels.find { it.id == uiState.selectedChannelId }
-                    val chatOffset = with(density) { swipeOffset.value.toDp() }
-
-                    ChatPanel(
-                        channelId = uiState.selectedChannelId!!,
-                        channelName = activeChannel?.name ?: "",
-                        users = data.users,
-                        roles = data.roles ?: emptyList(),
-                        customEmojis = data.emojis ?: emptyList(),
-                        onBackClick = {
-                            coroutineScope.launch {
-                                swipeOffset.animateTo(screenWidthPx)
-                                viewModel.setPanel(HomePanel.SERVER)
-                            }
-                        },
-                        modifier = Modifier
-                            .offset(x = chatOffset)
-                            .pointerInput(screenWidthPx) {
-                                detectHorizontalDragGestures(
-                                    onDragEnd = {
-                                        coroutineScope.launch {
-                                            if (swipeOffset.value > screenWidthPx / 3) {
-                                                // Complete swipe back to server channels panel
-                                                swipeOffset.animateTo(screenWidthPx)
-                                                viewModel.setPanel(HomePanel.SERVER)
-                                            } else {
-                                                // Return to current chat panel position
-                                                swipeOffset.animateTo(0f)
-                                            }
-                                        }
-                                    },
-                                    onDragCancel = {
-                                        coroutineScope.launch {
-                                            swipeOffset.animateTo(0f)
-                                        }
-                                    },
-                                    onHorizontalDrag = { change, dragAmount ->
-                                        change.consume()
-                                        coroutineScope.launch {
-                                            val newOffset = (swipeOffset.value + dragAmount).coerceIn(0f, screenWidthPx)
-                                            swipeOffset.snapTo(newOffset)
-                                        }
-                                    }
-                                )
-                            }
-                    )
                 }
                 }
             }

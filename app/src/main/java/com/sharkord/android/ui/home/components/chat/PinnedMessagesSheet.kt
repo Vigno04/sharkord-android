@@ -1,10 +1,12 @@
 package com.sharkord.android.ui.home.components.chat
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -13,7 +15,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -22,6 +26,9 @@ import androidx.core.text.HtmlCompat
 import com.sharkord.android.R
 import com.sharkord.android.data.model.Message
 import com.sharkord.android.data.model.User
+import com.sharkord.android.data.network.SharkordClient
+import com.sharkord.android.ui.components.AsyncImageState
+import com.sharkord.android.ui.components.rememberAsyncImageState
 import com.sharkord.android.ui.home.components.ChatColors
 
 @Composable
@@ -93,8 +100,53 @@ fun PinnedMessagesSheet(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                val author = users.find { it.id == msg.userId }
+                                
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF3A3A3A)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    val avatarUrl = author?.avatar?.name?.let { name ->
+                                        "${SharkordClient.currentServerUrl}/public/$name"
+                                    }
+                                    val avatarState = rememberAsyncImageState(avatarUrl)
+                                    when (avatarState) {
+                                        is AsyncImageState.Success -> Image(
+                                            painter = avatarState.painter,
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                        is AsyncImageState.Loading -> CircularProgressIndicator(
+                                            color = ChatColors.AccentColor,
+                                            modifier = Modifier.size(14.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                        else -> {
+                                            val initials = getInitials(author?.name ?: "?")
+                                            val bgColor = getUsernameColor(author?.name ?: "?")
+                                            Box(
+                                                modifier = Modifier.fillMaxSize().background(bgColor),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = initials,
+                                                    color = Color.White,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(10.dp))
+
                                 Column(modifier = Modifier.weight(1f)) {
-                                    val authorName = users.find { it.id == msg.userId }?.name ?: "Unknown"
+                                    val authorName = author?.name ?: "Unknown"
                                     Text(text = authorName, color = accentColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                     Spacer(modifier = Modifier.height(2.dp))
                                     val pinPlain = remember(msg.content) {
@@ -117,3 +169,30 @@ fun PinnedMessagesSheet(
         }
     }
 }
+
+private fun getInitials(name: String): String {
+    val words = name.trim().split(" ").filter { it.isNotEmpty() }
+    return when {
+        words.isEmpty() -> "?"
+        words.size == 1 -> words[0].take(1).uppercase()
+        else -> (words[0].take(1) + words[1].take(1)).uppercase()
+    }
+}
+
+private fun getUsernameColor(name: String): Color {
+    val palette = listOf(
+        Color(0xFF5865F2), // Discord blurple
+        Color(0xFF57F287), // green
+        Color(0xFFFEE75C), // yellow
+        Color(0xFFEB459E), // fuchsia
+        Color(0xFFED4245), // red
+        Color(0xFF3BA55C), // dark green
+        Color(0xFF1ABC9C), // teal
+        Color(0xFF9B59B6), // purple
+        Color(0xFFE67E22), // orange
+        Color(0xFF2980B9), // blue
+    )
+    val index = Math.abs(name.hashCode()) % palette.size
+    return palette[index]
+}
+
