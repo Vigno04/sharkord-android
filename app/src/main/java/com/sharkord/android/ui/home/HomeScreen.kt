@@ -326,7 +326,9 @@ fun HomeScreen(
                                     memberCount = data.users.size,
                                     cardColor = cardColor,
                                     foregroundText = foregroundText,
-                                    onDirectMessagesClick = { viewModel.showMembersSheet() }
+                                    onDirectMessagesClick = { viewModel.showMembersSheet() },
+                                    onServerClick = { viewModel.showServerSheet() },
+                                    isServerSheetOpen = uiState.showServerSheet
                                 )
                             }
 
@@ -531,6 +533,57 @@ fun HomeScreen(
                         onMessageClick = { userId ->
                             viewModel.dismissMembersSheet()
                             viewModel.openDirectMessage(userId)
+                        }
+                    )
+                }
+
+                // ================= 7. SERVER PROFILE BOTTOM SHEET =================
+                var showUnderConstruction by remember { mutableStateOf(false) }
+
+                if (uiState.showServerSheet) {
+                    val userRoles = currentUser?.roleIds?.mapNotNull { roleId -> data.roles?.find { it.id == roleId } } ?: emptyList()
+                    val hasManageServer = userRoles.any { role ->
+                        val p = role.permissions.map { it.uppercase() }
+                        p.contains("MANAGE_SERVER") || p.contains("MANAGE_GUILD") || p.contains("ADMINISTRATOR") || role.name.equals("Owner", ignoreCase = true)
+                    } || data.ownUserId == 1
+
+                    ServerProfileBottomSheet(
+                        serverName = data.serverName,
+                        serverDescription = data.publicSettings?.description,
+                        hasManageServer = hasManageServer,
+                        bgColor = bgColor,
+                        cardColor = cardColor,
+                        primaryText = primaryText,
+                        foregroundText = foregroundText,
+                        onDismissRequest = { viewModel.dismissServerSheet() },
+                        onShowMembers = {
+                            viewModel.dismissServerSheet()
+                            viewModel.showMembersSheet()
+                        },
+                        onServerOptionsClick = {
+                            viewModel.dismissServerSheet()
+                            showUnderConstruction = true
+                        },
+                        onDisconnectClick = {
+                            viewModel.logout(context)
+                            viewModel.dismissServerSheet()
+                            onLogout()
+                        }
+                    )
+                }
+
+                if (showUnderConstruction) {
+                    AlertDialog(
+                        onDismissRequest = { showUnderConstruction = false },
+                        containerColor = cardColor,
+                        titleContentColor = foregroundText,
+                        textContentColor = primaryText,
+                        title = { Text("Under Construction") },
+                        text = { Text("The server options panel is currently under construction and will be available in a future update.") },
+                        confirmButton = {
+                            TextButton(onClick = { showUnderConstruction = false }) {
+                                Text("OK", color = Color(0xFF5865F2))
+                            }
                         }
                     )
                 }

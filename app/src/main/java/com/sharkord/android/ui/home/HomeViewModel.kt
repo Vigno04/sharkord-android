@@ -35,6 +35,7 @@ data class HomeUiState(
     val reconnectAttempts: Int = 0,
     val showProfileSheet: Boolean = false,
     val showMembersSheet: Boolean = false,
+    val showServerSheet: Boolean = false,
     val activePanel: HomePanel = HomePanel.SERVER
 )
 
@@ -461,6 +462,14 @@ class HomeViewModel : ViewModel() {
 
     fun dismissMembersSheet() {
         _uiState.update { it.copy(showMembersSheet = false) }
+    }
+
+    fun showServerSheet() {
+        _uiState.update { it.copy(showServerSheet = true) }
+    }
+
+    fun dismissServerSheet() {
+        _uiState.update { it.copy(showServerSheet = false) }
     }
 
     /**

@@ -1,18 +1,22 @@
 package com.sharkord.android.ui.home.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
@@ -32,7 +36,9 @@ fun ServerHeader(
     foregroundText: Color,
     modifier: Modifier = Modifier,
     onSearchClick: () -> Unit = {},
-    onDirectMessagesClick: () -> Unit = {}
+    onDirectMessagesClick: () -> Unit = {},
+    onServerClick: () -> Unit = {},
+    isServerSheetOpen: Boolean = false
 ) {
     // We stack the header, search bar, and direct message bar vertically in this Column
     Column(
@@ -48,16 +54,34 @@ fun ServerHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onServerClick() }
+                    .padding(4.dp)
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Show the server name with a little ">" arrow, to add server info view, settings ecc
+                    // Show the server name with a little down arrow icon
                     Text(
-                        text = "$serverName >",
+                        text = serverName,
                         color = foregroundText,
                         fontWeight = FontWeight.Bold,
                         fontSize = 24.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis // If name is too long, cut it with "..."
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    
+                    val chevronRotation by animateFloatAsState(targetValue = if (isServerSheetOpen) 180f else 0f)
+                    
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = "Server Options",
+                        tint = foregroundText,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .rotate(chevronRotation)
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
