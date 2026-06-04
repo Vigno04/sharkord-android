@@ -22,5 +22,17 @@
   "chat_severalPeopleAreTyping": "Diverse persone stanno scrivendo",
   "chat_uploading": "Caricamento in corso...",
   "chat_slideToCancel": "⬅ Scorri per annullare",
-  "chat_messageChannelPlaceholder": "Messaggio #%1$s"
+  "chat_messageChannelPlaceholder": "Messaggio #%1$s",
+  "chat_downloadFile": "Scarica %1$s",
+  "chat_failedLoadImage": "Impossibile caricare l'immagine",
+  "chat_unsupportedMediaType": "Tipo di file multimediale non supportato",
+  "chat_referencedMessageNotLoaded": "Il messaggio di riferimento non è ancora caricato",
+  "chat_voiceMessageTooShort": "Messaggio vocale troppo breve",
+  "chat_microphonePermissionRequired": "Autorizzazione del microfono richiesta per inviare note vocali.",
+  "chat_downloadStarted": "Download avviato: %1$s",
+  "chat_failedDownloadFile": "Impossibile scaricare il file.",
+  "chat_openingFile": "Apertura di %1$s...",
+  "chat_emptyFile": "File vuoto.",
+  "chat_noAppFoundToOpenFile": "Nessuna applicazione trovata per aprire questo file.",
+  "chat_failedOpenFile": "Impossibile aprire il file."
 }

@@ -238,7 +238,7 @@ fun MessageContextMenu(
                         ) {
                             Icon(Icons.Default.Download, contentDescription = "Download", tint = textPrimary)
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text(text = "Download ${file.displayName}", color = textPrimary, fontSize = 15.sp)
+                            Text(text = stringResource(id = R.string.chat_downloadFile, file.displayName), color = textPrimary, fontSize = 15.sp)
                         }
                     }
                 }

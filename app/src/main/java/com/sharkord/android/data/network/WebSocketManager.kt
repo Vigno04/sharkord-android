@@ -260,7 +260,8 @@ class WebSocketManager(
                     is TrpcResponse.SubscriptionComplete -> handleSubscriptionComplete(response)
                     is TrpcResponse.Ping -> {
                         Log.d(TAG, "Received tRPC ping, replying with pong")
-                        webSocket.send("{\"id\":null,\"method\":\"pong\"}")
+                        val idStr = if (response.id != null) response.id.toString() else "null"
+                        webSocket.send("{\"id\":$idStr,\"method\":\"pong\"}")
                     }
                     is TrpcResponse.Pong -> {
                         Log.d(TAG, "Received tRPC pong")

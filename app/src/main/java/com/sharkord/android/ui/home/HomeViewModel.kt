@@ -444,6 +444,21 @@ class HomeViewModel : ViewModel() {
     }
 
     /**
+     * Opens a direct message channel with the given user and navigates to it.
+     */
+    fun openDirectMessage(userId: Int) {
+        viewModelScope.launch {
+            val result = repository.openDirectMessage(userId)
+            result.onSuccess { channelId ->
+                selectChannel(channelId)
+            }
+            result.onFailure { error ->
+                _uiState.update { it.copy(errorMessage = error.message ?: "Failed to open DM") }
+            }
+        }
+    }
+
+    /**
      * Performs logout: disconnects WebSocket, clears session, and navigates back.
      */
     fun logout(context: Context) {

@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
 import com.sharkord.android.data.network.ConnectionState
+import com.sharkord.android.R
 
 /**
  * UI state for the chat panel of a single channel.
@@ -234,12 +235,17 @@ class ChatViewModel : ViewModel() {
         val trimmed = content.trim()
         val attached = _uiState.value.attachedFiles
         if (trimmed.isEmpty() && attached.isEmpty()) return
+        
+        val htmlContent = if (trimmed.isNotEmpty()) {
+            "<p>${trimmed.replace("\n", "<br>")}</p>"
+        } else ""
+
         val replyToId = _uiState.value.replyTarget?.id
         val fileIds = attached.map { it.id }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSending = true, errorMessage = null) }
-            repository.sendMessage(channelId, trimmed, replyToMessageId = replyToId, files = fileIds).fold(
+            repository.sendMessage(channelId, htmlContent, replyToMessageId = replyToId, files = fileIds).fold(
                 onSuccess = {
                     _uiState.update { it.copy(
                         isSending = false,
@@ -275,9 +281,11 @@ class ChatViewModel : ViewModel() {
         val trimmed = newContent.trim()
         if (trimmed.isEmpty()) return
 
+        val htmlContent = "<p>${trimmed.replace("\n", "<br>")}</p>"
+
         viewModelScope.launch {
             _uiState.update { it.copy(isSending = true, errorMessage = null) }
-            repository.editMessage(messageId, trimmed).fold(
+            repository.editMessage(messageId, htmlContent).fold(
                 onSuccess = {
                     _uiState.update { it.copy(isSending = false, editingMessage = null) }
                 },
@@ -447,17 +455,17 @@ class ChatViewModel : ViewModel() {
             val downloadManager = context.getSystemService(android.content.Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
             downloadManager.enqueue(request)
             
-            android.widget.Toast.makeText(context, "Download started: ${file.displayName}", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(context, context.getString(R.string.chat_downloadStarted, file.displayName), android.widget.Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start download", e)
-            android.widget.Toast.makeText(context, "Failed to download file", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(context, context.getString(R.string.chat_failedDownloadFile), android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
     fun downloadAndOpenFile(context: android.content.Context, file: com.sharkord.android.data.model.FileInfo) {
         if (file.name == null) return
         
-        android.widget.Toast.makeText(context, "Opening ${file.displayName}...", android.widget.Toast.LENGTH_SHORT).show()
+        android.widget.Toast.makeText(context, context.getString(R.string.chat_openingFile, file.displayName), android.widget.Toast.LENGTH_SHORT).show()
         
         clearOldTempFiles(context)
         
@@ -470,7 +478,7 @@ class ChatViewModel : ViewModel() {
                 if (!response.isSuccessful) {
                     Log.e(TAG, "Server returned HTTP ${response.code} ${response.message}")
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        android.widget.Toast.makeText(context, "Failed to download file.", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, context.getString(R.string.chat_failedDownloadFile), android.widget.Toast.LENGTH_SHORT).show()
                     }
                     return@launch
                 }
@@ -482,7 +490,7 @@ class ChatViewModel : ViewModel() {
                     }
                 } ?: run {
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        android.widget.Toast.makeText(context, "Empty file.", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, context.getString(R.string.chat_emptyFile), android.widget.Toast.LENGTH_SHORT).show()
                     }
                     return@launch
                 }
@@ -502,14 +510,14 @@ class ChatViewModel : ViewModel() {
                     try {
                         context.startActivity(intent)
                     } catch (e: android.content.ActivityNotFoundException) {
-                        android.widget.Toast.makeText(context, "No app found to open this file.", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, context.getString(R.string.chat_noAppFoundToOpenFile), android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }
 
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to download and open file", e)
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    android.widget.Toast.makeText(context, "Failed to open file.", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(context, context.getString(R.string.chat_failedOpenFile), android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -540,7 +548,7 @@ class ChatViewModel : ViewModel() {
     fun onType(text: String) {
         if (text.isBlank()) return
         val now = System.currentTimeMillis()
-        if (now - lastTypingSentTime > 3000) {
+        if (now - lastTypingSentTime > 300) {
             lastTypingSentTime = now
             viewModelScope.launch {
                 repository.signalTyping(channelId)
@@ -552,9 +560,9 @@ class ChatViewModel : ViewModel() {
         typingExpiryJob?.cancel()
         typingExpiryJob = viewModelScope.launch {
             while (isActive) {
-                delay(1000)
+                delay(300)
                 val now = System.currentTimeMillis()
-                val expired = activeTypingUsers.filter { now - it.value > 5000 }.keys
+                val expired = activeTypingUsers.filter { now - it.value > 800 }.keys
                 if (expired.isNotEmpty()) {
                     expired.forEach { activeTypingUsers.remove(it) }
                     _uiState.update { it.copy(typingUsers = activeTypingUsers.keys.toSet()) }

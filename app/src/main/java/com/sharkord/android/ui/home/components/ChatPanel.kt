@@ -59,6 +59,8 @@ import kotlinx.coroutines.launch
 fun ChatPanel(
     channelId: Int,
     channelName: String,
+    isDm: Boolean = false,
+    dmUser: User? = null,
     users: List<User>,
     roles: List<Role>,
     customEmojis: List<Emoji>,
@@ -84,7 +86,6 @@ fun ChatPanel(
 
     var showMenuMessage by remember(channelId) { mutableStateOf<Message?>(null) }
     var isEmojiPickerOpen by remember(channelId) { mutableStateOf(false) }
-    var selectedEmojiTab by remember(channelId) { mutableStateOf("standard") }
 
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -180,9 +181,11 @@ fun ChatPanel(
             // Top Bar
             ChatTopBar(
                 channelName = channelName,
+                isDm = isDm,
+                dmUser = dmUser,
                 showPinnedMessages = uiState.showPinnedMessages,
                 onBackClick = onBackClick,
-                onTogglePinnedMessages = { viewModel.setPinnedMessagesVisible(true) }
+                onTogglePinnedMessages = { viewModel.setPinnedMessagesVisible(!uiState.showPinnedMessages) }
             )
 
             // Error Banner
@@ -347,7 +350,7 @@ fun ChatPanel(
                                                 listState.animateScrollToItem(targetIndex + headerOffset)
                                             }
                                         } else {
-                                            android.widget.Toast.makeText(context, "Referenced message is not loaded yet", android.widget.Toast.LENGTH_SHORT).show()
+                                            android.widget.Toast.makeText(context, context.getString(R.string.chat_referencedMessageNotLoaded), android.widget.Toast.LENGTH_SHORT).show()
                                         }
                                     },
                                     onReactionClick = { messageId, emoji ->
@@ -452,175 +455,24 @@ fun ChatPanel(
             )
 
             // Bottom Panel (keyboard / emoji space)
-            // Height = max(currentIME, emojiTarget) so the total bottom space
-            // stays constant during keyboard↔emoji transitions, keeping
-            // everything above (chat, pill, input bar) completely static.
-            val density = LocalDensity.current
-            val imeBottomPx = WindowInsets.ime.getBottom(density)
-            val navBottomPx = WindowInsets.navigationBars.getBottom(density)
-            val isImeVisible = WindowInsets.isImeVisible
-            val imeAboveNavPx = (imeBottomPx - navBottomPx).coerceAtLeast(0)
-
-            val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-            var storedKbAboveNavPx by remember { mutableIntStateOf(prefs.getInt("keyboard_height_above_nav", 0)) }
-
-            // Persist keyboard height when it settles
-            LaunchedEffect(imeAboveNavPx) {
-                val minKbPx = with(density) { 150.dp.toPx() }
-                if (imeAboveNavPx > minKbPx) {
-                    kotlinx.coroutines.delay(250)
-                    if (storedKbAboveNavPx != imeAboveNavPx) {
-                        storedKbAboveNavPx = imeAboveNavPx
-                        prefs.edit().putInt("keyboard_height_above_nav", imeAboveNavPx).apply()
-                    }
-                }
-            }
-
-            // Emoji → Keyboard: close emoji after the keyboard has appeared
-            LaunchedEffect(isImeVisible) {
-                if (isImeVisible && isEmojiPickerOpen) {
-                    kotlinx.coroutines.delay(300)
-                    isEmojiPickerOpen = false
-                }
-            }
-
-            // Bottom panel height = max(current IME above nav, emoji target)
-            val fallbackAboveNavPx = with(density) { 300.dp.toPx().toInt() }
-            val emojiTargetPx = if (isEmojiPickerOpen) {
-                if (storedKbAboveNavPx > 0) storedKbAboveNavPx else fallbackAboveNavPx
-            } else 0
-            
-            val animatedEmojiPx by androidx.compose.animation.core.animateIntAsState(
-                targetValue = emojiTargetPx,
-                animationSpec = if (imeAboveNavPx > 0) {
-                    androidx.compose.animation.core.snap()
-                } else {
-                    androidx.compose.animation.core.spring()
+            com.sharkord.android.ui.home.components.chat.ChatBottomPanel(
+                isEmojiPickerOpen = isEmojiPickerOpen,
+                onCloseEmojiPicker = { isEmojiPickerOpen = false },
+                customEmojis = customEmojis,
+                inputText = inputText,
+                onInputTextChanged = { textVal ->
+                    inputText = textVal
                 },
-                label = "emojiPanelAnim"
+                onType = { text -> viewModel.onType(text) },
+                isAtBottom = isAtBottom,
+                messagesCount = uiState.messages.size,
+                listState = listState,
+                bgColor = bgColor,
+                cardColor = cardColor,
+                textPrimary = textPrimary,
+                textSecondary = textSecondary,
+                accentColor = accentColor
             )
-            
-            val bottomPanelPx = maxOf(imeAboveNavPx, animatedEmojiPx)
-            val bottomPanelDp = with(density) { bottomPanelPx.toDp() }
-
-            var wasAtBottom by remember { mutableStateOf(true) }
-
-            LaunchedEffect(isImeVisible, isEmojiPickerOpen) {
-                wasAtBottom = isAtBottom
-            }
-
-            LaunchedEffect(bottomPanelDp) {
-                if (wasAtBottom && uiState.messages.isNotEmpty()) {
-                    listState.scrollToItem(uiState.messages.size - 1)
-                }
-            }
-
-            // Emoji picker state — kept alive across open/close to avoid recreating
-            val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
-            val emojiViewModel: com.sharkord.android.ui.emojipicker.presentation.EmojiPickerViewModel = remember {
-                com.sharkord.android.ui.emojipicker.di.RepositoryModule.provideEmojiPickerViewModel(context)
-            }
-
-            LaunchedEffect(isEmojiPickerOpen) {
-                if (isEmojiPickerOpen) {
-                    selectedEmojiTab = "standard"
-                }
-                emojiViewModel.onSearchTextChanged("")
-                gridState.scrollToItem(0)
-            }
-
-            if (bottomPanelDp > 0.dp) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(bottomPanelDp)
-                        .background(bgColor)
-                ) {
-                    if (isEmojiPickerOpen) {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            TabRow(
-                                selectedTabIndex = if (selectedEmojiTab == "standard") 0 else 1,
-                                containerColor = cardColor,
-                                contentColor = textPrimary
-                            ) {
-                                Tab(
-                                    selected = selectedEmojiTab == "standard",
-                                    onClick = { selectedEmojiTab = "standard" },
-                                    text = { Text(text = stringResource(id = R.string.common_emojiTab), fontWeight = FontWeight.Bold, fontSize = 14.sp) }
-                                )
-                                Tab(
-                                    selected = selectedEmojiTab == "custom",
-                                    onClick = { selectedEmojiTab = "custom" },
-                                    text = { Text(text = stringResource(id = R.string.common_customTab), fontWeight = FontWeight.Bold, fontSize = 14.sp) }
-                                )
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxWidth()
-                            ) {
-                                if (selectedEmojiTab == "standard") {
-                                    com.sharkord.android.ui.emojipicker.presentation.EmojiPickerContent(
-                                        state = emojiViewModel.state.collectAsState().value,
-                                        gridState = gridState,
-                                        colors = com.sharkord.android.ui.emojipicker.presentation.EmojiPickerDefaults.emojiPickerColors(
-                                            backgroundColor = cardColor,
-                                            textColor = textPrimary,
-                                            searchBarBackgroundColor = bgColor,
-                                            searchBarIconTint = textSecondary,
-                                            searchBarTextColor = textPrimary,
-                                            activeCategoryTint = accentColor,
-                                            inactiveCategoryTint = textSecondary
-                                        ),
-                                        onCategoryTabClick = { index ->
-                                            coroutineScope.launch { gridState.animateScrollToItem(index) }
-                                        },
-                                        onSearchTextChange = emojiViewModel::onSearchTextChanged,
-                                        onEmojiSelected = { emoji ->
-                                            val currentText = inputText.text
-                                            val selection = inputText.selection
-                                            val insertPos = if (selection.start >= 0) selection.start else currentText.length
-                                            val textBefore = currentText.substring(0, insertPos)
-                                            val textAfter = currentText.substring(if (selection.end >= 0) selection.end else currentText.length)
-                                            val newText = textBefore + emoji.emoji + textAfter
-                                            val newSelection = androidx.compose.ui.text.TextRange(insertPos + emoji.emoji.length)
-                                            inputText = androidx.compose.ui.text.input.TextFieldValue(newText, newSelection)
-                                            viewModel.onType(newText)
-                                        },
-                                        onAddToRecent = emojiViewModel::onAddToRecent
-                                    )
-                                } else {
-                                    CustomEmojiPickerContent(
-                                        customEmojis = customEmojis,
-                                        colors = com.sharkord.android.ui.emojipicker.presentation.EmojiPickerDefaults.emojiPickerColors(
-                                            backgroundColor = cardColor,
-                                            textColor = textPrimary,
-                                            searchBarBackgroundColor = bgColor,
-                                            searchBarIconTint = textSecondary,
-                                            searchBarTextColor = textPrimary,
-                                            activeCategoryTint = accentColor,
-                                            inactiveCategoryTint = textSecondary
-                                        ),
-                                        onEmojiSelected = { emoji ->
-                                            val currentText = inputText.text
-                                            val selection = inputText.selection
-                                            val insertPos = if (selection.start >= 0) selection.start else currentText.length
-                                            val textBefore = currentText.substring(0, insertPos)
-                                            val textAfter = currentText.substring(if (selection.end >= 0) selection.end else currentText.length)
-                                            val code = ":${emoji.name}:"
-                                            val newText = textBefore + code + textAfter
-                                            val newSelection = androidx.compose.ui.text.TextRange(insertPos + code.length)
-                                            inputText = androidx.compose.ui.text.input.TextFieldValue(newText, newSelection)
-                                            viewModel.onType(newText)
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
         }
 
         // Pinned Messages Overlay
