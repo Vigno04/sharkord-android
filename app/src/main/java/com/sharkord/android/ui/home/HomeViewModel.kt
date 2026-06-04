@@ -10,6 +10,8 @@ import com.sharkord.android.data.network.ServerEvent
 import com.sharkord.android.data.network.ServerEventHandler
 import com.sharkord.android.data.network.SharkordClient
 import com.sharkord.android.data.repository.ServerRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,6 +59,13 @@ class HomeViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    /**
+     * Debounce job for the reconnection banner.
+     * Brief reconnects (< 3s) are invisible to the user — only persistent
+     * disconnects show the "Connection lost. Reconnecting..." message.
+     */
+    private var reconnectBannerJob: Job? = null
 
     /** Connection state directly from the WebSocket manager. */
     val connectionState: StateFlow<ConnectionState>
@@ -129,6 +138,10 @@ class HomeViewModel : ViewModel() {
     private fun handleConnectionStateChange(state: ConnectionState) {
         when (state) {
             is ConnectionState.Connected -> {
+                // Cancel any pending reconnect banner — the connection recovered.
+                reconnectBannerJob?.cancel()
+                reconnectBannerJob = null
+
                 val data = state.serverData
                 _uiState.update {
                     it.copy(
@@ -156,10 +169,17 @@ class HomeViewModel : ViewModel() {
             }
 
             is ConnectionState.Reconnecting -> {
-                _uiState.update {
-                    it.copy(
-                        errorMessage = if (it.serverData != null) "Connection lost. Reconnecting..." else it.errorMessage
-                    )
+                // Debounce the banner: only show it if the connection stays down
+                // for more than 3 seconds. Brief reconnects are invisible to the user.
+                if (reconnectBannerJob == null) {
+                    reconnectBannerJob = viewModelScope.launch {
+                        delay(3000)
+                        _uiState.update {
+                            it.copy(
+                                errorMessage = if (it.serverData != null) "Connection lost. Reconnecting..." else it.errorMessage
+                            )
+                        }
+                    }
                 }
             }
 
@@ -467,6 +487,7 @@ class HomeViewModel : ViewModel() {
 
     override fun onCleared() {
         super.onCleared()
+        reconnectBannerJob?.cancel()
         // Don't disconnect here — the WebSocket should stay alive
         // even during config changes. Only disconnect on explicit logout.
     }

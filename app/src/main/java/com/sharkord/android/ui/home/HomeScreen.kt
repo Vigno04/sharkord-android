@@ -223,7 +223,9 @@ fun HomeScreen(
                             data.channels.filter { it.categoryId == null && !it.isVoice && !it.isDm }
                         val uncategorizedVoice =
                             data.channels.filter { it.categoryId == null && it.isVoice && !it.isDm }
-                        val dmChannels = data.channels.filter { it.isDm }
+                        val dmChannels = data.channels.filter { channel ->
+                            channel.isDm && channel.name.removePrefix("DM - ").split(":").contains(data.ownUserId.toString())
+                        }
                         val categoriesList = data.categories?.sortedBy { it.position } ?: emptyList()
 
                 Box(
