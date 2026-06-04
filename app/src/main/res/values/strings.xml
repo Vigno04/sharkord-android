@@ -1,5 +1,17 @@
 <resources>
     <string name="app_name">Sharkord</string>
+    <string name="chat_channelBeginning">This is the beginning of the #%1$s channel.</string>
+    <string name="chat_channelBeginningShort">This is the beginning of #%1$s</string>
+    <string name="chat_messageChannelPlaceholder">Message #%1$s</string>
+    <string name="chat_newMessageSingular">1 new message</string>
+    <string name="chat_newMessagesPlural">%1$d new messages</string>
+    <string name="chat_severalPeopleAreTyping">Several people are typing</string>
+    <string name="chat_slideToCancel">⬅ Slide to cancel</string>
+    <string name="chat_someoneTyping">Someone</string>
+    <string name="chat_uploading">Uploading...</string>
+    <string name="chat_userIsTyping">%1$s is typing</string>
+    <string name="chat_usersAreTyping">%1$s and %2$s are typing</string>
+    <string name="chat_welcomeToChannel">Welcome to #%1$s!</string>
     <string name="common_add">Add</string>
     <string name="common_addReaction">Add Reaction</string>
     <string name="common_andMore">and %1$s more</string>
@@ -38,7 +50,7 @@
     <string name="common_globalErrorDescription">Sharkord hit an unexpected error. Reload the app. If this keeps happening, please open an issue with the error details in github.</string>
     <string name="common_globalErrorTitle">Sorry, Sharkord crashed and couldn\'t recover.</string>
     <string name="common_memberSince">Member since %1$s</string>
-    <string name="common_member_count">{{count}} members</string>
+    <string name="common_member_count">%1$d members</string>
     <string name="common_members">Members</string>
     <string name="common_messageCannotBeEmpty">Message cannot be empty</string>
     <string name="common_messageChannel">Message \&quot;%1$s\&quot;</string>

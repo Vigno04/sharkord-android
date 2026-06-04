@@ -13,7 +13,7 @@ class SessionManager(context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    // ─── Read ─────────────────────────────────────────────────
+    // Read
 
     val token: String?
         get() = prefs.getString(KEY_TOKEN, null)
@@ -21,19 +21,23 @@ class SessionManager(context: Context) {
     val serverUrl: String?
         get() = prefs.getString(KEY_SERVER_URL, null)
 
+    val serverLogoUrl: String?
+        get() = prefs.getString(KEY_SERVER_LOGO_URL, null)
+
     val autoLogin: Boolean
         get() = prefs.getBoolean(KEY_AUTO_LOGIN, false)
 
-    // ─── Write ────────────────────────────────────────────────
+    // Write
 
     /**
      * Saves the current session after a successful login.
      * If [autoLogin] is false, the token is NOT persisted (user must re-login next launch).
      */
-    fun saveSession(serverUrl: String, token: String, autoLogin: Boolean) {
+    fun saveSession(serverUrl: String, token: String, logoUrl: String?, autoLogin: Boolean) {
         prefs.edit().apply {
             putString(KEY_SERVER_URL, serverUrl)
             putBoolean(KEY_AUTO_LOGIN, autoLogin)
+            putString(KEY_SERVER_LOGO_URL, logoUrl)
             if (autoLogin) {
                 putString(KEY_TOKEN, token)
             } else {
@@ -51,11 +55,19 @@ class SessionManager(context: Context) {
     }
 
     /**
+     * Saves only the server logo URL.
+     */
+    fun saveServerLogoUrl(logoUrl: String?) {
+        prefs.edit().putString(KEY_SERVER_LOGO_URL, logoUrl).apply()
+    }
+
+    /**
      * Clears all session data. Used on logout.
      */
     fun clearSession() {
         prefs.edit().apply {
             remove(KEY_TOKEN)
+            remove(KEY_SERVER_LOGO_URL)
             putBoolean(KEY_AUTO_LOGIN, false)
             apply()
         }
@@ -72,6 +84,8 @@ class SessionManager(context: Context) {
         private const val PREFS_NAME = "sharkord_prefs"
         private const val KEY_TOKEN = "login_token"
         private const val KEY_SERVER_URL = "server_url"
+        private const val KEY_SERVER_LOGO_URL = "server_logo_url"
         private const val KEY_AUTO_LOGIN = "auto_login"
     }
 }
+

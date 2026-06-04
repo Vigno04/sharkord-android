@@ -5,6 +5,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -44,6 +46,13 @@ fun LoginScreen(
 ) {
     val context = LocalContext.current
     
+    // Synchronously check for a saved valid session on the very first frame
+    // to prevent any flashing of the login form/fields during auto-login transitions!
+    val hasSavedSession = remember(context) {
+        SharkordClient.initialize(context)
+        SharkordClient.session.hasValidSession()
+    }
+    
     // Load saved URL on startup
     LaunchedEffect(Unit) {
         viewModel.initialize(context, onLoginSuccess)
@@ -55,11 +64,65 @@ fun LoginScreen(
     val foregroundText = Color(0xFFFAFAFA)
     val accentColor = Color(0xFFE8E8E8)
 
+    // Render a premium full-screen splash screen immediately during auto-login transitions
+    if (hasSavedSession || viewModel.isAutoLoggingIn) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(bgColor),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                // Show cached server logo if available in saved session
+                val savedLogoUrl = remember(context) {
+                    if (SharkordClient.session.hasValidSession()) SharkordClient.session.serverLogoUrl else null
+                }
+                val serverLogoPainter = rememberAsyncImagePainter(savedLogoUrl)
+                serverLogoPainter?.let {
+                    Image(
+                        painter = it,
+                        contentDescription = "Server Logo",
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(RoundedCornerShape(32.dp))
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+
+                CircularProgressIndicator(
+                    color = accentColor,
+                    modifier = Modifier.size(48.dp),
+                    strokeWidth = 3.dp
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                val hostName = remember(context) {
+                    SharkordClient.session.serverUrl
+                        ?.removePrefix("https://")
+                        ?.removePrefix("http://")
+                        ?.substringBefore('/') 
+                        ?: "Server"
+                }
+                Text(
+                    text = "Connecting to $hostName...",
+                    color = Color.Gray,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+        return
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(bgColor)
+            .imePadding()
             .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -91,6 +154,7 @@ fun LoginScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center

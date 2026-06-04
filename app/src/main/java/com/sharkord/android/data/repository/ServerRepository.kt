@@ -27,7 +27,7 @@ class ServerRepository {
     private val webSocket get() = SharkordClient.webSocket
     private val session get() = SharkordClient.session
 
-    // ─── Reactive State ───────────────────────────────────────
+    // Reactive State
 
     /** Current WebSocket connection state. */
     val connectionState: StateFlow<ConnectionState>
@@ -41,7 +41,7 @@ class ServerRepository {
     val incomingEvents: SharedFlow<IncomingEvent>
         get() = webSocket.incomingEvents
 
-    // ─── HTTP Operations ──────────────────────────────────────
+    // HTTP Operations
 
     /**
      * Fetches server info (name, description, logo, version) from GET /info.
@@ -52,8 +52,14 @@ class ServerRepository {
         val result = http.fetchServerInfo(cleanUrl)
 
         result.onSuccess { info ->
+            val logoUrl = info.logo?.name?.let { name ->
+                val encodedName = android.net.Uri.encode(name)
+                "$cleanUrl/public/$encodedName"
+            }
+            Log.d("ServerRepository", "fetchServerInfo success: name=${info.name}, logoUrl=$logoUrl")
             SharkordClient.currentServerUrl = cleanUrl
-            SharkordClient.currentServerLogoUrl = info.logo?.name?.let { "$cleanUrl/public/$it" }
+            SharkordClient.currentServerLogoUrl = logoUrl
+            session.saveServerLogoUrl(logoUrl)
         }
 
         return result
@@ -77,14 +83,14 @@ class ServerRepository {
         result.onSuccess { token ->
             SharkordClient.currentToken = token
             SharkordClient.currentServerUrl = cleanUrl
-            session.saveSession(cleanUrl, token, autoLogin)
+            session.saveSession(cleanUrl, token, SharkordClient.currentServerLogoUrl, autoLogin)
             Log.d(TAG, "Login successful, session saved (autoLogin=$autoLogin)")
         }
 
         return result
     }
 
-    // ─── WebSocket Operations ─────────────────────────────────
+    // WebSocket Operations
 
     /**
      * Connects to the server via WebSocket and performs the full tRPC handshake + joinServer flow.
@@ -122,7 +128,7 @@ class ServerRepository {
         webSocket.disconnect()
     }
 
-    // ─── Session Queries ──────────────────────────────────────
+    // Session Queries
 
     /**
      * Attempts to restore a saved session. Returns true if credentials exist
@@ -133,11 +139,13 @@ class ServerRepository {
 
         val url = session.serverUrl ?: return false
         val token = session.token ?: return false
+        val logoUrl = session.serverLogoUrl
 
         SharkordClient.currentServerUrl = url
         SharkordClient.currentToken = token
+        SharkordClient.currentServerLogoUrl = logoUrl
 
-        Log.d(TAG, "Session restored from preferences (url=$url)")
+        Log.d(TAG, "Session restored from preferences (url=$url, logoUrl=$logoUrl)")
         return true
     }
 

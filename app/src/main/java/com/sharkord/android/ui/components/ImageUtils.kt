@@ -2,6 +2,7 @@ package com.sharkord.android.ui.components
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Log
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -20,6 +21,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.Request
 import java.util.concurrent.ConcurrentHashMap
+import android.util.LruCache
 
 /**
  * Shared image loading composables.
@@ -32,8 +34,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Represents a cached image with decoded bitmap and fetch timestamp.
  */
 data class ImageCacheEntry(
-    val bitmap: Bitmap,
-    val timestamp: Long
+    val bitmap: Bitmap
 )
 
 /**
@@ -41,9 +42,32 @@ data class ImageCacheEntry(
  * request deduplication, and rate-limiting to avoid redundant network requests.
  */
 object ImageCacheManager {
-    private val cache = ConcurrentHashMap<String, ImageCacheEntry>()
+    private const val TAG = "ImageCacheManager"
+    
+    private val maxMemoryKb = (Runtime.getRuntime().maxMemory() / 1024).toInt()
+    private val cacheSizeKb = maxMemoryKb / 4
+
+    private val cache = object : LruCache<String, ImageCacheEntry>(cacheSizeKb) {
+        override fun sizeOf(key: String, value: ImageCacheEntry): Int {
+            return value.bitmap.byteCount / 1024
+        }
+    }
     private val inFlight = ConcurrentHashMap<String, Deferred<ImageCacheEntry?>>()
     private val mutex = Mutex()
+
+    private fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
+        val (height: Int, width: Int) = options.outHeight to options.outWidth
+        var inSampleSize = 1
+
+        if (height > reqHeight || width > reqWidth) {
+            val halfHeight: Int = height / 2
+            val halfWidth: Int = width / 2
+            while (halfHeight / inSampleSize >= reqHeight && halfWidth / inSampleSize >= reqWidth) {
+                inSampleSize *= 2
+            }
+        }
+        return inSampleSize
+    }
 
     /**
      * Loads an image from the network or returns a cached one if it was loaded recently.
@@ -51,10 +75,8 @@ object ImageCacheManager {
     suspend fun loadImage(url: String): ImageCacheEntry? {
         if (url.isBlank()) return null
 
-        val now = System.currentTimeMillis()
-        val cached = cache[url]
-        // If the image was successfully fetched less than 10 seconds ago, reuse it directly
-        if (cached != null && (now - cached.timestamp) < 10000) {
+        val cached = cache.get(url)
+        if (cached != null) {
             return cached
         }
 
@@ -63,25 +85,44 @@ object ImageCacheManager {
             mutex.withLock {
                 inFlight[url] ?: async(Dispatchers.IO) {
                     try {
+                        Log.d(TAG, "Requesting image download from: $url")
                         val request = Request.Builder().url(url).build()
                         SharkordClient.okHttpClient.newCall(request).execute().use { response ->
                             if (response.isSuccessful) {
                                 val bytes = response.body?.bytes()
                                 if (bytes != null) {
-                                    val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                                    val options = BitmapFactory.Options().apply {
+                                        inJustDecodeBounds = true
+                                    }
+                                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+                                    
+                                    options.inSampleSize = calculateInSampleSize(options, 800, 800)
+                                    options.inJustDecodeBounds = false
+                                    
+                                    val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+                                    
                                     if (bmp != null) {
+                                        Log.d(TAG, "Successfully downloaded and decoded image from $url (${bytes.size} bytes)")
                                         val entry = ImageCacheEntry(
-                                            bitmap = bmp,
-                                            timestamp = System.currentTimeMillis()
+                                            bitmap = bmp
                                         )
-                                        cache[url] = entry
+                                        cache.put(url, entry)
                                         entry
-                                    } else null
-                                } else null
-                            } else null
+                                    } else {
+                                        Log.e(TAG, "Failed to decode bitmap from downloaded bytes for $url")
+                                        null
+                                    }
+                                } else {
+                                    Log.e(TAG, "Downloaded response body was empty for $url")
+                                    null
+                                }
+                            } else {
+                                Log.e(TAG, "Server returned failure code ${response.code} for image $url")
+                                null
+                            }
                         }
                     } catch (e: Exception) {
-                        e.printStackTrace()
+                        Log.e(TAG, "Exception thrown while loading image from $url: ${e.message}", e)
                         null
                     } finally {
                         mutex.withLock {
@@ -94,41 +135,153 @@ object ImageCacheManager {
 
         val result = deferred.await()
         // Fallback to older cached entry if network fetch failed
-        return result ?: cache[url]
+        return result ?: cache.get(url)
+    }
+
+    /**
+     * Extracts and caches a thumbnail frame from a remote video.
+     */
+    suspend fun loadVideoThumbnail(videoUrl: String): Bitmap? {
+        if (videoUrl.isBlank()) return null
+        
+        val cached = cache.get(videoUrl)
+        if (cached != null) {
+            return cached.bitmap
+        }
+        
+        return withContext(Dispatchers.IO) {
+            var retriever: android.media.MediaMetadataRetriever? = null
+            try {
+                Log.d(TAG, "Retrieving video thumbnail from: $videoUrl")
+                retriever = android.media.MediaMetadataRetriever()
+                retriever.setDataSource(videoUrl, HashMap<String, String>())
+                val bmp = retriever.getFrameAtTime(1_000_000, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                if (bmp != null) {
+                    val entry = ImageCacheEntry(bmp)
+                    cache.put(videoUrl, entry)
+                    bmp
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to retrieve video thumbnail for $videoUrl: ${e.message}")
+                null
+            } finally {
+                try {
+                    retriever?.release()
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    /**
+     * Retrieves an image from the cache synchronously, avoiding loading states if it already exists.
+     */
+    fun getCachedImage(url: String): ImageCacheEntry? {
+        return cache.get(url)
+    }
+
+    /**
+     * Clears the cache.
+     */
+    fun clearCache() {
+        cache.evictAll()
+        inFlight.clear()
     }
 }
 
 /**
+ * Three-state result for async image loading.
+ */
+sealed class AsyncImageState {
+    object Loading : AsyncImageState()
+    data class Success(val painter: Painter) : AsyncImageState()
+    object Failure : AsyncImageState()
+    object Empty : AsyncImageState() // url was null/blank
+}
+
+/**
+ * Loads an image from a URL and returns a tri-state [AsyncImageState].
+ *
+ * - [AsyncImageState.Empty]   — url was null / blank
+ * - [AsyncImageState.Loading] — fetch in-flight
+ * - [AsyncImageState.Success] — bitmap ready
+ * - [AsyncImageState.Failure] — network / decode error
+ */
+@Composable
+fun rememberAsyncImageState(url: String?): AsyncImageState {
+    if (url.isNullOrBlank()) return AsyncImageState.Empty
+
+    val cached = ImageCacheManager.getCachedImage(url)
+    var state by remember(url) { 
+        mutableStateOf<AsyncImageState>(
+            if (cached != null) AsyncImageState.Success(BitmapPainter(cached.bitmap.asImageBitmap()))
+            else AsyncImageState.Loading
+        ) 
+    }
+
+    LaunchedEffect(url) {
+        if (cached == null) {
+            val entry = ImageCacheManager.loadImage(url)
+            state = if (entry != null) {
+                AsyncImageState.Success(BitmapPainter(entry.bitmap.asImageBitmap()))
+            } else {
+                AsyncImageState.Failure
+            }
+        }
+    }
+
+    return state
+}
+
+/**
+ * Loads a video thumbnail from a URL and returns a tri-state [AsyncImageState].
+ */
+@Composable
+fun rememberVideoThumbnailState(url: String?): AsyncImageState {
+    if (url.isNullOrBlank()) return AsyncImageState.Empty
+
+    val cached = ImageCacheManager.getCachedImage(url)
+    var state by remember(url) { 
+        mutableStateOf<AsyncImageState>(
+            if (cached != null) AsyncImageState.Success(BitmapPainter(cached.bitmap.asImageBitmap()))
+            else AsyncImageState.Loading
+        ) 
+    }
+
+    LaunchedEffect(url) {
+        if (cached == null) {
+            val bmp = ImageCacheManager.loadVideoThumbnail(url)
+            state = if (bmp != null) {
+                AsyncImageState.Success(BitmapPainter(bmp.asImageBitmap()))
+            } else {
+                AsyncImageState.Failure
+            }
+        }
+    }
+
+    return state
+}
+
+/**
  * Loads an image from a URL asynchronously and returns a [Painter].
- * If the image fails to load, is loading, or has an empty/null URL, it returns
- * the default fallbackResource painter (or null if fallbackResourceId is null).
+ *
+ * - Returns **null** while loading OR when [url] is null/blank.
+ *   Callers should render their own placeholder (spinner, initials, etc.).
+ * - Returns the [fallbackResourceId] painter only on a real load **failure**.
+ *   Pass `null` for [fallbackResourceId] to get `null` on failure too.
  */
 @Composable
 fun rememberAsyncImagePainter(
     url: String?,
-    fallbackResourceId: Int? = R.drawable.logo
+    fallbackResourceId: Int? = null
 ): Painter? {
-    if (url.isNullOrBlank()) {
-        return fallbackResourceId?.let { painterResource(id = it) }
-    }
-
-    var bitmap by remember(url) { mutableStateOf<ImageBitmap?>(null) }
-    var isFailed by remember(url) { mutableStateOf(false) }
-
-    LaunchedEffect(url) {
-        val entry = ImageCacheManager.loadImage(url)
-        if (entry != null) {
-            bitmap = entry.bitmap.asImageBitmap()
-            isFailed = false
-        } else {
-            isFailed = true
-        }
-    }
-
-    return when {
-        bitmap != null -> BitmapPainter(bitmap!!)
-        isFailed -> fallbackResourceId?.let { painterResource(id = it) }
-        else -> fallbackResourceId?.let { painterResource(id = it) } // while loading
+    val imageState = rememberAsyncImageState(url)
+    return when (imageState) {
+        is AsyncImageState.Success -> imageState.painter
+        is AsyncImageState.Failure -> fallbackResourceId?.let { painterResource(id = it) }
+        is AsyncImageState.Loading -> null   // caller shows spinner
+        is AsyncImageState.Empty   -> null   // caller shows initials / icon
     }
 }
 
@@ -151,22 +304,32 @@ fun rememberExtendedImageState(url: String?): ExtendedImageState {
         return ExtendedImageState(null, Color.Transparent, Color.Transparent)
     }
 
-    var painter by remember(url) { mutableStateOf<Painter?>(null) }
-    var leftColor by remember(url) { mutableStateOf(Color.Transparent) }
-    var rightColor by remember(url) { mutableStateOf(Color.Transparent) }
+    val cached = ImageCacheManager.getCachedImage(url)
+
+    var painter by remember(url) { 
+        mutableStateOf<Painter?>(if (cached != null) BitmapPainter(cached.bitmap.asImageBitmap()) else null) 
+    }
+    var leftColor by remember(url) { 
+        mutableStateOf(if (cached != null) Color(cached.bitmap.getPixel(0, cached.bitmap.height / 2)) else Color.Transparent) 
+    }
+    var rightColor by remember(url) { 
+        mutableStateOf(if (cached != null) Color(cached.bitmap.getPixel(cached.bitmap.width - 1, cached.bitmap.height / 2)) else Color.Transparent) 
+    }
 
     LaunchedEffect(url) {
-        val entry = ImageCacheManager.loadImage(url)
-        if (entry != null) {
-            val bmp = entry.bitmap
-            // Extract edge colors on background thread
-            withContext(Dispatchers.Default) {
-                val leftCol = bmp.getPixel(0, bmp.height / 2)
-                val rightCol = bmp.getPixel(bmp.width - 1, bmp.height / 2)
-                
-                leftColor = Color(leftCol)
-                rightColor = Color(rightCol)
-                painter = BitmapPainter(bmp.asImageBitmap())
+        if (cached == null) {
+            val entry = ImageCacheManager.loadImage(url)
+            if (entry != null) {
+                val bmp = entry.bitmap
+                // Extract edge colors on background thread
+                withContext(Dispatchers.Default) {
+                    val leftCol = bmp.getPixel(0, bmp.height / 2)
+                    val rightCol = bmp.getPixel(bmp.width - 1, bmp.height / 2)
+                    
+                    leftColor = Color(leftCol)
+                    rightColor = Color(rightCol)
+                    painter = BitmapPainter(bmp.asImageBitmap())
+                }
             }
         }
     }

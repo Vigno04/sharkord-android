@@ -1,10 +1,11 @@
 package com.sharkord.android.ui.home
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,10 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
@@ -26,8 +23,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -36,12 +36,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import com.sharkord.android.R
 import com.sharkord.android.data.model.Channel
 import com.sharkord.android.data.network.SharkordClient
 import com.sharkord.android.ui.components.rememberAsyncImagePainter
 import com.sharkord.android.ui.components.rememberExtendedImageState
 import com.sharkord.android.ui.home.components.*
+import kotlinx.coroutines.launch
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,6 +54,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = viewModel()
 ) {
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
     
     // We collect the uiState here from our ViewModel as a State object,
     // so anytime something in the database/connection updates, our screen recomposes/redraws automatically!
@@ -74,6 +79,7 @@ fun HomeScreen(
             .background(bgColor),
         contentAlignment = Alignment.TopCenter
     ) {
+
         when {
             uiState.isLoading -> {
                 Column(
@@ -93,60 +99,117 @@ fun HomeScreen(
             }
 
             uiState.errorMessage != null && uiState.serverData == null -> {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = cardColor),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = stringResource(id = R.string.disconnected_connectionLost),
-                                color = Color(0xFFEF4444),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = uiState.errorMessage
-                                    ?: stringResource(id = R.string.disconnected_lostConnectionMessage),
-                                color = primaryText,
-                                fontSize = 14.sp,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(20.dp))
-                            Button(
-                                onClick = { viewModel.reconnect(showFullscreenLoading = true) },
-                                colors = ButtonDefaults.buttonColors(containerColor = primaryText)
-                            ) {
-                                Text(
-                                    stringResource(id = R.string.settings_marketplaceRetry),
-                                    color = bgColor
-                                )
-                            }
-                        }
+                ConnectionErrorScreen(
+                    errorMessage = uiState.errorMessage,
+                    onBackClick = {
+                        viewModel.logout(context)
+                        onLogout()
+                    },
+                    onRetryClick = {
+                        viewModel.reconnect(showFullscreenLoading = true)
                     }
-                }
+                )
             }
 
             uiState.serverData != null -> {
                 val data = uiState.serverData!!
 
-                // Find authenticated user in returned list to confirm correct name
-                val currentUser = data.users.find { it.id == data.ownUserId }
-                val userName = currentUser?.name ?: stringResource(id = R.string.common_unknownUser)
+                val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
+                val density = LocalDensity.current
+                val screenWidthPx = remember(screenWidthDp) { with(density) { screenWidthDp.toPx() } }
+                
+                // Track dynamic swipe-to-dismiss offset of the Channels List in pixels
+                val swipeOffset = remember { Animatable(if (uiState.activePanel == HomePanel.SERVER) 0f else -screenWidthPx) }
+                val coroutineScope = rememberCoroutineScope()
 
-                // Channels Grouping
-                val uncategorizedText =
-                    data.channels.filter { it.categoryId == null && !it.isVoice && !it.isDm }
-                val uncategorizedVoice =
-                    data.channels.filter { it.categoryId == null && it.isVoice && !it.isDm }
-                val categoriesList = data.categories?.sortedBy { it.position } ?: emptyList()
+                // Programmatic panel transitions
+                LaunchedEffect(uiState.activePanel) {
+                    if (uiState.activePanel == HomePanel.SERVER) {
+                        swipeOffset.animateTo(0f)
+                    } else {
+                        swipeOffset.animateTo(-screenWidthPx)
+                    }
+                }
+
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // 1. UNDERLAY: Chat Panel (rendered on bottom if a channel is selected)
+                    if (uiState.selectedChannelId != null) {
+                        val activeChannel = data.channels.find { it.id == uiState.selectedChannelId }
+                        
+                        ChatPanel(
+                            channelId = uiState.selectedChannelId!!,
+                            channelName = activeChannel?.name ?: "",
+                            users = data.users,
+                            roles = data.roles ?: emptyList(),
+                            customEmojis = data.emojis ?: emptyList(),
+                            onBackClick = {
+                                coroutineScope.launch {
+                                    swipeOffset.animateTo(0f)
+                                    viewModel.setPanel(HomePanel.SERVER)
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(uiState.activePanel) {
+                                    if (uiState.activePanel == HomePanel.CHAT) {
+                                        detectHorizontalDragGestures { change, dragAmount ->
+                                            if (dragAmount > 50) {
+                                                viewModel.setPanel(HomePanel.SERVER)
+                                            }
+                                        }
+                                    }
+                                }
+                        )
+                    }
+
+                    // 2. OVERLAY: Server Channels list (rendered on top, offset by swipeOffset)
+                    val channelsOffset = with(density) { swipeOffset.value.toDp() }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .offset(x = channelsOffset)
+                            .background(bgColor)
+                            .pointerInput(screenWidthPx) {
+                                detectHorizontalDragGestures(
+                                    onDragEnd = {
+                                        coroutineScope.launch {
+                                            if (swipeOffset.value < -screenWidthPx / 3) {
+                                                // Complete swipe back to chat panel
+                                                swipeOffset.animateTo(-screenWidthPx)
+                                                viewModel.setPanel(HomePanel.CHAT)
+                                            } else {
+                                                // Return to current server panel position
+                                                swipeOffset.animateTo(0f)
+                                            }
+                                        }
+                                    },
+                                    onDragCancel = {
+                                        coroutineScope.launch {
+                                            swipeOffset.animateTo(0f)
+                                        }
+                                    },
+                                    onHorizontalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        coroutineScope.launch {
+                                            val newOffset = (swipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                            swipeOffset.snapTo(newOffset)
+                                        }
+                                    }
+                                )
+                            },
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Find authenticated user in returned list to confirm correct name
+                        val currentUser = data.users.find { it.id == data.ownUserId }
+                        val userName = currentUser?.name ?: stringResource(id = R.string.common_unknownUser)
+
+                        // Channels Grouping
+                        val uncategorizedText =
+                            data.channels.filter { it.categoryId == null && !it.isVoice && !it.isDm }
+                        val uncategorizedVoice =
+                            data.channels.filter { it.categoryId == null && it.isVoice && !it.isDm }
+                        val categoriesList = data.categories?.sortedBy { it.position } ?: emptyList()
 
                 Box(
                     modifier = Modifier.fillMaxSize()
@@ -160,6 +223,13 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(Color(0xFFEF4444).copy(alpha = 0.15f))
+                                    .clickable {
+                                        val errorMsg = uiState.errorMessage
+                                        if (errorMsg != null) {
+                                            clipboardManager.setText(AnnotatedString(errorMsg))
+                                            android.widget.Toast.makeText(context, context.getString(R.string.common_errorDetailsCopied), android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
                                     .padding(horizontal = 12.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center
@@ -190,24 +260,42 @@ fun HomeScreen(
                             item {
                                 val logoState =
                                     rememberExtendedImageState(SharkordClient.currentServerLogoUrl)
-                                if (logoState.painter != null) {
-                                    val bannerBrush = Brush.horizontalGradient(
+                                
+                                val bannerBrush = if (logoState.painter != null) {
+                                    Brush.horizontalGradient(
                                         colors = listOf(logoState.leftColor, logoState.rightColor)
                                     )
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(140.dp)
-                                            .background(bannerBrush)
-                                    ) {
-                                        // Foreground logo
+                                } else {
+                                    Brush.horizontalGradient(
+                                        colors = listOf(Color(0xFF2C3E50), Color(0xFF1A252F)) // Sleek premium dark gradient
+                                    )
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(140.dp)
+                                        .background(bannerBrush),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (logoState.painter != null) {
+                                        // Foreground custom logo
                                         Image(
                                             painter = logoState.painter,
                                             contentDescription = null,
                                             contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        // Fallback premium logo placeholder
+                                        val fallbackPainter = painterResource(id = R.drawable.logo)
+                                        Image(
+                                            painter = fallbackPainter,
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Fit,
                                             modifier = Modifier
-                                                .fillMaxSize()
-                                                .padding(horizontal = 40.dp)
+                                                .size(80.dp)
+                                                .clip(RoundedCornerShape(16.dp))
                                         )
                                     }
                                 }
@@ -228,10 +316,12 @@ fun HomeScreen(
                             if (uncategorizedText.isNotEmpty()) {
                                 items(uncategorizedText) { channel ->
                                     Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                                        ChannelItem(
+                                    ChannelItem(
                                             channel = channel,
                                             isSelected = uiState.selectedChannelId == channel.id,
-                                            onSelect = { viewModel.selectChannel(channel.id) },
+                                            onSelect = {
+                                                if (!channel.isVoice) viewModel.selectChannel(channel.id)
+                                            },
                                             foregroundText = foregroundText,
                                             primaryText = primaryText
                                         )
@@ -241,10 +331,10 @@ fun HomeScreen(
                             if (uncategorizedVoice.isNotEmpty()) {
                                 items(uncategorizedVoice) { channel ->
                                     Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                                        ChannelItem(
+                                    ChannelItem(
                                             channel = channel,
                                             isSelected = uiState.selectedChannelId == channel.id,
-                                            onSelect = { viewModel.selectChannel(channel.id) },
+                                            onSelect = { /* Voice channel — no text chat */ },
                                             foregroundText = foregroundText,
                                             primaryText = primaryText
                                         )
@@ -302,7 +392,9 @@ fun HomeScreen(
                                                 ChannelItem(
                                                     channel = channel,
                                                     isSelected = uiState.selectedChannelId == channel.id,
-                                                    onSelect = { viewModel.selectChannel(channel.id) },
+                                                    onSelect = {
+                                                        if (!channel.isVoice) viewModel.selectChannel(channel.id)
+                                                    },
                                                     foregroundText = foregroundText,
                                                     primaryText = primaryText
                                                 )
@@ -365,6 +457,8 @@ fun HomeScreen(
                         foregroundText = foregroundText,
                         onDismissRequest = { viewModel.dismissMembersSheet() }
                     )
+                }
+                }
                 }
             }
         }

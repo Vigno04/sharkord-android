@@ -1,6 +1,9 @@
 package com.sharkord.android.data.network
 
 import android.content.Context
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.sharkord.android.data.session.SessionManager
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
@@ -22,12 +25,16 @@ import java.util.concurrent.TimeUnit
  */
 object SharkordClient {
 
-    /** Shared OkHttpClient instance with appropriate timeouts and keepalive. */
+    /** 
+     * Shared OkHttpClient instance with appropriate timeouts and keepalive.
+     * Note: readTimeout and writeTimeout are set to 0 (disabled) to prevent the WebSocket
+     * reader from timing out during prolonged idle periods.
+     */
     val okHttpClient: OkHttpClient = OkHttpClient.Builder()
         .pingInterval(15, TimeUnit.SECONDS)
         .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(0, TimeUnit.SECONDS)
+        .writeTimeout(0, TimeUnit.SECONDS)
         .build()
 
     /** HTTP REST API client for /login, /info, etc. */
@@ -53,8 +60,9 @@ object SharkordClient {
 
     /**
      * Current server logo URL (derived from /info response + server URL).
+     * Exposed as a Compose reactive state so components automatically recompose when updated.
      */
-    var currentServerLogoUrl: String? = null
+    var currentServerLogoUrl: String? by mutableStateOf(null)
 
     /**
      * Initializes the client with an Android Context (required for SessionManager).
@@ -74,3 +82,4 @@ object SharkordClient {
         webSocket.disconnect()
     }
 }
+

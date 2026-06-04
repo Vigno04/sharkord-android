@@ -1,6 +1,7 @@
 package com.sharkord.android.ui.login
 
 import android.content.Context
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -40,6 +41,10 @@ class LoginViewModel : ViewModel() {
     var serverName by mutableStateOf("Sharkord")
     var serverDescription by mutableStateOf<String?>(null)
 
+    /** Tracks whether we are currently performing an automatic login transition. */
+    var isAutoLoggingIn by mutableStateOf(false)
+        private set
+
     /**
      * Called once on first composition to restore saved state and
      * optionally trigger auto-login.
@@ -53,6 +58,7 @@ class LoginViewModel : ViewModel() {
 
         // Try to auto-login if we have a saved session
         if (repository.restoreSession()) {
+            isAutoLoggingIn = true
             serverUrl = SharkordClient.currentServerUrl ?: ""
             fetchServerDetails(serverUrl)
             onAutoLoginSuccess()
@@ -78,11 +84,16 @@ class LoginViewModel : ViewModel() {
         viewModelScope.launch {
             repository.fetchServerInfo(url).onSuccess { info ->
                 val cleanUrl = url.trimEnd('/')
-                serverLogoUrl = info.logo?.name?.let { "$cleanUrl/public/$it" }
+                serverLogoUrl = info.logo?.name?.let { name ->
+                    val encodedName = android.net.Uri.encode(name)
+                    "$cleanUrl/public/$encodedName"
+                }
+                Log.d("LoginViewModel", "fetchServerDetails success: logoUrl=$serverLogoUrl")
                 serverName = info.name
                 serverDescription = info.description
+            }.onFailure { error ->
+                Log.e("LoginViewModel", "fetchServerDetails failure: ${error.message}", error)
             }
-            // Errors are silently ignored for cosmetic server info fetching
         }
     }
 
@@ -104,7 +115,10 @@ class LoginViewModel : ViewModel() {
                 onSuccess = { info ->
                     isLoading = false
                     val cleanUrl = serverUrl.trimEnd('/')
-                    serverLogoUrl = info.logo?.name?.let { "$cleanUrl/public/$it" }
+                    serverLogoUrl = info.logo?.name?.let { name ->
+                        val encodedName = android.net.Uri.encode(name)
+                        "$cleanUrl/public/$encodedName"
+                    }
                     serverName = info.name
                     serverDescription = info.description
 

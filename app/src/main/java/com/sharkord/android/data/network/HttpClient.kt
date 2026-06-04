@@ -32,7 +32,7 @@ class SharkordHttpClient(private val client: OkHttpClient) {
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
     }
 
-    // ─── Public API ───────────────────────────────────────────
+    // Public API
 
     /**
      * POST /login — authenticate with identity and password.
@@ -110,7 +110,7 @@ class SharkordHttpClient(private val client: OkHttpClient) {
             }
 
             val serverInfo = gson.fromJson(body, ServerInfoResponse::class.java)
-            Log.d(TAG, "Server info fetched: ${serverInfo.name}")
+            Log.d(TAG, "Server info fetched: name=${serverInfo.name}, logo=${serverInfo.logo}")
             Result.success(serverInfo)
         } catch (e: IOException) {
             Log.e(TAG, "Server info network error: ${e.message}")
@@ -121,7 +121,52 @@ class SharkordHttpClient(private val client: OkHttpClient) {
         }
     }
 
-    // ─── Internal Utilities ───────────────────────────────────
+    /**
+     * POST /upload — upload a raw file attachment.
+     */
+    suspend fun uploadFile(
+        serverUrl: String,
+        token: String,
+        originalName: String,
+        fileBytes: ByteArray
+    ): Result<com.sharkord.android.data.model.FileInfo> {
+        val cleanUrl = serverUrl.trimEnd('/')
+        val requestUrl = "$cleanUrl/upload"
+
+        val mediaType = "application/octet-stream".toMediaType()
+        val requestBody = fileBytes.toRequestBody(mediaType)
+
+        val request = Request.Builder()
+            .url(requestUrl)
+            .post(requestBody)
+            .addHeader("x-token", token)
+            .addHeader("x-file-name", originalName)
+            .addHeader("content-length", fileBytes.size.toString())
+            .build()
+
+        return try {
+            val response = client.awaitCall(request)
+            val body = response.body?.string()
+
+            if (!response.isSuccessful || body == null) {
+                return Result.failure(
+                    SharkordApiException("File upload failed (HTTP ${response.code})", response.code)
+                )
+            }
+
+            val fileInfo = gson.fromJson(body, com.sharkord.android.data.model.FileInfo::class.java)
+            Log.d(TAG, "File uploaded successfully: id=${fileInfo.id}, name=${fileInfo.name}")
+            Result.success(fileInfo)
+        } catch (e: IOException) {
+            Log.e(TAG, "File upload network error: ${e.message}")
+            Result.failure(SharkordApiException("Network error: ${e.message}", cause = e))
+        } catch (e: Exception) {
+            Log.e(TAG, "File upload error", e)
+            Result.failure(SharkordApiException("Unexpected error: ${e.message}", cause = e))
+        }
+    }
+
+    // Internal Utilities
 
     /**
      * Bridge from OkHttp's callback-based API to Kotlin coroutines.

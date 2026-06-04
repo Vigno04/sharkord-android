@@ -109,7 +109,18 @@ object TrpcProtocol {
         return try {
             val root = JsonParser.parseString(text).asJsonObject
 
-            if (root.has("id")) {
+            // 1. Check for application-level ping/pong method first to bypass id checks
+            if (root.has("method")) {
+                val method = root.get("method").asString
+                if (method == "ping") {
+                    return TrpcResponse.Ping
+                } else if (method == "pong") {
+                    return TrpcResponse.Pong
+                }
+            }
+
+            // 2. Standard tRPC response with a valid, non-null ID
+            if (root.has("id") && !root.get("id").isJsonNull) {
                 val id = root.get("id").asInt
 
                 if (root.has("result")) {
@@ -120,6 +131,7 @@ object TrpcProtocol {
                     val data = result.get("data")
 
                     return when (type) {
+                        "started" -> TrpcResponse.SubscriptionStarted(id)
                         "stopped" -> TrpcResponse.SubscriptionComplete(id)
                         "data" -> {
                             when {
@@ -172,19 +184,30 @@ object TrpcProtocol {
 
 /**
  * Parsed tRPC response from the server.
+ *
+ * Note: tRPC sends both one-shot query/mutation responses AND subscription push events
+ * with `"type":"data"`, so both map to [Success]. Subscription routing is done in
+ * [WebSocketManager] by checking [WebSocketManager.activeSubscriptions] — the id
+ * determines whether a Success is a one-shot response or a real-time push.
  */
 sealed class TrpcResponse {
-    /** Successful query/mutation response. */
+    /** Successful query/mutation response, or a subscription push event (discriminated by id). */
     data class Success(val id: Int, val data: JsonObject) : TrpcResponse()
 
     /** Error response. */
     data class Error(val id: Int?, val error: TrpcError) : TrpcResponse()
 
-    /** Subscription data event. */
-    data class SubscriptionData(val id: Int, val data: JsonObject) : TrpcResponse()
+    /** Subscription successfully started (server sent `"type":"started"`). */
+    data class SubscriptionStarted(val id: Int) : TrpcResponse()
 
-    /** Subscription completed/stopped. */
+    /** Subscription completed/stopped (server sent `"type":"stopped"`). */
     data class SubscriptionComplete(val id: Int) : TrpcResponse()
+
+    /** Ping request from the server (e.g., `{"id":null,"method":"ping"}`). */
+    object Ping : TrpcResponse()
+
+    /** Pong response from the server. */
+    object Pong : TrpcResponse()
 
     /** Unrecognized message format. */
     data class Unknown(val rawText: String) : TrpcResponse()

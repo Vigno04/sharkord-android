@@ -2,9 +2,7 @@ package com.sharkord.android.data.model
 
 import com.google.gson.annotations.SerializedName
 
-// ========================
 // HTTP Login
-// ========================
 
 /** POST /login request body */
 data class LoginRequest(
@@ -24,15 +22,13 @@ data class LoginResponse(
     val errors: Map<String, String>? = null
 )
 
-// ========================
 // GET /info
-// ========================
 
 data class ServerLogo(
     val id: Int,
     val name: String,
-    val originalName: String,
-    val mimeType: String
+    @SerializedName("originalName", alternate = ["original_name"]) val originalName: String? = null,
+    @SerializedName("mimeType", alternate = ["mime_type"]) val mimeType: String? = null
 )
 
 /**
@@ -47,27 +43,45 @@ data class ServerInfoResponse(
     val allowNewUsers: Boolean = true
 )
 
-// ========================
 // File (shared)
-// ========================
 
 /**
  * File metadata, matching TFile in shared/tables.ts.
  * Used for avatars, banners, message attachments, emojis, and server logo.
+ *
+ * Note: the upload response (TTempFile) does NOT include a `name` field,
+ * only `originalName`. Therefore `name` is nullable here. Use
+ * `displayName` for UI to get a safe non-null display string.
  */
 data class FileInfo(
-    val id: Int,
-    val name: String,
-    val originalName: String,
-    val mimeType: String,
+    val id: String,
+    val name: String? = null,
+    @SerializedName("originalName", alternate = ["original_name"]) val originalName: String? = null,
+    @SerializedName("mimeType", alternate = ["mime_type"]) val mimeType: String? = null,
     val size: Int? = null,
     @SerializedName("_accessToken") val accessToken: String? = null,
-    @SerializedName("_accessTokenExpiresAt") val accessTokenExpiresAt: Long? = null
-)
+    @SerializedName("_accessTokenExpiresAt") val accessTokenExpiresAt: Long? = null,
+    val localUri: String? = null
+) {
+    /** Safe display name: prefer originalName, fall back to name, then id. */
+    val displayName: String get() = originalName ?: name ?: id
 
-// ========================
+    val isImage: Boolean
+        get() {
+            val ext = originalName?.substringAfterLast('.', "")?.lowercase() ?: ""
+            val mime = mimeType?.lowercase() ?: ""
+            return mime.startsWith("image/") || ext in listOf("png", "jpg", "jpeg", "webp", "gif")
+        }
+
+    val isVideo: Boolean
+        get() {
+            val ext = originalName?.substringAfterLast('.', "")?.lowercase() ?: ""
+            val mime = mimeType?.lowercase() ?: ""
+            return mime.startsWith("video/") || ext in listOf("mp4", "mkv", "mov", "webm", "avi")
+        }
+}
+
 // Categories
-// ========================
 
 data class Category(
     val id: Int,
@@ -75,9 +89,7 @@ data class Category(
     val position: Int
 )
 
-// ========================
 // Channels
-// ========================
 
 /**
  * Channel model matching the server's TChannel schema.
@@ -101,9 +113,7 @@ data class Channel(
         get() = type == ChannelType.TEXT.value
 }
 
-// ========================
 // Roles
-// ========================
 
 /**
  * Role model matching TJoinedRole in shared/tables.ts.
@@ -116,9 +126,7 @@ data class Role(
     val permissions: List<String> = emptyList()
 )
 
-// ========================
 // Users
-// ========================
 
 /**
  * Public user model matching TJoinedPublicUser in shared/tables.ts.
@@ -142,9 +150,7 @@ data class User(
         get() = UserStatus.fromValue(status ?: "offline")
 }
 
-// ========================
 // Emojis
-// ========================
 
 /**
  * Custom emoji, matching TJoinedEmoji in shared/tables.ts.
@@ -155,19 +161,18 @@ data class Emoji(
     val file: FileInfo? = null
 )
 
-// ========================
 // Messages
-// ========================
 
 /**
  * Message file attachment.
  */
 data class MessageFile(
-    val id: Int,
+    val id: String,
     val name: String,
-    val originalName: String,
-    val mimeType: String,
-    val size: Int? = null
+    @SerializedName("originalName", alternate = ["original_name"]) val originalName: String? = null,
+    @SerializedName("mimeType", alternate = ["mime_type"]) val mimeType: String? = null,
+    val size: Int? = null,
+    val localUri: String? = null
 )
 
 /**
@@ -221,9 +226,7 @@ data class MessagesPage(
     val nextCursor: Long? = null
 )
 
-// ========================
 // Public Settings
-// ========================
 
 /**
  * Public server settings, matching TPublicServerSettings in shared/types.ts.
@@ -241,9 +244,7 @@ data class PublicSettings(
     val showWelcomeDialog: Boolean = false
 )
 
-// ========================
 // Voice
-// ========================
 
 /**
  * Represents users currently in voice channels.
@@ -251,9 +252,7 @@ data class PublicSettings(
  */
 typealias VoiceMap = Map<String, List<Int>>
 
-// ========================
 // Read States
-// ========================
 
 /**
  * Unread count per channel.
@@ -261,9 +260,7 @@ typealias VoiceMap = Map<String, List<Int>>
  */
 typealias ReadStateMap = Map<String, Int>
 
-// ========================
 // Channel Permissions
-// ========================
 
 /**
  * Per-channel permission info for the current user.
@@ -278,9 +275,7 @@ data class ChannelPermissionInfo(
  */
 typealias ChannelPermissionsMap = Map<String, ChannelPermissionInfo>
 
-// ========================
 // tRPC joinServer response
-// ========================
 
 /**
  * Full joinServer response matching the server's others.joinServer return type.
@@ -302,9 +297,7 @@ data class JoinServerData(
     val showWelcomeDialog: Boolean = false
 )
 
-// ========================
 // Handshake response
-// ========================
 
 /**
  * Response from others.handshake tRPC query.
