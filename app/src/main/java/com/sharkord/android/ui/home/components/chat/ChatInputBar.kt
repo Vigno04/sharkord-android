@@ -157,7 +157,7 @@ fun ChatInputBar(
                 val file = java.io.File(audioFilepath!!)
                 if (recordingTimer < 1) {
                     if (file.exists()) file.delete()
-                    android.widget.Toast.makeText(context, "Voice message too short", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(context, context.getString(R.string.chat_voiceMessageTooShort), android.widget.Toast.LENGTH_SHORT).show()
                 } else if (file.exists() && file.length() > 0) {
                     val fileBytes = file.readBytes()
                     onSendAudioRecording(file.name, fileBytes)
@@ -201,7 +201,7 @@ fun ChatInputBar(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (!isGranted) {
-            android.widget.Toast.makeText(context, "Microphone permission required to send voice notes.", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(context, context.getString(R.string.chat_microphonePermissionRequired), android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 

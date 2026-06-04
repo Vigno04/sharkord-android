@@ -350,7 +350,7 @@ fun ChatPanel(
                                                 listState.animateScrollToItem(targetIndex + headerOffset)
                                             }
                                         } else {
-                                            android.widget.Toast.makeText(context, "Referenced message is not loaded yet", android.widget.Toast.LENGTH_SHORT).show()
+                                            android.widget.Toast.makeText(context, context.getString(R.string.chat_referencedMessageNotLoaded), android.widget.Toast.LENGTH_SHORT).show()
                                         }
                                     },
                                     onReactionClick = { messageId, emoji ->

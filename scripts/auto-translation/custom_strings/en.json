@@ -21,5 +21,17 @@
   "chat_severalPeopleAreTyping": "Several people are typing",
   "chat_uploading": "Uploading...",
   "chat_slideToCancel": "⬅ Slide to cancel",
-  "chat_messageChannelPlaceholder": "Message #%1$s"
+  "chat_messageChannelPlaceholder": "Message #%1$s",
+  "chat_downloadFile": "Download %1$s",
+  "chat_failedLoadImage": "Failed to load image",
+  "chat_unsupportedMediaType": "Unsupported media type",
+  "chat_referencedMessageNotLoaded": "Referenced message is not loaded yet",
+  "chat_voiceMessageTooShort": "Voice message too short",
+  "chat_microphonePermissionRequired": "Microphone permission required to send voice notes.",
+  "chat_downloadStarted": "Download started: %1$s",
+  "chat_failedDownloadFile": "Failed to download file.",
+  "chat_openingFile": "Opening %1$s...",
+  "chat_emptyFile": "Empty file.",
+  "chat_noAppFoundToOpenFile": "No app found to open this file.",
+  "chat_failedOpenFile": "Failed to open file."
 }

@@ -23,6 +23,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.sharkord.android.R
 import com.sharkord.android.data.model.FileInfo
 import com.sharkord.android.data.network.SharkordClient
 import com.sharkord.android.ui.components.AsyncImageState
@@ -91,7 +93,7 @@ fun MediaLightboxViewer(
                         CircularProgressIndicator(color = Color.White)
                     }
                     else -> {
-                        Text(text = "Failed to load image", color = Color.White)
+                        Text(text = stringResource(id = R.string.chat_failedLoadImage), color = Color.White)
                     }
                 }
             }
@@ -109,7 +111,7 @@ fun MediaLightboxViewer(
             }
         } else {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = "Unsupported media type", color = Color.White, fontSize = 16.sp)
+                Text(text = stringResource(id = R.string.chat_unsupportedMediaType), color = Color.White, fontSize = 16.sp)
             }
         }
 

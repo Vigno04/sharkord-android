@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
 import com.sharkord.android.data.network.ConnectionState
+import com.sharkord.android.R
 
 /**
  * UI state for the chat panel of a single channel.
@@ -454,17 +455,17 @@ class ChatViewModel : ViewModel() {
             val downloadManager = context.getSystemService(android.content.Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
             downloadManager.enqueue(request)
             
-            android.widget.Toast.makeText(context, "Download started: ${file.displayName}", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(context, context.getString(R.string.chat_downloadStarted, file.displayName), android.widget.Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start download", e)
-            android.widget.Toast.makeText(context, "Failed to download file", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(context, context.getString(R.string.chat_failedDownloadFile), android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
     fun downloadAndOpenFile(context: android.content.Context, file: com.sharkord.android.data.model.FileInfo) {
         if (file.name == null) return
         
-        android.widget.Toast.makeText(context, "Opening ${file.displayName}...", android.widget.Toast.LENGTH_SHORT).show()
+        android.widget.Toast.makeText(context, context.getString(R.string.chat_openingFile, file.displayName), android.widget.Toast.LENGTH_SHORT).show()
         
         clearOldTempFiles(context)
         
@@ -477,7 +478,7 @@ class ChatViewModel : ViewModel() {
                 if (!response.isSuccessful) {
                     Log.e(TAG, "Server returned HTTP ${response.code} ${response.message}")
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        android.widget.Toast.makeText(context, "Failed to download file.", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, context.getString(R.string.chat_failedDownloadFile), android.widget.Toast.LENGTH_SHORT).show()
                     }
                     return@launch
                 }
@@ -489,7 +490,7 @@ class ChatViewModel : ViewModel() {
                     }
                 } ?: run {
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        android.widget.Toast.makeText(context, "Empty file.", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, context.getString(R.string.chat_emptyFile), android.widget.Toast.LENGTH_SHORT).show()
                     }
                     return@launch
                 }
@@ -509,14 +510,14 @@ class ChatViewModel : ViewModel() {
                     try {
                         context.startActivity(intent)
                     } catch (e: android.content.ActivityNotFoundException) {
-                        android.widget.Toast.makeText(context, "No app found to open this file.", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, context.getString(R.string.chat_noAppFoundToOpenFile), android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }
 
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to download and open file", e)
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    android.widget.Toast.makeText(context, "Failed to open file.", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(context, context.getString(R.string.chat_failedOpenFile), android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
         }
