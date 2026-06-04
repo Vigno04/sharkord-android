@@ -32,7 +32,7 @@ class SharkordHttpClient(private val client: OkHttpClient) {
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
     }
 
-    // ─── Public API ───────────────────────────────────────────
+    // Public API
 
     /**
      * POST /login — authenticate with identity and password.
@@ -166,7 +166,7 @@ class SharkordHttpClient(private val client: OkHttpClient) {
         }
     }
 
-    // ─── Internal Utilities ───────────────────────────────────
+    // Internal Utilities
 
     /**
      * Bridge from OkHttp's callback-based API to Kotlin coroutines.

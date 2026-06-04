@@ -62,7 +62,7 @@ class HomeViewModel : ViewModel() {
     val connectionState: StateFlow<ConnectionState>
         get() = repository.connectionState
 
-    // ─── Lifecycle ────────────────────────────────────────────
+    // Lifecycle
 
     /**
      * Called on first composition. Initiates the WebSocket connection and starts
@@ -124,7 +124,7 @@ class HomeViewModel : ViewModel() {
         repository.connectWebSocket()
     }
 
-    // ─── Connection State Handling ────────────────────────────
+    // Connection State Handling
 
     private fun handleConnectionStateChange(state: ConnectionState) {
         when (state) {
@@ -176,7 +176,7 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    // ─── Real-Time Event Application ──────────────────────────
+    // Real-Time Event Application
 
     /**
      * Applies a typed [ServerEvent] as an incremental mutation to [HomeUiState.serverData].
@@ -190,7 +190,7 @@ class HomeViewModel : ViewModel() {
 
             when (event) {
 
-                // ── Channels ──────────────────────────────────
+                // Channels
 
                 is ServerEvent.ChannelCreated -> {
                     Log.d(TAG, "[EVENT] channels.onCreate: ${event.channel.name}")
@@ -226,7 +226,7 @@ class HomeViewModel : ViewModel() {
                     )
                 }
 
-                // ── Categories ────────────────────────────────
+                // Categories
 
                 is ServerEvent.CategoryCreated -> {
                     Log.d(TAG, "[EVENT] categories.onCreate: ${event.category.name}")
@@ -259,7 +259,7 @@ class HomeViewModel : ViewModel() {
                     )
                 }
 
-                // ── Users ─────────────────────────────────────
+                // Users
 
                 is ServerEvent.UserJoined -> {
                     Log.d(TAG, "[EVENT] users.onJoin: ${event.user.name}")
@@ -317,7 +317,7 @@ class HomeViewModel : ViewModel() {
                     )
                 }
 
-                // ── Roles ─────────────────────────────────────
+                // Roles
 
                 is ServerEvent.RoleCreated -> {
                     Log.d(TAG, "[EVENT] roles.onCreate: ${event.role.name}")
@@ -348,7 +348,7 @@ class HomeViewModel : ViewModel() {
                     )
                 }
 
-                // ── Emojis ────────────────────────────────────
+                // Emojis
 
                 is ServerEvent.EmojiCreated -> {
                     Log.d(TAG, "[EVENT] emojis.onCreate: ${event.emoji.name}")
@@ -379,7 +379,7 @@ class HomeViewModel : ViewModel() {
                     )
                 }
 
-                // ── Messages ──────────────────────────────────
+                // Messages
                 // Message state is managed by ChatViewModel, which observes incomingEvents
                 // directly and applies per-channel mutations. HomeViewModel only sees these
                 // events here as a no-op to keep the exhaustive when() complete.
@@ -389,7 +389,7 @@ class HomeViewModel : ViewModel() {
                 is ServerEvent.MessageDeleted -> state
                 is ServerEvent.UserTyping -> state
 
-                // ── Server Settings ───────────────────────────
+                // Server Settings
 
                 is ServerEvent.ServerSettingsUpdated -> {
                     Log.d(TAG, "[EVENT] others.onServerSettingsUpdate: name=${event.settings.name}")
@@ -405,7 +405,7 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    // ─── UI Actions ───────────────────────────────────────────
+    // UI Actions
 
     fun selectChannel(channelId: Int) {
         _uiState.update { it.copy(selectedChannelId = channelId, activePanel = HomePanel.CHAT) }

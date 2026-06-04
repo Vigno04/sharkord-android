@@ -25,7 +25,7 @@ class ChatRepository {
     private val webSocket get() = SharkordClient.webSocket
     private val gson = Gson()
 
-    // ─── Public API ───────────────────────────────────────────
+    // Public API
 
     /**
      * Fetches a page of messages for [channelId].

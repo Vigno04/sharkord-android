@@ -13,7 +13,7 @@ class SessionManager(context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    // ─── Read ─────────────────────────────────────────────────
+    // Read
 
     val token: String?
         get() = prefs.getString(KEY_TOKEN, null)
@@ -27,7 +27,7 @@ class SessionManager(context: Context) {
     val autoLogin: Boolean
         get() = prefs.getBoolean(KEY_AUTO_LOGIN, false)
 
-    // ─── Write ────────────────────────────────────────────────
+    // Write
 
     /**
      * Saves the current session after a successful login.

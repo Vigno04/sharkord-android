@@ -112,7 +112,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    // ─── Lifecycle ────────────────────────────────────────────
+    // Lifecycle
 
     /**
      * Initialises this ViewModel for [channelId].
@@ -129,7 +129,7 @@ class ChatViewModel : ViewModel() {
         startTypingExpiryTimer()
     }
 
-    // ─── Message Loading ──────────────────────────────────────
+    // Message Loading
 
     private fun loadInitialMessages() {
         val cached = MessagesCacheManager.getChannelCache(channelId)
@@ -225,7 +225,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    // ─── Send, Edit, Delete, Reactions ─────────────────────────
+    // Send, Edit, Delete, Reactions
 
     /**
      * Sends a new message, optionally with attached files.
@@ -331,7 +331,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    // ─── Pinned Messages Panel ─────────────────────────────────
+    // Pinned Messages Panel
 
     /** Loads pinned messages for this channel. */
     fun loadPinnedMessages() {
@@ -362,7 +362,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    // ─── File Upload & Voice Messaging ─────────────────────────
+    // File Upload & Voice Messaging
 
     /** Uploads a file and attaches it to the draft. */
     fun uploadAndAttachFile(originalName: String, fileBytes: ByteArray, localUri: String? = null) {
@@ -426,7 +426,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    // ─── Media Lightbox & Download ─────────────────────────────
+    // Media Lightbox & Download
 
     fun setViewingMediaFile(file: com.sharkord.android.data.model.FileInfo?) {
         _uiState.update { it.copy(viewingMediaFile = file) }
@@ -534,7 +534,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    // ─── Typing Indicators ─────────────────────────────────────
+    // Typing Indicators
 
     /** Outbound: call when user is typing. */
     fun onType(text: String) {
@@ -568,7 +568,12 @@ class ChatViewModel : ViewModel() {
         _uiState.update { it.copy(errorMessage = null) }
     }
 
-    // ─── Real-Time Event Handling ─────────────────────────────
+    /** Sets a custom error message. */
+    fun setErrorMessage(message: String) {
+        _uiState.update { it.copy(errorMessage = message) }
+    }
+
+    // Real-Time Event Handling
 
     private fun startObservingEvents() {
         eventJob?.cancel()

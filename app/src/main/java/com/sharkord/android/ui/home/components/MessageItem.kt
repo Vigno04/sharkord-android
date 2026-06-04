@@ -773,7 +773,7 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
     }
 }
 
-// ─── Helpers ──────────────────────────────────────────────
+// Helpers
 
 private fun formatTimestamp(epochMs: Long): String {
     val now = System.currentTimeMillis()

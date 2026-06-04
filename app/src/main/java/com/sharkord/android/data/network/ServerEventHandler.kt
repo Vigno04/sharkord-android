@@ -22,7 +22,7 @@ import com.sharkord.android.data.model.User
  */
 sealed class ServerEvent {
 
-    // ─── Channels ─────────────────────────────────────────────
+    // Channels
 
     /** A new channel was created and is visible to the current user. */
     data class ChannelCreated(val channel: Channel) : ServerEvent()
@@ -33,7 +33,7 @@ sealed class ServerEvent {
     /** A channel's metadata (name, description, position, etc.) was updated. */
     data class ChannelUpdated(val channel: Channel) : ServerEvent()
 
-    // ─── Categories ───────────────────────────────────────────
+    // Categories
 
     /** A new category was created. */
     data class CategoryCreated(val category: Category) : ServerEvent()
@@ -44,7 +44,7 @@ sealed class ServerEvent {
     /** A category's metadata was updated. */
     data class CategoryUpdated(val category: Category) : ServerEvent()
 
-    // ─── Users ────────────────────────────────────────────────
+    // Users
 
     /** A user connected to the server (status became online). */
     data class UserJoined(val user: User) : ServerEvent()
@@ -72,7 +72,7 @@ sealed class ServerEvent {
         val deletedUserId: Int
     ) : ServerEvent()
 
-    // ─── Roles ────────────────────────────────────────────────
+    // Roles
 
     /** A new role was created. */
     data class RoleCreated(val role: Role) : ServerEvent()
@@ -83,7 +83,7 @@ sealed class ServerEvent {
     /** A role's properties (name, color, permissions, etc.) were updated. */
     data class RoleUpdated(val role: Role) : ServerEvent()
 
-    // ─── Emojis ───────────────────────────────────────────────
+    // Emojis
 
     /** A new custom emoji was added. */
     data class EmojiCreated(val emoji: Emoji) : ServerEvent()
@@ -94,7 +94,7 @@ sealed class ServerEvent {
     /** A custom emoji's metadata was updated. */
     data class EmojiUpdated(val emoji: Emoji) : ServerEvent()
 
-    // ─── Messages ─────────────────────────────────────────────
+    // Messages
 
     /** A new message was sent in a channel the current user can access. */
     data class MessageReceived(val message: Message) : ServerEvent()
@@ -108,7 +108,7 @@ sealed class ServerEvent {
     /** A user started typing in a channel. */
     data class UserTyping(val channelId: Int, val userId: Int, val parentMessageId: Int? = null) : ServerEvent()
 
-    // ─── Server Settings ──────────────────────────────────────
+    // Server Settings
 
     /** Public server settings (name, description, feature flags, etc.) were updated. */
     data class ServerSettingsUpdated(val settings: PublicSettings) : ServerEvent()
@@ -139,7 +139,7 @@ object ServerEventHandler {
         return try {
             when (event.path) {
 
-                // ── Channels ──────────────────────────────────
+                // Channels
                 "channels.onCreate" ->
                     ServerEvent.ChannelCreated(fromJson(event.data, Channel::class.java))
 
@@ -149,7 +149,7 @@ object ServerEventHandler {
                 "channels.onUpdate" ->
                     ServerEvent.ChannelUpdated(fromJson(event.data, Channel::class.java))
 
-                // ── Categories ────────────────────────────────
+                // Categories
                 "categories.onCreate" ->
                     ServerEvent.CategoryCreated(fromJson(event.data, Category::class.java))
 
@@ -159,7 +159,7 @@ object ServerEventHandler {
                 "categories.onUpdate" ->
                     ServerEvent.CategoryUpdated(fromJson(event.data, Category::class.java))
 
-                // ── Users ─────────────────────────────────────
+                // Users
                 "users.onJoin" ->
                     ServerEvent.UserJoined(fromJson(event.data, User::class.java))
 
@@ -179,7 +179,7 @@ object ServerEventHandler {
                         deletedUserId = event.data.get("deletedUserId").asInt
                     )
 
-                // ── Roles ─────────────────────────────────────
+                // Roles
                 "roles.onCreate" ->
                     ServerEvent.RoleCreated(fromJson(event.data, Role::class.java))
 
@@ -189,7 +189,7 @@ object ServerEventHandler {
                 "roles.onUpdate" ->
                     ServerEvent.RoleUpdated(fromJson(event.data, Role::class.java))
 
-                // ── Emojis ────────────────────────────────────
+                // Emojis
                 "emojis.onCreate" ->
                     ServerEvent.EmojiCreated(fromJson(event.data, Emoji::class.java))
 
@@ -199,7 +199,7 @@ object ServerEventHandler {
                 "emojis.onUpdate" ->
                     ServerEvent.EmojiUpdated(fromJson(event.data, Emoji::class.java))
 
-                // ── Messages ──────────────────────────────────
+                // Messages
                 "messages.onNew" ->
                     ServerEvent.MessageReceived(fromJson(event.data, Message::class.java))
 
@@ -221,7 +221,7 @@ object ServerEventHandler {
                     )
                 }
 
-                // ── Server Settings ───────────────────────────
+                // Server Settings
                 "others.onServerSettingsUpdate" ->
                     ServerEvent.ServerSettingsUpdated(fromJson(event.data, PublicSettings::class.java))
 
@@ -236,7 +236,7 @@ object ServerEventHandler {
         }
     }
 
-    // ─── Helpers ──────────────────────────────────────────────
+    // Helpers
 
     private fun <T> fromJson(data: JsonObject, clazz: Class<T>): T =
         gson.fromJson(data, clazz)

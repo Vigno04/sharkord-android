@@ -2,9 +2,7 @@ package com.sharkord.android.data.model
 
 import com.google.gson.annotations.SerializedName
 
-// ========================
 // HTTP Login
-// ========================
 
 /** POST /login request body */
 data class LoginRequest(
@@ -24,9 +22,7 @@ data class LoginResponse(
     val errors: Map<String, String>? = null
 )
 
-// ========================
 // GET /info
-// ========================
 
 data class ServerLogo(
     val id: Int,
@@ -47,9 +43,7 @@ data class ServerInfoResponse(
     val allowNewUsers: Boolean = true
 )
 
-// ========================
 // File (shared)
-// ========================
 
 /**
  * File metadata, matching TFile in shared/tables.ts.
@@ -71,11 +65,23 @@ data class FileInfo(
 ) {
     /** Safe display name: prefer originalName, fall back to name, then id. */
     val displayName: String get() = originalName ?: name ?: id
+
+    val isImage: Boolean
+        get() {
+            val ext = originalName?.substringAfterLast('.', "")?.lowercase() ?: ""
+            val mime = mimeType?.lowercase() ?: ""
+            return mime.startsWith("image/") || ext in listOf("png", "jpg", "jpeg", "webp", "gif")
+        }
+
+    val isVideo: Boolean
+        get() {
+            val ext = originalName?.substringAfterLast('.', "")?.lowercase() ?: ""
+            val mime = mimeType?.lowercase() ?: ""
+            return mime.startsWith("video/") || ext in listOf("mp4", "mkv", "mov", "webm", "avi")
+        }
 }
 
-// ========================
 // Categories
-// ========================
 
 data class Category(
     val id: Int,
@@ -83,9 +89,7 @@ data class Category(
     val position: Int
 )
 
-// ========================
 // Channels
-// ========================
 
 /**
  * Channel model matching the server's TChannel schema.
@@ -109,9 +113,7 @@ data class Channel(
         get() = type == ChannelType.TEXT.value
 }
 
-// ========================
 // Roles
-// ========================
 
 /**
  * Role model matching TJoinedRole in shared/tables.ts.
@@ -124,9 +126,7 @@ data class Role(
     val permissions: List<String> = emptyList()
 )
 
-// ========================
 // Users
-// ========================
 
 /**
  * Public user model matching TJoinedPublicUser in shared/tables.ts.
@@ -150,9 +150,7 @@ data class User(
         get() = UserStatus.fromValue(status ?: "offline")
 }
 
-// ========================
 // Emojis
-// ========================
 
 /**
  * Custom emoji, matching TJoinedEmoji in shared/tables.ts.
@@ -163,9 +161,7 @@ data class Emoji(
     val file: FileInfo? = null
 )
 
-// ========================
 // Messages
-// ========================
 
 /**
  * Message file attachment.
@@ -230,9 +226,7 @@ data class MessagesPage(
     val nextCursor: Long? = null
 )
 
-// ========================
 // Public Settings
-// ========================
 
 /**
  * Public server settings, matching TPublicServerSettings in shared/types.ts.
@@ -250,9 +244,7 @@ data class PublicSettings(
     val showWelcomeDialog: Boolean = false
 )
 
-// ========================
 // Voice
-// ========================
 
 /**
  * Represents users currently in voice channels.
@@ -260,9 +252,7 @@ data class PublicSettings(
  */
 typealias VoiceMap = Map<String, List<Int>>
 
-// ========================
 // Read States
-// ========================
 
 /**
  * Unread count per channel.
@@ -270,9 +260,7 @@ typealias VoiceMap = Map<String, List<Int>>
  */
 typealias ReadStateMap = Map<String, Int>
 
-// ========================
 // Channel Permissions
-// ========================
 
 /**
  * Per-channel permission info for the current user.
@@ -287,9 +275,7 @@ data class ChannelPermissionInfo(
  */
 typealias ChannelPermissionsMap = Map<String, ChannelPermissionInfo>
 
-// ========================
 // tRPC joinServer response
-// ========================
 
 /**
  * Full joinServer response matching the server's others.joinServer return type.
@@ -311,9 +297,7 @@ data class JoinServerData(
     val showWelcomeDialog: Boolean = false
 )
 
-// ========================
 // Handshake response
-// ========================
 
 /**
  * Response from others.handshake tRPC query.

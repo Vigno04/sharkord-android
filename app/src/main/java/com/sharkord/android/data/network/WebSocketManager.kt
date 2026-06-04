@@ -69,7 +69,7 @@ class WebSocketManager(
     // Callers suspend via sendQueryAwait / sendMutationAwait until the response arrives.
     private val pendingCalls = mutableMapOf<Int, CompletableDeferred<JsonObject>>()
 
-    // ─── Public State ─────────────────────────────────────────
+    // Public State
 
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
     /** Observe the current connection lifecycle state. */
@@ -83,7 +83,7 @@ class WebSocketManager(
     /** Emits real-time events from tRPC subscriptions. */
     val incomingEvents: SharedFlow<IncomingEvent> = _incomingEvents.asSharedFlow()
 
-    // ─── Public API ───────────────────────────────────────────
+    // Public API
 
     /**
      * Initiates a WebSocket connection to the server.
@@ -186,7 +186,7 @@ class WebSocketManager(
         return id
     }
 
-    // ─── Internal Connection Logic ────────────────────────────
+    // Internal Connection Logic
 
     private fun doConnect() {
         _connectionState.value = ConnectionState.Connecting
@@ -294,7 +294,7 @@ class WebSocketManager(
         }
     }
 
-    // ─── Message Handlers ─────────────────────────────────────
+    // Message Handlers
 
     private fun handleSuccess(response: TrpcResponse.Success, webSocket: WebSocket) {
         when (response.id) {
@@ -398,7 +398,7 @@ class WebSocketManager(
         Log.d(TAG, "Subscription completed [${response.id}]: $subPath")
     }
 
-    // ─── Real-Time Subscriptions ──────────────────────────────
+    // Real-Time Subscriptions
 
     /**
      * Registers all real-time tRPC subscriptions after a successful joinServer.
@@ -413,46 +413,46 @@ class WebSocketManager(
     private fun setupRealtimeSubscriptions() {
         Log.d(TAG, "Registering real-time subscriptions...")
 
-        // ── Channels ──────────────────────────────────────────
+        // Channels
         subscribe("channels.onCreate")
         subscribe("channels.onDelete")
         subscribe("channels.onUpdate")
 
-        // ── Categories ────────────────────────────────────────
+        // Categories
         subscribe("categories.onCreate")
         subscribe("categories.onDelete")
         subscribe("categories.onUpdate")
 
-        // ── Users ─────────────────────────────────────────────
+        // Users
         subscribe("users.onJoin")
         subscribe("users.onLeave")
         subscribe("users.onUpdate")
         subscribe("users.onCreate")
         subscribe("users.onDelete")
 
-        // ── Roles ─────────────────────────────────────────────
+        // Roles
         subscribe("roles.onCreate")
         subscribe("roles.onDelete")
         subscribe("roles.onUpdate")
 
-        // ── Emojis ────────────────────────────────────────────
+        // Emojis
         subscribe("emojis.onCreate")
         subscribe("emojis.onDelete")
         subscribe("emojis.onUpdate")
 
-        // ── Messages ──────────────────────────────────────────
+        // Messages
         subscribe("messages.onNew")
         subscribe("messages.onUpdate")
         subscribe("messages.onDelete")
         subscribe("messages.onTyping")
 
-        // ── Server Settings ───────────────────────────────────
+        // Server Settings
         subscribe("others.onServerSettingsUpdate")
 
         Log.d(TAG, "Registered ${activeSubscriptions.size} real-time subscriptions")
     }
 
-    // ─── Reconnection ─────────────────────────────────────────
+    // Reconnection
 
     private fun scheduleReconnect() {
         if (!shouldReconnect) return
@@ -488,7 +488,7 @@ class WebSocketManager(
         }
     }
 
-    // ─── Helpers ──────────────────────────────────────────────
+    // Helpers
 
     private fun cancelPendingCalls(reason: String) {
         val exception = CancellationException(reason)

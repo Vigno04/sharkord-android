@@ -27,7 +27,7 @@ class ServerRepository {
     private val webSocket get() = SharkordClient.webSocket
     private val session get() = SharkordClient.session
 
-    // ─── Reactive State ───────────────────────────────────────
+    // Reactive State
 
     /** Current WebSocket connection state. */
     val connectionState: StateFlow<ConnectionState>
@@ -41,7 +41,7 @@ class ServerRepository {
     val incomingEvents: SharedFlow<IncomingEvent>
         get() = webSocket.incomingEvents
 
-    // ─── HTTP Operations ──────────────────────────────────────
+    // HTTP Operations
 
     /**
      * Fetches server info (name, description, logo, version) from GET /info.
@@ -90,7 +90,7 @@ class ServerRepository {
         return result
     }
 
-    // ─── WebSocket Operations ─────────────────────────────────
+    // WebSocket Operations
 
     /**
      * Connects to the server via WebSocket and performs the full tRPC handshake + joinServer flow.
@@ -128,7 +128,7 @@ class ServerRepository {
         webSocket.disconnect()
     }
 
-    // ─── Session Queries ──────────────────────────────────────
+    // Session Queries
 
     /**
      * Attempts to restore a saved session. Returns true if credentials exist

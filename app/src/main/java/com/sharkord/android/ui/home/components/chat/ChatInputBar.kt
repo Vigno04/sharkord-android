@@ -71,6 +71,7 @@ import com.sharkord.android.ui.home.components.ChatColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun ChatInputBar(
     channelName: String,
@@ -284,11 +285,6 @@ fun ChatInputBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 uiState.attachedFiles.forEach { file ->
-                    val extension = file.originalName?.substringAfterLast('.', "")?.lowercase() ?: ""
-                    val mimeType = file.mimeType?.lowercase() ?: ""
-                    val isImage = mimeType.startsWith("image/") || extension in listOf("png", "jpg", "jpeg", "webp", "gif")
-                    val isVideo = mimeType.startsWith("video/") || extension in listOf("mp4", "mkv", "mov", "webm", "avi")
-
                     Row(
                         modifier = Modifier
                             .background(cardColor, RoundedCornerShape(8.dp))
@@ -296,7 +292,7 @@ fun ChatInputBar(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         when {
-                            isImage && file.localUri != null -> {
+                            file.isImage && file.localUri != null -> {
                                 val imgState = rememberAsyncImageState(file.localUri)
                                 Box(
                                     modifier = Modifier
@@ -322,7 +318,7 @@ fun ChatInputBar(
                                 }
                                 Spacer(modifier = Modifier.width(6.dp))
                             }
-                            isVideo && file.localUri != null -> {
+                            file.isVideo && file.localUri != null -> {
                                 Box(
                                     modifier = Modifier
                                         .size(36.dp)
