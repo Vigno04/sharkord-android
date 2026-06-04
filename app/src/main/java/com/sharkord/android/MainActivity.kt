@@ -18,6 +18,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.sharkord.android.ui.home.HomeScreen
 import com.sharkord.android.ui.login.LoginScreen
+import com.sharkord.android.ui.settings.UserSettingsScreen
 import com.sharkord.android.ui.theme.SharkordTheme
 
 class MainActivity : ComponentActivity() {
@@ -66,6 +67,16 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     navController.navigate("login") {
                         popUpTo("home") { inclusive = true }
                     }
+                },
+                onNavigateToSettings = {
+                    navController.navigate("user_settings")
+                }
+            )
+        }
+        composable("user_settings") {
+            UserSettingsScreen(
+                onBackClick = {
+                    navController.popBackStack()
                 }
             )
         }

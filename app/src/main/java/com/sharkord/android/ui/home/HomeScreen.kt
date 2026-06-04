@@ -51,6 +51,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(
     onLogout: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     viewModel: HomeViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -509,7 +510,12 @@ fun HomeScreen(
                             viewModel.logout(context)
                             viewModel.dismissProfileSheet()
                             onLogout()
-                        }
+                        },
+                        onNavigateToSettings = {
+                            viewModel.dismissProfileSheet()
+                            onNavigateToSettings()
+                        },
+                        roles = data.roles ?: emptyList()
                     )
                 }
 

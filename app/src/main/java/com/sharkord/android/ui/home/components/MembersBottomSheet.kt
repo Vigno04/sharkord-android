@@ -43,7 +43,6 @@ fun MembersBottomSheet(
     onDismissRequest: () -> Unit,
     onMessageClick: (Int) -> Unit
 ) {
-    // This is our bottom sheet dialog popup, customized to fill up to 85% of screen height
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         containerColor = cardColor,
@@ -51,7 +50,6 @@ fun MembersBottomSheet(
         modifier = Modifier.fillMaxHeight(0.85f)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Header title inside the sheet
             Text(
                 text = stringResource(id = R.string.common_members),
                 color = foregroundText,
@@ -59,18 +57,21 @@ fun MembersBottomSheet(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
             )
-            // A subtle separator divider line
             Divider(color = Color.White.copy(alpha = 0.05f))
 
-            // LazyColumn is a scrollable list that only builds items that are currently visible on screen!
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
                 contentPadding = PaddingValues(16.dp)
             ) {
-                // Loop through all users and render a row for each one!
                 items(users) { user ->
+                    val bannerColor = try {
+                        Color(android.graphics.Color.parseColor(user.bannerColor ?: "#00000000"))
+                    } catch (e: Exception) {
+                        Color.Transparent
+                    }
+                    
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -80,13 +81,26 @@ fun MembersBottomSheet(
                                     onMessageClick(user.id)
                                 }
                             }
+                            // Added slight background tint based on banner color if present
+                            .background(if (bannerColor != Color.Transparent) bannerColor.copy(alpha = 0.1f) else Color.Transparent)
                             .padding(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Left accent bar for banner color
+                        if (bannerColor != Color.Transparent) {
+                            Box(
+                                modifier = Modifier
+                                    .height(32.dp)
+                                    .width(4.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(bannerColor)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                    
                         val avatarUrl = user.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }
                         val avatarPainter = rememberAsyncImagePainter(avatarUrl, fallbackResourceId = null)
                         
-                        // Circle box showing the member's profile avatar or their name's first letter
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
@@ -102,7 +116,6 @@ fun MembersBottomSheet(
                                     modifier = Modifier.fillMaxSize()
                                 )
                             } else {
-                                // Fallback: if they have no custom image, draw the first letter of their name in uppercase!
                                 Text(
                                     text = user.name.take(1).uppercase(),
                                     color = Color.White,
@@ -112,7 +125,6 @@ fun MembersBottomSheet(
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         
-                        // Vertical column for username & "(You)" tag if it's the current user
                         Column {
                             Text(
                                 text = user.name,
@@ -120,7 +132,6 @@ fun MembersBottomSheet(
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
-                            // If the member in the list is the actual user running the app, add a little tag!
                             if (user.id == ownUserId) {
                                 Text(
                                     text = stringResource(id = R.string.common_you),
@@ -143,11 +154,9 @@ fun MembersBottomSheet(
                             )
                         }
                     }
-                    // A tiny semi-transparent divider line between each member in the list
                     Divider(color = Color.White.copy(alpha = 0.02f))
                 }
             }
         }
     }
 }
-
