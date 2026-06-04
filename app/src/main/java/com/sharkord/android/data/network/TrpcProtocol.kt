@@ -113,7 +113,8 @@ object TrpcProtocol {
             if (root.has("method")) {
                 val method = root.get("method").asString
                 if (method == "ping") {
-                    return TrpcResponse.Ping
+                    val pingId = if (root.has("id") && !root.get("id").isJsonNull) root.get("id").asInt else null
+                    return TrpcResponse.Ping(pingId)
                 } else if (method == "pong") {
                     return TrpcResponse.Pong
                 }
@@ -203,8 +204,8 @@ sealed class TrpcResponse {
     /** Subscription completed/stopped (server sent `"type":"stopped"`). */
     data class SubscriptionComplete(val id: Int) : TrpcResponse()
 
-    /** Ping request from the server (e.g., `{"id":null,"method":"ping"}`). */
-    object Ping : TrpcResponse()
+    /** Ping request from the server (e.g., `{"id":123,"method":"ping"}`). */
+    data class Ping(val id: Int?) : TrpcResponse()
 
     /** Pong response from the server. */
     object Pong : TrpcResponse()

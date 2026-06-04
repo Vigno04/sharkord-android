@@ -18,11 +18,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import com.sharkord.android.data.model.User
+import com.sharkord.android.data.network.SharkordClient
+import com.sharkord.android.ui.components.rememberAsyncImagePainter
 import com.sharkord.android.ui.home.components.ChatColors
 
 @Composable
 fun ChatTopBar(
     channelName: String,
+    isDm: Boolean,
+    dmUser: User? = null,
     showPinnedMessages: Boolean,
     onBackClick: () -> Unit,
     onTogglePinnedMessages: () -> Unit,
@@ -58,13 +65,60 @@ fun ChatTopBar(
 
             Spacer(modifier = Modifier.width(4.dp))
 
-            Text(
-                text = "# $channelName",
-                color = textPrimary,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f)
-            )
+            if (isDm && dmUser != null) {
+                val avatarUrl = dmUser.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }
+                val avatarPainter = rememberAsyncImagePainter(avatarUrl, fallbackResourceId = null)
+                val displayInitial = dmUser.name.take(1).uppercase()
+                
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(Color.DarkGray),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (avatarPainter != null) {
+                        Image(
+                            painter = avatarPainter,
+                            contentDescription = "User Avatar",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Text(
+                            text = displayInitial,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                Text(
+                    text = channelName,
+                    color = textPrimary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+            } else if (isDm) {
+                Text(
+                    text = "@ $channelName",
+                    color = textPrimary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+            } else {
+                Text(
+                    text = "# $channelName",
+                    color = textPrimary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
             Box(
                 modifier = Modifier

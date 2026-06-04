@@ -234,12 +234,17 @@ class ChatViewModel : ViewModel() {
         val trimmed = content.trim()
         val attached = _uiState.value.attachedFiles
         if (trimmed.isEmpty() && attached.isEmpty()) return
+        
+        val htmlContent = if (trimmed.isNotEmpty()) {
+            "<p>${trimmed.replace("\n", "<br>")}</p>"
+        } else ""
+
         val replyToId = _uiState.value.replyTarget?.id
         val fileIds = attached.map { it.id }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSending = true, errorMessage = null) }
-            repository.sendMessage(channelId, trimmed, replyToMessageId = replyToId, files = fileIds).fold(
+            repository.sendMessage(channelId, htmlContent, replyToMessageId = replyToId, files = fileIds).fold(
                 onSuccess = {
                     _uiState.update { it.copy(
                         isSending = false,
@@ -275,9 +280,11 @@ class ChatViewModel : ViewModel() {
         val trimmed = newContent.trim()
         if (trimmed.isEmpty()) return
 
+        val htmlContent = "<p>${trimmed.replace("\n", "<br>")}</p>"
+
         viewModelScope.launch {
             _uiState.update { it.copy(isSending = true, errorMessage = null) }
-            repository.editMessage(messageId, trimmed).fold(
+            repository.editMessage(messageId, htmlContent).fold(
                 onSuccess = {
                     _uiState.update { it.copy(isSending = false, editingMessage = null) }
                 },
@@ -540,7 +547,7 @@ class ChatViewModel : ViewModel() {
     fun onType(text: String) {
         if (text.isBlank()) return
         val now = System.currentTimeMillis()
-        if (now - lastTypingSentTime > 3000) {
+        if (now - lastTypingSentTime > 300) {
             lastTypingSentTime = now
             viewModelScope.launch {
                 repository.signalTyping(channelId)
@@ -552,9 +559,9 @@ class ChatViewModel : ViewModel() {
         typingExpiryJob?.cancel()
         typingExpiryJob = viewModelScope.launch {
             while (isActive) {
-                delay(1000)
+                delay(300)
                 val now = System.currentTimeMillis()
-                val expired = activeTypingUsers.filter { now - it.value > 5000 }.keys
+                val expired = activeTypingUsers.filter { now - it.value > 800 }.keys
                 if (expired.isNotEmpty()) {
                     expired.forEach { activeTypingUsers.remove(it) }
                     _uiState.update { it.copy(typingUsers = activeTypingUsers.keys.toSet()) }

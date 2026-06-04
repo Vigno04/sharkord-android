@@ -12,6 +12,7 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.Sms
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,7 +40,8 @@ fun MembersBottomSheet(
     cardColor: Color,
     primaryText: Color,
     foregroundText: Color,
-    onDismissRequest: () -> Unit
+    onDismissRequest: () -> Unit,
+    onMessageClick: (Int) -> Unit
 ) {
     // This is our bottom sheet dialog popup, customized to fill up to 85% of screen height
     ModalBottomSheet(
@@ -73,7 +75,11 @@ fun MembersBottomSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
-                            .clickable { /* Future: View user profile / start DM */ }
+                            .clickable {
+                                if (user.id != ownUserId) {
+                                    onMessageClick(user.id)
+                                }
+                            }
                             .padding(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -122,6 +128,19 @@ fun MembersBottomSheet(
                                     fontSize = 12.sp
                                 )
                             }
+                        }
+                        
+                        Spacer(modifier = Modifier.weight(1f))
+                        if (user.id != ownUserId) {
+                            androidx.compose.material3.Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Default.Sms,
+                                contentDescription = "Message",
+                                tint = primaryText,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clickable { onMessageClick(user.id) }
+                                    .padding(4.dp)
+                            )
                         }
                     }
                     // A tiny semi-transparent divider line between each member in the list

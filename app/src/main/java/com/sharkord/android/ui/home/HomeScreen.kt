@@ -135,10 +135,24 @@ fun HomeScreen(
                     // 1. UNDERLAY: Chat Panel (rendered on bottom if a channel is selected)
                     if (uiState.selectedChannelId != null) {
                         val activeChannel = data.channels.find { it.id == uiState.selectedChannelId }
+                        val isDm = activeChannel?.isDm == true
+                        val otherUser = if (isDm && activeChannel != null) {
+                            val parts = activeChannel.name.removePrefix("DM - ").split(":")
+                            val otherUserId = parts.firstOrNull { it != data.ownUserId.toString() }?.toIntOrNull()
+                            data.users.find { it.id == otherUserId }
+                        } else null
+                        
+                        val displayName = if (isDm) {
+                            otherUser?.name ?: activeChannel?.name ?: ""
+                        } else {
+                            activeChannel?.name ?: ""
+                        }
                         
                         ChatPanel(
                             channelId = uiState.selectedChannelId!!,
-                            channelName = activeChannel?.name ?: "",
+                            channelName = displayName,
+                            isDm = isDm,
+                            dmUser = otherUser,
                             users = data.users,
                             roles = data.roles ?: emptyList(),
                             customEmojis = data.emojis ?: emptyList(),
@@ -209,6 +223,7 @@ fun HomeScreen(
                             data.channels.filter { it.categoryId == null && !it.isVoice && !it.isDm }
                         val uncategorizedVoice =
                             data.channels.filter { it.categoryId == null && it.isVoice && !it.isDm }
+                        val dmChannels = data.channels.filter { it.isDm }
                         val categoriesList = data.categories?.sortedBy { it.position } ?: emptyList()
 
                 Box(
@@ -307,11 +322,60 @@ fun HomeScreen(
                                     serverName = data.serverName,
                                     memberCount = data.users.size,
                                     cardColor = cardColor,
-                                    foregroundText = foregroundText
+                                    foregroundText = foregroundText,
+                                    onDirectMessagesClick = { viewModel.showMembersSheet() }
                                 )
                             }
 
                             // C. CHANNELS LIST
+                            
+                            // 1. Render Direct Messages
+                            if (dmChannels.isNotEmpty()) {
+                                item(key = "dm-header") {
+                                    Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 8.dp, horizontal = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = "▼",
+                                                    color = Color.Gray,
+                                                    fontSize = 10.sp
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = "DIRECT MESSAGES",
+                                                    color = Color.Gray,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    letterSpacing = 1.sp
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                items(dmChannels, key = { "dm-${it.id}" }) { channel ->
+                                    Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                        val parts = channel.name.removePrefix("DM - ").split(":")
+                                        val otherUserId = parts.firstOrNull { it != data.ownUserId.toString() }?.toIntOrNull()
+                                        val otherUser = data.users.find { it.id == otherUserId }
+
+                                        DmChannelItem(
+                                            channelName = channel.name,
+                                            user = otherUser,
+                                            isSelected = uiState.selectedChannelId == channel.id,
+                                            onSelect = { viewModel.selectChannel(channel.id) },
+                                            foregroundText = foregroundText,
+                                            primaryText = primaryText
+                                        )
+                                    }
+                                }
+                            }
+
                             // A. Render Uncategorized Channels (if any)
                             if (uncategorizedText.isNotEmpty()) {
                                 items(uncategorizedText) { channel ->
@@ -455,7 +519,11 @@ fun HomeScreen(
                         cardColor = cardColor,
                         primaryText = primaryText,
                         foregroundText = foregroundText,
-                        onDismissRequest = { viewModel.dismissMembersSheet() }
+                        onDismissRequest = { viewModel.dismissMembersSheet() },
+                        onMessageClick = { userId ->
+                            viewModel.dismissMembersSheet()
+                            viewModel.openDirectMessage(userId)
+                        }
                     )
                 }
                 }

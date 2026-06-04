@@ -6,6 +6,7 @@ import com.sharkord.android.data.model.ServerInfoResponse
 import com.sharkord.android.data.network.ConnectionState
 import com.sharkord.android.data.network.SharkordClient
 import com.sharkord.android.data.network.IncomingEvent
+import com.google.gson.JsonObject
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -163,8 +164,22 @@ class ServerRepository {
      */
     fun getSavedServerUrl(): String? = session.serverUrl
 
-    /**
-     * Returns whether auto-login is enabled in preferences.
-     */
     fun isAutoLoginEnabled(): Boolean = session.autoLogin
+
+    /**
+     * Opens a direct message channel with the given user.
+     */
+    suspend fun openDirectMessage(userId: Int): Result<Int> {
+        return try {
+            val input = JsonObject().apply {
+                addProperty("userId", userId)
+            }
+            val response = webSocket.sendMutationAwait("dms.open", input)
+            val channelId = response.get("channelId").asInt
+            Result.success(channelId)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to open DM", e)
+            Result.failure(e)
+        }
+    }
 }

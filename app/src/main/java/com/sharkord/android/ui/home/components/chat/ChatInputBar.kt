@@ -155,7 +155,10 @@ fun ChatInputBar(
 
             if (!hasSwipeCancelled && audioFilepath != null) {
                 val file = java.io.File(audioFilepath!!)
-                if (file.exists() && file.length() > 0) {
+                if (recordingTimer < 1) {
+                    if (file.exists()) file.delete()
+                    android.widget.Toast.makeText(context, "Voice message too short", android.widget.Toast.LENGTH_SHORT).show()
+                } else if (file.exists() && file.length() > 0) {
                     val fileBytes = file.readBytes()
                     onSendAudioRecording(file.name, fileBytes)
                 }
@@ -574,11 +577,9 @@ fun ChatInputBar(
                     cursorBrush = SolidColor(accentColor),
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.Sentences,
-                        imeAction = ImeAction.Send
+                        imeAction = ImeAction.Default
                     ),
-                    keyboardActions = KeyboardActions(
-                        onSend = { onSend(inputText.text) }
-                    ),
+                    keyboardActions = KeyboardActions(),
                     maxLines = 6,
                     decorationBox = { innerTextField ->
                         Box {
