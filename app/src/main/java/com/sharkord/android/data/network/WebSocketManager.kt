@@ -117,7 +117,7 @@ class WebSocketManager(
      * Sends a tRPC query and returns the assigned message ID.
      * The response will arrive via the WebSocket message handler.
      */
-    fun sendQuery(path: String, input: JsonObject = JsonObject()): Int {
+    fun sendQuery(path: String, input: com.google.gson.JsonElement = JsonObject()): Int {
         val id = TrpcProtocol.getNextId()
         val message = TrpcProtocol.buildQuery(id, path, input)
         webSocket?.send(message)
@@ -128,7 +128,7 @@ class WebSocketManager(
     /**
      * Sends a tRPC mutation and returns the assigned message ID.
      */
-    fun sendMutation(path: String, input: JsonObject): Int {
+    fun sendMutation(path: String, input: com.google.gson.JsonElement): Int {
         val id = TrpcProtocol.getNextId()
         val message = TrpcProtocol.buildMutation(id, path, input)
         webSocket?.send(message)
@@ -141,7 +141,7 @@ class WebSocketManager(
      * Throws [WebSocketNotConnectedException] if the socket is null,
      * or a [TrpcCallException] if the server returns an error.
      */
-    suspend fun sendQueryAwait(path: String, input: JsonObject = JsonObject()): JsonObject {
+    suspend fun sendQueryAwait(path: String, input: com.google.gson.JsonElement = JsonObject()): JsonObject {
         val id = TrpcProtocol.getNextId()
         val deferred = CompletableDeferred<JsonObject>()
         pendingCalls[id] = deferred
@@ -160,7 +160,7 @@ class WebSocketManager(
      * Throws [WebSocketNotConnectedException] if the socket is null,
      * or a [TrpcCallException] if the server returns an error.
      */
-    suspend fun sendMutationAwait(path: String, input: JsonObject): JsonObject {
+    suspend fun sendMutationAwait(path: String, input: com.google.gson.JsonElement): JsonObject {
         val id = TrpcProtocol.getNextId()
         val deferred = CompletableDeferred<JsonObject>()
         pendingCalls[id] = deferred
@@ -177,7 +177,7 @@ class WebSocketManager(
     /**
      * Subscribes to a tRPC subscription and returns the assigned message ID.
      */
-    fun subscribe(path: String, input: JsonObject? = null): Int {
+    fun subscribe(path: String, input: com.google.gson.JsonElement? = null): Int {
         val id = TrpcProtocol.getNextId()
         val message = TrpcProtocol.buildSubscription(id, path, input)
         activeSubscriptions[id] = path

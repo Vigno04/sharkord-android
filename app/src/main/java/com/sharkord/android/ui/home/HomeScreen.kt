@@ -52,6 +52,7 @@ import kotlinx.coroutines.launch
 fun HomeScreen(
     onLogout: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToServerSettings: () -> Unit,
     viewModel: HomeViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -544,7 +545,9 @@ fun HomeScreen(
                     val userRoles = currentUser?.roleIds?.mapNotNull { roleId -> data.roles?.find { it.id == roleId } } ?: emptyList()
                     val hasManageServer = userRoles.any { role ->
                         val p = role.permissions.map { it.uppercase() }
-                        p.contains("MANAGE_SERVER") || p.contains("MANAGE_GUILD") || p.contains("ADMINISTRATOR") || role.name.equals("Owner", ignoreCase = true)
+                        p.contains("MANAGE_SETTINGS") || p.contains("MANAGE_ROLES") || p.contains("MANAGE_EMOJIS") || 
+                        p.contains("MANAGE_INVITES") || p.contains("MANAGE_USERS") || p.contains("MANAGE_PLUGINS") || 
+                        p.contains("MANAGE_STORAGE") || p.contains("MANAGE_UPDATES")
                     } || data.ownUserId == 1
 
                     ServerProfileBottomSheet(
@@ -562,28 +565,12 @@ fun HomeScreen(
                         },
                         onServerOptionsClick = {
                             viewModel.dismissServerSheet()
-                            showUnderConstruction = true
+                            onNavigateToServerSettings()
                         },
                         onDisconnectClick = {
                             viewModel.logout(context)
                             viewModel.dismissServerSheet()
                             onLogout()
-                        }
-                    )
-                }
-
-                if (showUnderConstruction) {
-                    AlertDialog(
-                        onDismissRequest = { showUnderConstruction = false },
-                        containerColor = cardColor,
-                        titleContentColor = foregroundText,
-                        textContentColor = primaryText,
-                        title = { Text("Under Construction") },
-                        text = { Text("The server options panel is currently under construction and will be available in a future update.") },
-                        confirmButton = {
-                            TextButton(onClick = { showUnderConstruction = false }) {
-                                Text("OK", color = Color(0xFF5865F2))
-                            }
                         }
                     )
                 }

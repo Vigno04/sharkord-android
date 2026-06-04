@@ -2,6 +2,7 @@ package com.sharkord.android.data.repository
 
 import android.util.Log
 import com.sharkord.android.data.model.JoinServerData
+import com.sharkord.android.data.model.Invite
 import com.sharkord.android.data.model.ServerInfoResponse
 import com.sharkord.android.data.network.ConnectionState
 import com.sharkord.android.data.network.SharkordClient
@@ -179,6 +180,174 @@ class ServerRepository {
             Result.success(channelId)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to open DM", e)
+            Result.failure(e)
+        }
+    }
+
+    // Server Administration (Settings & Roles)
+
+    suspend fun getAdminSettings(): Result<com.sharkord.android.data.model.AdminSettings> {
+        return try {
+            val response = webSocket.sendQueryAwait("others.getSettings", com.google.gson.JsonObject())
+            val gson = com.google.gson.Gson()
+            val parsed = gson.fromJson(response, com.sharkord.android.data.model.AdminSettings::class.java)
+            Result.success(parsed)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get admin settings", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateServerSettings(settings: com.sharkord.android.data.model.AdminSettings): Result<Unit> {
+        return try {
+            val input = JsonObject().apply {
+                addProperty("name", settings.name)
+                if (settings.description != null) {
+                    addProperty("description", settings.description)
+                } else {
+                    add("description", com.google.gson.JsonNull.INSTANCE)
+                }
+                if (settings.password != null) {
+                    addProperty("password", settings.password)
+                } else {
+                    add("password", com.google.gson.JsonNull.INSTANCE)
+                }
+                addProperty("onlyAskForPasswordOnFirstJoin", settings.onlyAskForPasswordOnFirstJoin)
+                addProperty("allowNewUsers", settings.allowNewUsers)
+                addProperty("directMessagesEnabled", settings.directMessagesEnabled)
+                addProperty("enablePlugins", settings.enablePlugins)
+                addProperty("webRtcSimulcastEnabled", settings.webRtcSimulcastEnabled)
+                addProperty("enableSearch", settings.enableSearch)
+                addProperty("showWelcomeDialog", settings.showWelcomeDialog)
+            }
+            webSocket.sendMutationAwait("others.updateSettings", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update server settings", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createRole(): Result<Unit> {
+        return try {
+            webSocket.sendMutationAwait("roles.add", com.google.gson.JsonObject())
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create role", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateRole(id: Int, name: String, color: String, permissions: List<String>): Result<Unit> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("roleId", id)
+                addProperty("name", name)
+                addProperty("color", color)
+                val permsArray = com.google.gson.JsonArray()
+                permissions.forEach { permsArray.add(it) }
+                add("permissions", permsArray)
+                addProperty("storageQuotaOverrideEnabled", false)
+                addProperty("storageSpaceQuota", 0)
+            }
+            webSocket.sendMutationAwait("roles.update", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update role", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteRole(id: Int): Result<Unit> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("roleId", id)
+            }
+            webSocket.sendMutationAwait("roles.delete", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to delete role", e)
+            Result.failure(e)
+        }
+    }
+
+    // Invites Operations
+
+    suspend fun getInvites(): Result<List<Invite>> {
+        return try {
+            val result = webSocket.sendQueryAwait("invites.getAll")
+            val type = object : com.google.gson.reflect.TypeToken<List<Invite>>() {}.type
+            val invites = com.google.gson.Gson().fromJson<List<Invite>>(result.get("value"), type)
+            Result.success(invites)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get invites", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createInvite(maxUses: Int?, expiresAt: Long?, roleId: Int?, code: String?): Result<Invite> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                if (maxUses != null) addProperty("maxUses", maxUses)
+                if (expiresAt != null) addProperty("expiresAt", expiresAt)
+                if (roleId != null) addProperty("roleId", roleId)
+                if (!code.isNullOrBlank()) addProperty("code", code)
+            }
+            val result = webSocket.sendMutationAwait("invites.add", input)
+            val invite = com.google.gson.Gson().fromJson(result, Invite::class.java)
+            Result.success(invite)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create invite", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteInvite(inviteId: Int): Result<Unit> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("inviteId", inviteId)
+            }
+            webSocket.sendMutationAwait("invites.delete", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to delete invite", e)
+            Result.failure(e)
+        }
+    }
+
+    // Emojis Operations
+
+    suspend fun uploadEmoji(name: String, fileBytes: ByteArray, originalName: String): Result<Unit> {
+        return try {
+            val token = SharkordClient.currentToken ?: throw Exception("Not logged in")
+            val url = SharkordClient.currentServerUrl ?: throw Exception("No server URL")
+            val fileUploadResult = http.uploadFile(url, token, originalName, fileBytes)
+            
+            fileUploadResult.onSuccess { fileInfo ->
+                val inputData = com.google.gson.JsonObject().apply {
+                    addProperty("fileId", fileInfo.id)
+                    addProperty("name", name)
+                }
+                val jsonArray = com.google.gson.JsonArray().apply { add(inputData) }
+                
+                webSocket.sendMutationAwait("emojis.add", jsonArray)
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to upload emoji", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteEmoji(emojiId: Int): Result<Unit> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("emojiId", emojiId)
+            }
+            webSocket.sendMutationAwait("emojis.delete", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to delete emoji", e)
             Result.failure(e)
         }
     }

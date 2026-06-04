@@ -70,11 +70,21 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                 },
                 onNavigateToSettings = {
                     navController.navigate("user_settings")
+                },
+                onNavigateToServerSettings = {
+                    navController.navigate("server_settings")
                 }
             )
         }
         composable("user_settings") {
             UserSettingsScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+        composable("server_settings") {
+            com.sharkord.android.ui.settings.ServerSettingsScreen(
                 onBackClick = {
                     navController.popBackStack()
                 }

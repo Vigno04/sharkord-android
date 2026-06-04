@@ -89,6 +89,20 @@ data class Category(
     val position: Int
 )
 
+/**
+ * Server invite
+ */
+data class Invite(
+    val id: Int,
+    val code: String,
+    val maxUses: Int?,
+    val uses: Int,
+    val expiresAt: Long?,
+    val createdAt: Long,
+    val creatorId: Int,
+    val roleId: Int?
+)
+
 // Channels
 
 /**
@@ -242,6 +256,27 @@ data class PublicSettings(
     val storageMaxFilesPerMessage: Int = 10,
     val enableSearch: Boolean = true,
     val showWelcomeDialog: Boolean = false
+)
+
+/**
+ * Full admin settings, matching the result of others.getSettings.
+ */
+data class AdminSettings(
+    val name: String,
+    val description: String? = null,
+    val password: String? = null,
+    val onlyAskForPasswordOnFirstJoin: Boolean = false,
+    val allowNewUsers: Boolean = false,
+    val directMessagesEnabled: Boolean = true,
+    val enablePlugins: Boolean = false,
+    val webRtcSimulcastEnabled: Boolean = false,
+    val enableSearch: Boolean = true,
+    val showWelcomeDialog: Boolean = true,
+    val storageUploadEnabled: Boolean = true,
+    val storageQuota: Long? = null,
+    val storageUploadMaxFileSize: Long? = null,
+    val storageMaxFilesPerMessage: Int = 10,
+    val logo: FileInfo? = null
 )
 
 // Voice
