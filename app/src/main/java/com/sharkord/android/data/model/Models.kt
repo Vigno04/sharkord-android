@@ -157,6 +157,8 @@ data class User(
     val banner: FileInfo? = null,
     val bannerId: Int? = null,
     val status: String? = null,
+    val identity: String? = null,
+    val roles: List<Role>? = null,
     val roleIds: List<Int>? = null,
     val createdAt: Long? = null
 ) {
@@ -258,6 +260,13 @@ data class PublicSettings(
     val showWelcomeDialog: Boolean = false
 )
 
+data class DiskMetrics(
+    val totalSpace: Long,
+    val usedSpace: Long,
+    val freeSpace: Long,
+    val sharkordUsedSpace: Long
+)
+
 /**
  * Full admin settings, matching the result of others.getSettings.
  */
@@ -276,9 +285,92 @@ data class AdminSettings(
     val storageQuota: Long? = null,
     val storageUploadMaxFileSize: Long? = null,
     val storageMaxFilesPerMessage: Int = 10,
+    val storageFileSharingInDirectMessages: Boolean = true,
+    val storageSpaceQuotaByUser: Long? = null,
+    val storageOverflowAction: String? = null,
+    val storageSignedUrlsEnabled: Boolean = false,
+    val storageSignedUrlsTtlSeconds: Int = 3600,
+    val storageImageOptimizationEnabled: Boolean = false,
+    val storageImageOptimizationQuality: Int = 80,
+    val storageMaxAvatarSize: Long? = null,
+    val storageMaxBannerSize: Long? = null,
     val logo: FileInfo? = null
 )
 
+// Plugins
+
+data class PluginInfo(
+    val id: String,
+    val name: String,
+    val description: String,
+    val author: String,
+    val version: String,
+    val enabled: Boolean = false,
+    val loadError: String? = null,
+    val homepage: String? = null,
+    val logo: String? = null
+)
+
+data class MarketplacePlugin(
+    val id: String,
+    val name: String,
+    val description: String,
+    val author: String,
+    val logo: String,
+    val homepage: String? = null,
+    val tags: List<String>? = null,
+    val categories: List<String>? = null,
+    val verified: Boolean = false,
+    val screenshots: List<String>? = null
+)
+
+data class MarketplaceVersion(
+    val version: String,
+    val downloadUrl: String,
+    val checksum: String,
+    val sdkVersion: Any? = null,
+    val size: Long,
+    val timestamp: Long
+)
+
+data class MarketplaceEntry(
+    val plugin: MarketplacePlugin,
+    val versions: List<MarketplaceVersion>
+)
+
+// Updates
+
+data class UpdateInfo(
+    val hasUpdate: Boolean,
+    val latestVersion: String?,
+    val currentVersion: String?,
+    val canUpdate: Boolean
+)
+// Mod View
+
+data class Login(
+    val id: Int,
+    val userId: Int,
+    val ip: String?,
+    val userAgent: String?,
+    val success: Boolean,
+    val createdAt: Long
+)
+
+data class StorageData(
+    val userId: Int,
+    val fileCount: Int,
+    val usedStorage: Long,
+    val quota: Long
+)
+
+data class ModViewData(
+    val user: User,
+    val logins: List<Login>,
+    val files: List<FileInfo>,
+    val messages: List<Message>,
+    val storage: StorageData
+)
 // Voice
 
 /**

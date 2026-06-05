@@ -144,11 +144,7 @@ fun ServerSettingsScreen(
                 }
             }
 
-            if (uiState.isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = accentColor)
-                }
-            } else {
+            Box(modifier = Modifier.fillMaxSize()) {
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize()
@@ -165,10 +161,31 @@ fun ServerSettingsScreen(
                             "Roles" -> ServerRolesTab(uiState.serverData?.roles ?: emptyList(), viewModel, cardColor, foregroundText, primaryText, accentColor)
                             "Emojis" -> ServerEmojisTab(uiState.serverData?.emojis ?: emptyList(), viewModel, cardColor, foregroundText, primaryText, accentColor)
                             "Invites" -> ServerInvitesTab(uiState.activeInvites, uiState.serverData?.roles ?: emptyList(), viewModel, cardColor, foregroundText, primaryText, accentColor)
+                            "Users" -> ServerUsersTab(uiState.serverData?.users ?: emptyList(), viewModel, cardColor, foregroundText, primaryText, accentColor)
+                            "Plugins" -> ServerPluginsTab(viewModel, cardColor, foregroundText, primaryText, accentColor)
+                            "Storage" -> ServerStorageTab(viewModel, cardColor, foregroundText, primaryText, accentColor)
+                            "Updates" -> ServerUpdatesTab(viewModel, cardColor, foregroundText, primaryText, accentColor)
                             else -> PlaceholderTab(tabName, primaryText)
                         }
                     }
                 }
+                
+                if (uiState.isLoading) {
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = accentColor)
+                    }
+                }
+            }
+
+            if (uiState.isModViewOpen) {
+                ModViewSheet(
+                    uiState = uiState,
+                    viewModel = viewModel,
+                    onDismissRequest = { viewModel.closeModView() }
+                )
             }
         }
     }

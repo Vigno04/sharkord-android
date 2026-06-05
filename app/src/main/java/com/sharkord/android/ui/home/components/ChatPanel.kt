@@ -429,10 +429,21 @@ fun ChatPanel(
                 },
                 onSend = { text ->
                     val editing = uiState.editingMessage
+                    
+                    var processedText = text
+                    customEmojis.forEach { emoji ->
+                        val code = ":${emoji.name}:"
+                        if (processedText.contains(code)) {
+                            val url = "/public/${emoji.file?.name}"
+                            val htmlEmoji = """<span class="emoji-image" data-type="emoji" data-name="${emoji.name}"><img src="$url" alt="$code" class="emoji-image"></span>"""
+                            processedText = processedText.replace(code, htmlEmoji)
+                        }
+                    }
+
                     if (editing != null) {
-                        viewModel.submitEdit(editing.id, text)
+                        viewModel.submitEdit(editing.id, processedText)
                     } else {
-                        viewModel.sendMessage(text)
+                        viewModel.sendMessage(processedText)
                     }
                     inputText = TextFieldValue("")
                 },

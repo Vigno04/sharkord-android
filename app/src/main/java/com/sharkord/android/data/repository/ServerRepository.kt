@@ -198,6 +198,19 @@ class ServerRepository {
         }
     }
 
+    suspend fun getDiskMetrics(): Result<com.sharkord.android.data.model.DiskMetrics> {
+        return try {
+            val response = webSocket.sendQueryAwait("others.getStorageSettings", com.google.gson.JsonObject())
+            val diskMetricsJson = response.get("diskMetrics")
+            val gson = com.google.gson.Gson()
+            val diskMetrics = gson.fromJson(diskMetricsJson, com.sharkord.android.data.model.DiskMetrics::class.java)
+            Result.success(diskMetrics)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get disk metrics", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun updateServerSettings(settings: com.sharkord.android.data.model.AdminSettings): Result<Unit> {
         return try {
             val input = JsonObject().apply {
@@ -219,11 +232,235 @@ class ServerRepository {
                 addProperty("webRtcSimulcastEnabled", settings.webRtcSimulcastEnabled)
                 addProperty("enableSearch", settings.enableSearch)
                 addProperty("showWelcomeDialog", settings.showWelcomeDialog)
+                
+                // Storage Fields
+                addProperty("storageUploadEnabled", settings.storageUploadEnabled)
+                if (settings.storageQuota != null) addProperty("storageQuota", settings.storageQuota)
+                if (settings.storageUploadMaxFileSize != null) addProperty("storageUploadMaxFileSize", settings.storageUploadMaxFileSize)
+                addProperty("storageMaxFilesPerMessage", settings.storageMaxFilesPerMessage)
+                addProperty("storageFileSharingInDirectMessages", settings.storageFileSharingInDirectMessages)
+                if (settings.storageSpaceQuotaByUser != null) addProperty("storageSpaceQuotaByUser", settings.storageSpaceQuotaByUser)
+                if (settings.storageOverflowAction != null) addProperty("storageOverflowAction", settings.storageOverflowAction)
+                addProperty("storageSignedUrlsEnabled", settings.storageSignedUrlsEnabled)
+                addProperty("storageSignedUrlsTtlSeconds", settings.storageSignedUrlsTtlSeconds)
+                addProperty("storageImageOptimizationEnabled", settings.storageImageOptimizationEnabled)
+                addProperty("storageImageOptimizationQuality", settings.storageImageOptimizationQuality)
+                if (settings.storageMaxAvatarSize != null) addProperty("storageMaxAvatarSize", settings.storageMaxAvatarSize)
+                if (settings.storageMaxBannerSize != null) addProperty("storageMaxBannerSize", settings.storageMaxBannerSize)
             }
             webSocket.sendMutationAwait("others.updateSettings", input)
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to update server settings", e)
+            Result.failure(e)
+        }
+    }
+
+    // Plugins
+
+    suspend fun getPlugins(): Result<List<com.sharkord.android.data.model.PluginInfo>> {
+        return try {
+            val response = webSocket.sendQueryAwait("plugins.get")
+            val type = object : com.google.gson.reflect.TypeToken<List<com.sharkord.android.data.model.PluginInfo>>() {}.type
+            // response returns { plugins: [...] }
+            val pluginsArray = response.get("plugins")
+            val plugins = com.google.gson.Gson().fromJson<List<com.sharkord.android.data.model.PluginInfo>>(pluginsArray, type)
+            Result.success(plugins)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get plugins", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun togglePlugin(pluginId: String, enabled: Boolean): Result<Unit> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("pluginId", pluginId)
+                addProperty("enabled", enabled)
+            }
+            webSocket.sendMutationAwait("plugins.toggle", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to toggle plugin", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun removePlugin(pluginId: String): Result<Unit> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("pluginId", pluginId)
+            }
+            webSocket.sendMutationAwait("plugins.remove", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to remove plugin", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun installPlugin(pluginId: String, version: String): Result<Unit> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("pluginId", pluginId)
+                addProperty("version", version)
+            }
+            webSocket.sendMutationAwait("plugins.install", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to install plugin", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updatePlugin(pluginId: String, version: String): Result<Unit> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("pluginId", pluginId)
+                addProperty("version", version)
+            }
+            webSocket.sendMutationAwait("plugins.update", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update plugin", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getMarketplacePlugins(): Result<List<com.sharkord.android.data.model.MarketplaceEntry>> {
+        return try {
+            val url = "https://raw.githubusercontent.com/Sharkord/plugins/refs/heads/main/plugins.json?raw=true"
+            val responseBody = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                java.net.URL(url).readText()
+            }
+            val type = object : com.google.gson.reflect.TypeToken<List<com.sharkord.android.data.model.MarketplaceEntry>>() {}.type
+            val entries = com.google.gson.Gson().fromJson<List<com.sharkord.android.data.model.MarketplaceEntry>>(responseBody, type)
+            Result.success(entries)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get marketplace plugins", e)
+            Result.failure(e)
+        }
+    }
+
+    // Updates
+
+    suspend fun getServerUpdate(): Result<com.sharkord.android.data.model.UpdateInfo> {
+        return try {
+            val response = webSocket.sendQueryAwait("others.getUpdate")
+            val gson = com.google.gson.Gson()
+            val parsed = gson.fromJson(response, com.sharkord.android.data.model.UpdateInfo::class.java)
+            Result.success(parsed)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get server update", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateServer(): Result<Unit> {
+        return try {
+            webSocket.sendMutationAwait("others.updateServer", com.google.gson.JsonObject())
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update server", e)
+            Result.failure(e)
+        }
+    }
+
+    // Users
+
+    suspend fun deleteUser(userId: Int): Result<Unit> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("userId", userId)
+            }
+            webSocket.sendMutationAwait("users.delete", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to delete user", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun kickUser(userId: Int, reason: String?): Result<Unit> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("userId", userId)
+                reason?.let { addProperty("reason", it) }
+            }
+            webSocket.sendMutationAwait("users.kick", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to kick user", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun banUser(userId: Int, reason: String?): Result<Unit> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("userId", userId)
+                reason?.let { addProperty("reason", it) }
+            }
+            webSocket.sendMutationAwait("users.ban", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to ban user", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun unbanUser(userId: Int): Result<Unit> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("userId", userId)
+            }
+            webSocket.sendMutationAwait("users.unban", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to unban user", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun addUserRole(userId: Int, roleId: Int): Result<Unit> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("userId", userId)
+                addProperty("roleId", roleId)
+            }
+            webSocket.sendMutationAwait("users.addRole", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to add role", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun removeUserRole(userId: Int, roleId: Int): Result<Unit> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("userId", userId)
+                addProperty("roleId", roleId)
+            }
+            webSocket.sendMutationAwait("users.removeRole", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to remove role", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getUserInfo(userId: Int): Result<com.sharkord.android.data.model.ModViewData> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("userId", userId)
+            }
+            val response = webSocket.sendQueryAwait("users.getInfo", input)
+            val gson = com.google.gson.Gson()
+            val parsed = gson.fromJson(response, com.sharkord.android.data.model.ModViewData::class.java)
+            Result.success(parsed)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get user info", e)
             Result.failure(e)
         }
     }
@@ -323,6 +560,10 @@ class ServerRepository {
             val url = SharkordClient.currentServerUrl ?: throw Exception("No server URL")
             val fileUploadResult = http.uploadFile(url, token, originalName, fileBytes)
             
+            if (fileUploadResult.isFailure) {
+                return Result.failure(fileUploadResult.exceptionOrNull() ?: Exception("Upload failed"))
+            }
+
             fileUploadResult.onSuccess { fileInfo ->
                 val inputData = com.google.gson.JsonObject().apply {
                     addProperty("fileId", fileInfo.id)

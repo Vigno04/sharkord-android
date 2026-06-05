@@ -141,7 +141,6 @@ class SharkordHttpClient(private val client: OkHttpClient) {
             .post(requestBody)
             .addHeader("x-token", token)
             .addHeader("x-file-name", originalName)
-            .addHeader("content-length", fileBytes.size.toString())
             .build()
 
         return try {

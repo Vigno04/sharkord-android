@@ -6,7 +6,9 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sharkord.android.data.model.JoinServerData
+import com.sharkord.android.data.model.PluginInfo
 import com.sharkord.android.data.model.Role
+import com.sharkord.android.data.model.UpdateInfo
 import com.sharkord.android.data.repository.ServerRepository
 import com.sharkord.android.data.model.Invite
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,10 +17,24 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+enum class ModViewScreen {
+    MAIN, MESSAGES, LINKS, FILES
+}
+
 data class ServerSettingsUiState(
     val serverData: JoinServerData? = null,
     val adminSettings: com.sharkord.android.data.model.AdminSettings? = null,
+    val diskMetrics: com.sharkord.android.data.model.DiskMetrics? = null,
     val activeInvites: List<Invite> = emptyList(),
+    val plugins: List<PluginInfo> = emptyList(),
+    val updateInfo: UpdateInfo? = null,
+    val isModViewOpen: Boolean = false,
+    val isModViewLoading: Boolean = false,
+    val modViewData: com.sharkord.android.data.model.ModViewData? = null,
+    val modViewScreen: ModViewScreen = ModViewScreen.MAIN,
+    val marketplaceEntries: List<com.sharkord.android.data.model.MarketplaceEntry> = emptyList(),
+    val isMarketplaceLoading: Boolean = false,
+    val marketplaceError: String? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
     val successMessage: String? = null
@@ -53,6 +69,9 @@ class ServerSettingsViewModel(
 
         // Fetch admin settings immediately
         fetchAdminSettings()
+
+        // Fetch disk metrics
+        fetchDiskMetrics()
 
         // Fetch invites immediately
         fetchInvites()
@@ -108,6 +127,17 @@ class ServerSettingsViewModel(
                 _uiState.value = _uiState.value.copy(adminSettings = result.getOrNull())
             } else {
                 Log.e("ServerSettingsVM", "Failed to fetch admin settings", result.exceptionOrNull())
+            }
+        }
+    }
+
+    private fun fetchDiskMetrics() {
+        viewModelScope.launch {
+            val result = repository.getDiskMetrics()
+            if (result.isSuccess) {
+                _uiState.update { it.copy(diskMetrics = result.getOrNull()) }
+            } else {
+                Log.e("ServerSettingsVM", "Failed to fetch disk metrics", result.exceptionOrNull())
             }
         }
     }
@@ -225,13 +255,232 @@ class ServerSettingsViewModel(
 
     fun uploadEmoji(name: String, fileBytes: ByteArray, originalName: String) {
         viewModelScope.launch {
-            repository.uploadEmoji(name, fileBytes, originalName)
+            _uiState.update { it.copy(isLoading = true) }
+            val result = repository.uploadEmoji(name, fileBytes, originalName)
+            if (result.isSuccess) {
+                _uiState.update { it.copy(isLoading = false, successMessage = "Emoji uploaded successfully") }
+            } else {
+                _uiState.update { it.copy(isLoading = false, error = "Failed to upload emoji: ${result.exceptionOrNull()?.message}") }
+            }
         }
     }
 
     fun deleteEmoji(emojiId: Int) {
         viewModelScope.launch {
             repository.deleteEmoji(emojiId)
+        }
+    }
+
+    // Plugins
+
+    fun fetchPlugins() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val result = repository.getPlugins()
+            result.onSuccess { plugins ->
+                _uiState.update { it.copy(plugins = plugins, isLoading = false) }
+            }.onFailure { e ->
+                _uiState.update { it.copy(isLoading = false, error = "Failed to fetch plugins") }
+            }
+        }
+    }
+
+    fun fetchMarketplacePlugins() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isMarketplaceLoading = true, marketplaceError = null) }
+            val result = repository.getMarketplacePlugins()
+            result.onSuccess { entries ->
+                _uiState.update { it.copy(marketplaceEntries = entries, isMarketplaceLoading = false) }
+            }.onFailure { e ->
+                _uiState.update { it.copy(isMarketplaceLoading = false, marketplaceError = "Failed to fetch marketplace: ${e.message}") }
+            }
+        }
+    }
+
+    fun togglePlugin(pluginId: String, enabled: Boolean) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val result = repository.togglePlugin(pluginId, enabled)
+            if (result.isSuccess) {
+                _uiState.update { it.copy(isLoading = false, successMessage = if (enabled) "Plugin enabled" else "Plugin disabled") }
+                fetchPlugins()
+            } else {
+                _uiState.update { it.copy(isLoading = false, error = "Failed to toggle plugin") }
+            }
+        }
+    }
+
+    fun removePlugin(pluginId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val result = repository.removePlugin(pluginId)
+            if (result.isSuccess) {
+                _uiState.update { it.copy(isLoading = false, successMessage = "Plugin removed") }
+                fetchPlugins()
+            } else {
+                _uiState.update { it.copy(isLoading = false, error = "Failed to remove plugin") }
+            }
+        }
+    }
+
+    fun installPlugin(pluginId: String, version: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val result = repository.installPlugin(pluginId, version)
+            if (result.isSuccess) {
+                _uiState.update { it.copy(isLoading = false, successMessage = "Plugin installed") }
+                fetchPlugins()
+            } else {
+                _uiState.update { it.copy(isLoading = false, error = "Failed to install plugin") }
+            }
+        }
+    }
+
+    fun updatePlugin(pluginId: String, version: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val result = repository.updatePlugin(pluginId, version)
+            if (result.isSuccess) {
+                _uiState.update { it.copy(isLoading = false, successMessage = "Plugin updated") }
+                fetchPlugins()
+            } else {
+                _uiState.update { it.copy(isLoading = false, error = "Failed to update plugin") }
+            }
+        }
+    }
+
+    // Updates
+
+    fun fetchUpdateInfo() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val result = repository.getServerUpdate()
+            result.onSuccess { info ->
+                _uiState.update { it.copy(updateInfo = info, isLoading = false) }
+            }.onFailure { e ->
+                _uiState.update { it.copy(isLoading = false, error = "Failed to fetch update info") }
+            }
+        }
+    }
+
+    fun updateServer() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val result = repository.updateServer()
+            if (result.isSuccess) {
+                _uiState.update { it.copy(isLoading = false, successMessage = "Server update initiated") }
+            } else {
+                _uiState.update { it.copy(isLoading = false, error = "Failed to update server") }
+            }
+        }
+    }
+
+    // Users
+
+    fun deleteUser(userId: Int) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val result = repository.deleteUser(userId)
+            if (result.isSuccess) {
+                // Remove user from the local serverData list
+                _uiState.update { state ->
+                    val updatedUsers = state.serverData?.users?.filter { it.id != userId } ?: emptyList()
+                    state.copy(
+                        isLoading = false, 
+                        successMessage = "User deleted",
+                        serverData = state.serverData?.copy(users = updatedUsers)
+                    )
+                }
+            } else {
+                _uiState.update { it.copy(isLoading = false, error = "Failed to delete user") }
+            }
+        }
+    }
+
+    // Mod View
+
+    fun openModView(userId: Int) {
+        _uiState.update { it.copy(isModViewOpen = true, isModViewLoading = true, modViewData = null) }
+        viewModelScope.launch {
+            val result = repository.getUserInfo(userId)
+            result.onSuccess { data ->
+                _uiState.update { it.copy(modViewData = data, isModViewLoading = false) }
+            }.onFailure { e ->
+                _uiState.update { it.copy(isModViewLoading = false, error = "Failed to load user info") }
+            }
+        }
+    }
+
+    fun closeModView() {
+        _uiState.update { it.copy(isModViewOpen = false, modViewData = null, modViewScreen = ModViewScreen.MAIN) }
+    }
+
+    fun setModViewScreen(screen: ModViewScreen) {
+        _uiState.update { it.copy(modViewScreen = screen) }
+    }
+
+    fun kickUser(userId: Int, reason: String?) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isModViewLoading = true) }
+            val result = repository.kickUser(userId, reason)
+            if (result.isSuccess) {
+                _uiState.update { it.copy(successMessage = "User kicked") }
+                openModView(userId) // Reload
+            } else {
+                _uiState.update { it.copy(isModViewLoading = false, error = "Failed to kick user") }
+            }
+        }
+    }
+
+    fun banUser(userId: Int, reason: String?) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isModViewLoading = true) }
+            val result = repository.banUser(userId, reason)
+            if (result.isSuccess) {
+                _uiState.update { it.copy(successMessage = "User banned") }
+                openModView(userId) // Reload
+            } else {
+                _uiState.update { it.copy(isModViewLoading = false, error = "Failed to ban user") }
+            }
+        }
+    }
+
+    fun unbanUser(userId: Int) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isModViewLoading = true) }
+            val result = repository.unbanUser(userId)
+            if (result.isSuccess) {
+                _uiState.update { it.copy(successMessage = "User unbanned") }
+                openModView(userId) // Reload
+            } else {
+                _uiState.update { it.copy(isModViewLoading = false, error = "Failed to unban user") }
+            }
+        }
+    }
+
+    fun addUserRole(userId: Int, roleId: Int) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isModViewLoading = true) }
+            val result = repository.addUserRole(userId, roleId)
+            if (result.isSuccess) {
+                _uiState.update { it.copy(successMessage = "Role added") }
+                openModView(userId) // Reload
+            } else {
+                _uiState.update { it.copy(isModViewLoading = false, error = "Failed to add role") }
+            }
+        }
+    }
+
+    fun removeUserRole(userId: Int, roleId: Int) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isModViewLoading = true) }
+            val result = repository.removeUserRole(userId, roleId)
+            if (result.isSuccess) {
+                _uiState.update { it.copy(successMessage = "Role removed") }
+                openModView(userId) // Reload
+            } else {
+                _uiState.update { it.copy(isModViewLoading = false, error = "Failed to remove role") }
+            }
         }
     }
 }
