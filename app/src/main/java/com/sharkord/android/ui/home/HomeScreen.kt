@@ -53,6 +53,7 @@ fun HomeScreen(
     onLogout: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToServerSettings: () -> Unit,
+    onNavigateToChannelSettings: (channelId: Int) -> Unit,
     viewModel: HomeViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -435,6 +436,9 @@ fun HomeScreen(
                                             onSelect = {
                                                 if (!channel.isVoice) viewModel.selectChannel(channel.id)
                                             },
+                                            canManage = hasManageChannels,
+                                            onEditClick = { onNavigateToChannelSettings(channel.id) },
+                                            onDeleteClick = { viewModel.showDeleteChannelDialog(channel.id) },
                                             foregroundText = foregroundText,
                                             primaryText = primaryText
                                         )
@@ -448,6 +452,9 @@ fun HomeScreen(
                                             channel = channel,
                                             isSelected = uiState.selectedChannelId == channel.id,
                                             onSelect = { /* Voice channel — no text chat */ },
+                                            canManage = hasManageChannels,
+                                            onEditClick = { onNavigateToChannelSettings(channel.id) },
+                                            onDeleteClick = { viewModel.showDeleteChannelDialog(channel.id) },
                                             foregroundText = foregroundText,
                                             primaryText = primaryText
                                         )
@@ -515,6 +522,9 @@ fun HomeScreen(
                                                     onSelect = {
                                                         if (!channel.isVoice) viewModel.selectChannel(channel.id)
                                                     },
+                                                    canManage = hasManageChannels,
+                                                    onEditClick = { onNavigateToChannelSettings(channel.id) },
+                                                    onDeleteClick = { viewModel.showDeleteChannelDialog(channel.id) },
                                                     foregroundText = foregroundText,
                                                     primaryText = primaryText
                                                 )
@@ -650,6 +660,32 @@ fun HomeScreen(
                         primaryText = primaryText,
                         foregroundText = foregroundText
                     )
+                }
+
+                // ================= DELETE CHANNEL DIALOG =================
+                if (uiState.showDeleteChannelDialogForId != null) {
+                    val channelId = uiState.showDeleteChannelDialogForId!!
+                    val channelToDelete = data.channels.find { it.id == channelId }
+                    if (channelToDelete != null) {
+                        AlertDialog(
+                            onDismissRequest = { viewModel.dismissDeleteChannelDialog() },
+                            title = { Text(stringResource(id = R.string.settings_deleteChannelTitle)) },
+                            text = { Text(stringResource(id = R.string.settings_deleteChannelMsg)) },
+                            confirmButton = {
+                                TextButton(onClick = { viewModel.deleteChannel(channelId) }) {
+                                    Text(stringResource(id = R.string.settings_deleteLabel), color = Color.Red)
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { viewModel.dismissDeleteChannelDialog() }) {
+                                    Text(stringResource(id = R.string.common_cancel), color = primaryText)
+                                }
+                            },
+                            containerColor = cardColor,
+                            titleContentColor = foregroundText,
+                            textContentColor = primaryText
+                        )
+                    }
                 }
 
                 // ================= 8. SEARCH PANEL =================

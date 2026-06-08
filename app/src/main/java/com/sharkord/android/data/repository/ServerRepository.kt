@@ -201,6 +201,98 @@ class ServerRepository {
         }
     }
 
+    suspend fun updateChannel(channelId: Int, name: String, topic: String?, isPrivate: Boolean): Result<Unit> {
+        return try {
+            val input = JsonObject().apply {
+                addProperty("channelId", channelId)
+                addProperty("name", name)
+                if (topic != null) {
+                    addProperty("topic", topic)
+                } else {
+                    add("topic", com.google.gson.JsonNull.INSTANCE)
+                }
+                addProperty("private", isPrivate)
+            }
+            webSocket.sendMutationAwait("channels.update", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update channel", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteChannel(channelId: Int): Result<Unit> {
+        return try {
+            val input = JsonObject().apply {
+                addProperty("channelId", channelId)
+            }
+            webSocket.sendMutationAwait("channels.delete", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to delete channel", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getChannelPermissions(channelId: Int): Result<com.sharkord.android.data.model.ChannelPermissionsResponse> {
+        return try {
+            val input = JsonObject().apply {
+                addProperty("channelId", channelId)
+            }
+            val response = webSocket.sendMutationAwait("channels.getPermissions", input)
+            val gson = com.google.gson.Gson()
+            val parsed = gson.fromJson(response, com.sharkord.android.data.model.ChannelPermissionsResponse::class.java)
+            Result.success(parsed)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get channel permissions", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateChannelPermissions(
+        channelId: Int,
+        roleId: Int?,
+        userId: Int?,
+        isCreate: Boolean,
+        permissions: List<String>
+    ): Result<Unit> {
+        return try {
+            val input = JsonObject().apply {
+                addProperty("channelId", channelId)
+                roleId?.let { addProperty("roleId", it) }
+                userId?.let { addProperty("userId", it) }
+                addProperty("isCreate", isCreate)
+                val permsArray = com.google.gson.JsonArray()
+                permissions.forEach { permsArray.add(it) }
+                add("permissions", permsArray)
+            }
+            webSocket.sendMutationAwait("channels.updatePermissions", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update channel permissions", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteChannelPermissions(
+        channelId: Int,
+        roleId: Int?,
+        userId: Int?
+    ): Result<Unit> {
+        return try {
+            val input = JsonObject().apply {
+                addProperty("channelId", channelId)
+                roleId?.let { addProperty("roleId", it) }
+                userId?.let { addProperty("userId", it) }
+            }
+            webSocket.sendMutationAwait("channels.deletePermissions", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to delete channel permissions", e)
+            Result.failure(e)
+        }
+    }
+
 
     // Server Administration (Settings & Roles)
 

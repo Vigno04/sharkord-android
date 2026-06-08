@@ -51,6 +51,7 @@ data class HomeUiState(
     val activePanel: HomePanel = HomePanel.SERVER,
     val showAddChannelDialog: Boolean = false,
     val addChannelCategoryId: Int? = null,
+    val showDeleteChannelDialogForId: Int? = null,
     val isDmsListOpen: Boolean = false,
     val membersSheetFilterDms: Boolean = false
 )
@@ -559,10 +560,28 @@ class HomeViewModel : ViewModel() {
             val result = repository.createChannel(name, type, categoryId)
             if (result.isSuccess) {
                 dismissAddChannelDialog()
+            }
+            result.onFailure { error ->
+                _uiState.update { it.copy(errorMessage = error.message ?: "Failed to create channel") }
+            }
+        }
+    }
+
+    fun showDeleteChannelDialog(channelId: Int) {
+        _uiState.update { it.copy(showDeleteChannelDialogForId = channelId) }
+    }
+
+    fun dismissDeleteChannelDialog() {
+        _uiState.update { it.copy(showDeleteChannelDialogForId = null) }
+    }
+
+    fun deleteChannel(channelId: Int) {
+        viewModelScope.launch {
+            val result = repository.deleteChannel(channelId)
+            if (result.isSuccess) {
+                dismissDeleteChannelDialog()
             } else {
-                result.onFailure { error ->
-                    _uiState.update { it.copy(errorMessage = error.message ?: "Failed to create channel") }
-                }
+                _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message ?: "Failed to delete channel") }
             }
         }
     }

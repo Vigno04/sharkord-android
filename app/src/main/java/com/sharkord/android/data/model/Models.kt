@@ -493,3 +493,33 @@ data class SearchResults(
     val messages: List<SearchResultMessage> = emptyList(),
     val files: List<SearchResultFile> = emptyList()
 )
+
+// Channel Permissions
+
+enum class ChannelPermission(val value: String) {
+    VIEW_CHANNEL("VIEW_CHANNEL"),
+    SEND_MESSAGES("SEND_MESSAGES"),
+    JOIN("JOIN"),
+    SPEAK("SPEAK"),
+    SHARE_SCREEN("SHARE_SCREEN"),
+    WEBCAM("WEBCAM")
+}
+
+data class ChannelRolePermission(
+    val channelId: Int,
+    val roleId: Int,
+    val permission: String,
+    val allow: Boolean
+)
+
+data class ChannelUserPermission(
+    val channelId: Int,
+    val userId: Int,
+    val permission: String,
+    val allow: Boolean
+)
+
+data class ChannelPermissionsResponse(
+    val rolePermissions: List<ChannelRolePermission> = emptyList(),
+    val userPermissions: List<ChannelUserPermission> = emptyList()
+)

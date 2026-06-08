@@ -73,6 +73,9 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                 },
                 onNavigateToServerSettings = {
                     navController.navigate("server_settings")
+                },
+                onNavigateToChannelSettings = { channelId ->
+                    navController.navigate("channel_settings/$channelId")
                 }
             )
         }
@@ -85,6 +88,18 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         }
         composable("server_settings") {
             com.sharkord.android.ui.settings.ServerSettingsScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+        composable(
+            route = "channel_settings/{channelId}",
+            arguments = listOf(androidx.navigation.navArgument("channelId") { type = androidx.navigation.NavType.IntType })
+        ) { backStackEntry ->
+            val channelId = backStackEntry.arguments?.getInt("channelId") ?: return@composable
+            com.sharkord.android.ui.settings.ChannelSettingsScreen(
+                channelId = channelId,
                 onBackClick = {
                     navController.popBackStack()
                 }
