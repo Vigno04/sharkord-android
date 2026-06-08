@@ -77,7 +77,7 @@ fun ProfileBottomSheet(
                 if (bannerPainter != null) {
                     Image(
                         painter = bannerPainter,
-                        contentDescription = "User Banner",
+                        contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -107,28 +107,28 @@ fun ProfileBottomSheet(
                     Spacer(modifier = Modifier.height(16.dp))
                     Divider(color = Color.White.copy(alpha = 0.1f))
 
-                    val displayBio = if (currentUser?.bio.isNullOrBlank()) "No bio provided." else currentUser?.bio!!
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "ABOUT ME",
-                        color = Color.Gray,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = displayBio,
-                        color = primaryText,
-                        fontSize = 14.sp
-                    )
+                    if (!currentUser?.bio.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = stringResource(R.string.settings_bioLabel),
+                            color = Color.Gray,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = currentUser.bio!!,
+                            color = primaryText,
+                            fontSize = 14.sp
+                        )
+                    }
 
                     val userRoles = currentUser?.roleIds?.mapNotNull { roleId -> roles.find { it.id == roleId } } ?: emptyList()
                     if (userRoles.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "ROLES",
+                            text = stringResource(R.string.settings_usersRolesCol),
                             color = Color.Gray,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -164,20 +164,13 @@ fun ProfileBottomSheet(
 
                     if (currentUser?.createdAt != null) {
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "MEMBER SINCE",
-                            color = Color.Gray,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
                         val date = Date(currentUser.createdAt)
                         val formatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
                         Text(
-                            text = formatter.format(date),
-                            color = primaryText,
-                            fontSize = 14.sp
+                            text = stringResource(R.string.common_memberSince, formatter.format(date)),
+                            color = Color.Gray,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Normal
                         )
                     }
 
@@ -196,7 +189,7 @@ fun ProfileBottomSheet(
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
                             Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("User Settings")
+                            Text(stringResource(R.string.settings_userSettingsTitle))
                         }
                     }
                     
@@ -238,7 +231,7 @@ fun ProfileBottomSheet(
                         if (avatarPainter != null) {
                             Image(
                                 painter = avatarPainter,
-                                contentDescription = "User Logo",
+                                contentDescription = null,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -247,7 +240,7 @@ fun ProfileBottomSheet(
                             if (fallbackPainter != null) {
                                 Image(
                                     painter = fallbackPainter,
-                                    contentDescription = "Fallback Logo",
+                                    contentDescription = null,
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }

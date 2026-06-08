@@ -10,6 +10,7 @@
   "profile_user_settings_title": "User Profile & Settings",
   "profile_show_members": "Show members",
   "common_member_count": "%1$d members",
+  "dialogs_searchTitle": "Search",
   "chat_welcomeToChannel": "Welcome to #%1$s!",
   "chat_channelBeginning": "This is the beginning of the #%1$s channel.",
   "chat_channelBeginningShort": "This is the beginning of #%1$s",

@@ -78,6 +78,7 @@ fun MessageItem(
     users: List<User>,
     roles: List<Role>,
     ownUserId: Int,
+    isHighlighted: Boolean = false,
     modifier: Modifier = Modifier,
     fullscreenMediaId: String? = null,
     onLongClick: (Message) -> Unit = {},
@@ -188,9 +189,23 @@ fun MessageItem(
         }
     }
 
+    val highlightColor = Color(0x22FFFFFF)
+    val transparentHighlight = Color(0x00FFFFFF)
+    val animatableColor = remember { androidx.compose.animation.Animatable(transparentHighlight) }
+    
+    LaunchedEffect(isHighlighted) {
+        if (isHighlighted) {
+            animatableColor.animateTo(highlightColor, androidx.compose.animation.core.tween(300))
+            animatableColor.animateTo(transparentHighlight, androidx.compose.animation.core.tween(300))
+        } else {
+            animatableColor.snapTo(transparentHighlight)
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .background(animatableColor.value)
             .combinedClickable(
                 onLongClick = { onLongClick(message) },
                 onClick = {}

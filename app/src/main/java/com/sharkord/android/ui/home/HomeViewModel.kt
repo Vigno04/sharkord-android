@@ -17,6 +17,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.google.gson.Gson
+import com.google.gson.JsonObject
+import com.sharkord.android.data.model.UnifiedSearchResult
+import com.sharkord.android.data.model.UnifiedMessageResult
+import com.sharkord.android.data.model.UnifiedFileResult
+import com.sharkord.android.data.model.SearchResults
 
 enum class HomePanel {
     SERVER, CHAT
@@ -30,12 +36,18 @@ data class HomeUiState(
     val isLoading: Boolean = true,
     val serverData: JoinServerData? = null,
     val selectedChannelId: Int? = null,
+    val selectedMessageId: Int? = null,
+    val jumpTrigger: Long = 0L,
     val collapsedCategories: Set<Int> = emptySet(),
     val errorMessage: String? = null,
     val reconnectAttempts: Int = 0,
     val showProfileSheet: Boolean = false,
     val showMembersSheet: Boolean = false,
     val showServerSheet: Boolean = false,
+    val showSearchSheet: Boolean = false,
+    val searchQuery: String = "",
+    val isSearching: Boolean = false,
+    val searchResults: List<UnifiedSearchResult>? = null,
     val activePanel: HomePanel = HomePanel.SERVER
 )
 
@@ -428,8 +440,15 @@ class HomeViewModel : ViewModel() {
 
     // UI Actions
 
-    fun selectChannel(channelId: Int) {
-        _uiState.update { it.copy(selectedChannelId = channelId, activePanel = HomePanel.CHAT) }
+    fun selectChannel(channelId: Int, messageId: Int? = null) {
+        _uiState.update { 
+            it.copy(
+                selectedChannelId = channelId, 
+                selectedMessageId = messageId, 
+                activePanel = HomePanel.CHAT,
+                jumpTrigger = if (messageId != null) System.currentTimeMillis() else it.jumpTrigger
+            ) 
+        }
     }
 
     fun setPanel(panel: HomePanel) {
@@ -470,6 +489,49 @@ class HomeViewModel : ViewModel() {
 
     fun dismissServerSheet() {
         _uiState.update { it.copy(showServerSheet = false) }
+    }
+
+    fun showSearchSheet() {
+        _uiState.update { it.copy(showSearchSheet = true) }
+    }
+
+    fun dismissSearchSheet() {
+        _uiState.update { it.copy(showSearchSheet = false, searchQuery = "", searchResults = null) }
+    }
+
+    fun setSearchQuery(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+    }
+
+    fun performSearch() {
+        val query = _uiState.value.searchQuery.trim()
+        if (query.isEmpty()) {
+            _uiState.update { it.copy(searchResults = null, isSearching = false) }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSearching = true) }
+            try {
+                val input = JsonObject().apply { addProperty("query", query) }
+                val response = SharkordClient.webSocket.sendQueryAwait("messages.search", input)
+                val results = Gson().fromJson(response, SearchResults::class.java)
+
+                val unifiedList = mutableListOf<UnifiedSearchResult>()
+                results.messages.forEach { msg ->
+                    unifiedList.add(UnifiedMessageResult(key = "msg_${msg.id}", createdAt = msg.createdAt, item = msg))
+                }
+                results.files.forEach { file ->
+                    unifiedList.add(UnifiedFileResult(key = "file_${file.file.id}", createdAt = file.messageCreatedAt, item = file))
+                }
+                unifiedList.sortByDescending { it.createdAt }
+
+                _uiState.update { it.copy(searchResults = unifiedList, isSearching = false) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Search failed", e)
+                _uiState.update { it.copy(isSearching = false, searchResults = emptyList()) }
+            }
+        }
     }
 
     /**

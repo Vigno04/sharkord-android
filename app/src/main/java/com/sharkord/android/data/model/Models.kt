@@ -433,3 +433,63 @@ data class HandshakeResponse(
     val handshakeHash: String,
     val hasPassword: Boolean = false
 )
+
+// Search Results
+
+/**
+ * Common interface for unified search results list.
+ */
+sealed interface UnifiedSearchResult {
+    val key: String
+    val createdAt: Long
+}
+
+data class SearchResultMessage(
+    val id: Int,
+    val content: String,
+    val channelId: Int,
+    val userId: Int,
+    val createdAt: Long,
+    val editedAt: Long? = null,
+    val plainContent: String,
+    val channelName: String,
+    val channelIsDm: Boolean,
+    val files: List<FileInfo> = emptyList()
+)
+
+data class SearchResultFileItem(
+    val id: String,
+    val name: String,
+    @SerializedName("originalName", alternate = ["original_name"]) val originalName: String? = null,
+    val size: Int? = null,
+    @SerializedName("mimeType", alternate = ["mime_type"]) val mimeType: String? = null,
+    @SerializedName("_accessToken") val accessToken: String? = null,
+    @SerializedName("_accessTokenExpiresAt") val accessTokenExpiresAt: Long? = null
+)
+
+data class SearchResultFile(
+    val file: SearchResultFileItem,
+    val messageId: Int,
+    val channelId: Int,
+    val messageContent: String? = null,
+    val messageCreatedAt: Long,
+    val channelName: String,
+    val channelIsDm: Boolean
+)
+
+data class UnifiedMessageResult(
+    override val key: String,
+    override val createdAt: Long,
+    val item: SearchResultMessage
+) : UnifiedSearchResult
+
+data class UnifiedFileResult(
+    override val key: String,
+    override val createdAt: Long,
+    val item: SearchResultFile
+) : UnifiedSearchResult
+
+data class SearchResults(
+    val messages: List<SearchResultMessage> = emptyList(),
+    val files: List<SearchResultFile> = emptyList()
+)

@@ -58,6 +58,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun ChatPanel(
     channelId: Int,
+    targetMessageId: Int? = null,
+    jumpTrigger: Long = 0L,
     channelName: String,
     isDm: Boolean = false,
     dmUser: User? = null,
@@ -86,13 +88,57 @@ fun ChatPanel(
 
     var showMenuMessage by remember(channelId) { mutableStateOf<Message?>(null) }
     var isEmojiPickerOpen by remember(channelId) { mutableStateOf(false) }
+    var playingHighlightId by remember(channelId) { mutableStateOf<Int?>(null) }
+    var isJumping by remember(channelId, jumpTrigger) { mutableStateOf(targetMessageId != null) }
+
+    LaunchedEffect(playingHighlightId) {
+        if (playingHighlightId != null) {
+            isJumping = true
+            kotlinx.coroutines.delay(2000)
+            playingHighlightId = null
+            isJumping = false
+        }
+    }
 
     val keyboardController = LocalSoftwareKeyboardController.current
 
 
     // Initialize ViewModel
-    LaunchedEffect(channelId) {
-        viewModel.init(channelId)
+    LaunchedEffect(channelId, targetMessageId, jumpTrigger) {
+        if (targetMessageId != null) {
+            val index = uiState.messages.indexOfFirst { it.id == targetMessageId }
+            if (index != -1) {
+                // The message is already loaded. Scroll to it directly.
+                val headerOffset = if (uiState.isLoadingOlder || (uiState.hasReachedTop && uiState.messages.isNotEmpty())) 1 else 0
+                val viewportHeight = listState.layoutInfo.viewportSize.height
+                // Offset by roughly a third of the viewport height to position the target message 
+                // towards the center rather than stuck at the top/bottom edge.
+                val offset = if (viewportHeight > 0) -(viewportHeight / 3) else -500
+                listState.scrollToItem(index + headerOffset, offset)
+                playingHighlightId = targetMessageId
+                return@LaunchedEffect
+            }
+        }
+        viewModel.init(channelId, targetMessageId)
+    }
+
+    // Jump to message
+    val jumpTarget = uiState.jumpTargetMessageId
+    LaunchedEffect(jumpTarget, uiState.messages) {
+        if (jumpTarget != null && uiState.messages.isNotEmpty()) {
+            val index = uiState.messages.indexOfFirst { it.id == jumpTarget }
+            if (index != -1) {
+                val headerOffset = if (uiState.isLoadingOlder || (uiState.hasReachedTop && uiState.messages.isNotEmpty())) 1 else 0
+                val viewportHeight = listState.layoutInfo.viewportSize.height
+                // Offset by roughly a third of the viewport height to position the target message 
+                // towards the center rather than stuck at the top/bottom edge.
+                val offset = if (viewportHeight > 0) -(viewportHeight / 3) else -500
+                listState.scrollToItem(index + headerOffset, offset)
+                playingHighlightId = jumpTarget
+                kotlinx.coroutines.delay(50) // Prevent race condition with lastMessageId effect
+                viewModel.clearJumpTarget()
+            }
+        }
     }
 
     // Edit mode: populate input field
@@ -123,6 +169,10 @@ fun ChatPanel(
     val lastMessageId = lastMessage?.id
     LaunchedEffect(lastMessageId) {
         if (lastMessageId == null) return@LaunchedEffect
+        
+        // NEVER auto-scroll to bottom if we have a jump target!
+        if (uiState.jumpTargetMessageId != null) return@LaunchedEffect
+
         if (!hasInitialLoaded) {
             if (uiState.messages.isNotEmpty()) {
                 listState.scrollToItem(uiState.messages.size - 1)
@@ -340,14 +390,20 @@ fun ChatPanel(
                                     users = users,
                                     roles = roles,
                                     ownUserId = ownUserId,
+                                    isHighlighted = message.id == playingHighlightId,
                                     fullscreenMediaId = uiState.viewingMediaFile?.id,
                                     onLongClick = { target -> showMenuMessage = target },
                                     onReplyClick = { parentId ->
                                         val targetIndex = uiState.messages.indexOfFirst { it.id == parentId }
                                         if (targetIndex != -1) {
                                             val headerOffset = if (uiState.isLoadingOlder || (uiState.hasReachedTop && uiState.messages.isNotEmpty())) 1 else 0
+                                            val viewportHeight = listState.layoutInfo.viewportSize.height
+                                            // Offset by roughly a third of the viewport height to position the target message 
+                                            // towards the center rather than stuck at the top/bottom edge.
+                                            val offset = if (viewportHeight > 0) -(viewportHeight / 3) else -500
                                             coroutineScope.launch {
-                                                listState.animateScrollToItem(targetIndex + headerOffset)
+                                                listState.animateScrollToItem(targetIndex + headerOffset, offset)
+                                                playingHighlightId = parentId
                                             }
                                         } else {
                                             android.widget.Toast.makeText(context, context.getString(R.string.chat_referencedMessageNotLoaded), android.widget.Toast.LENGTH_SHORT).show()
@@ -475,7 +531,7 @@ fun ChatPanel(
                     inputText = textVal
                 },
                 onType = { text -> viewModel.onType(text) },
-                isAtBottom = isAtBottom,
+                isAtBottom = isAtBottom && !isJumping,
                 messagesCount = uiState.messages.size,
                 listState = listState,
                 bgColor = bgColor,

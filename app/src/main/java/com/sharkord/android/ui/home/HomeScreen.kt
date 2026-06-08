@@ -152,6 +152,8 @@ fun HomeScreen(
                         
                         ChatPanel(
                             channelId = uiState.selectedChannelId!!,
+                            targetMessageId = uiState.selectedMessageId,
+                            jumpTrigger = uiState.jumpTrigger,
                             channelName = displayName,
                             isDm = isDm,
                             dmUser = otherUser,
@@ -327,6 +329,7 @@ fun HomeScreen(
                                     memberCount = data.users.size,
                                     cardColor = cardColor,
                                     foregroundText = foregroundText,
+                                    onSearchClick = { viewModel.showSearchSheet() },
                                     onDirectMessagesClick = { viewModel.showMembersSheet() },
                                     onServerClick = { viewModel.showServerSheet() },
                                     isServerSheetOpen = uiState.showServerSheet
@@ -574,10 +577,36 @@ fun HomeScreen(
                         }
                     )
                 }
+
                 }
+                
+                // ================= 8. SEARCH PANEL =================
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = uiState.showSearchSheet,
+                    enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { it },
+                    exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.slideOutVertically { it }
+                ) {
+                    SearchPanel(
+                        searchQuery = uiState.searchQuery,
+                        isSearching = uiState.isSearching,
+                        searchResults = uiState.searchResults,
+                        users = data.users,
+                        onQueryChange = { viewModel.setSearchQuery(it) },
+                        onSearchTrigger = { viewModel.performSearch() },
+                        onDismissRequest = { viewModel.dismissSearchSheet() },
+                        onResultClick = { channelId, messageId ->
+                            viewModel.dismissSearchSheet()
+                            viewModel.selectChannel(channelId, messageId)
+                        },
+                        bgColor = bgColor,
+                        cardColor = cardColor,
+                        primaryText = primaryText,
+                        foregroundText = foregroundText
+                    )
                 }
-            }
-        }
-    }
+            } // closes uiState.serverData != null
+        } // closes when
+    } // closes Box(78)
+} // closes HomeScreen
 }
 

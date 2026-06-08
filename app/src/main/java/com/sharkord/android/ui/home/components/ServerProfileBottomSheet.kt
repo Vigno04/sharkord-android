@@ -78,22 +78,22 @@ fun ServerProfileBottomSheet(
                     Spacer(modifier = Modifier.height(16.dp))
                     Divider(color = Color.White.copy(alpha = 0.1f))
 
-                    val displayDesc = if (serverDescription.isNullOrBlank()) "No description provided." else serverDescription
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "ABOUT SERVER",
-                        color = Color.Gray,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = displayDesc,
-                        color = primaryText,
-                        fontSize = 14.sp
-                    )
+                    if (!serverDescription.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = stringResource(R.string.settings_descriptionLabel),
+                            color = Color.Gray,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = serverDescription,
+                            color = primaryText,
+                            fontSize = 14.sp
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(24.dp))
 
@@ -109,7 +109,7 @@ fun ServerProfileBottomSheet(
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
                             Icon(Icons.Default.Group, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("See all members")
+                            Text(stringResource(R.string.profile_show_members))
                         }
                     }
 
@@ -128,7 +128,7 @@ fun ServerProfileBottomSheet(
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
                                 Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Server Options")
+                                Text(stringResource(R.string.sidebar_serverSettings))
                             }
                         }
                     }
@@ -169,7 +169,7 @@ fun ServerProfileBottomSheet(
                         if (logoPainter != null) {
                             Image(
                                 painter = logoPainter,
-                                contentDescription = "Server Logo",
+                                contentDescription = null,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -177,7 +177,7 @@ fun ServerProfileBottomSheet(
                             val fallbackPainter = painterResource(id = R.drawable.logo)
                             Image(
                                 painter = fallbackPainter,
-                                contentDescription = "Fallback Logo",
+                                contentDescription = null,
                                 modifier = Modifier.fillMaxSize()
                             )
                         }

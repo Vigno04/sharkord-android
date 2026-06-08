@@ -104,6 +104,12 @@ fun ChatBottomPanel(
         wasAtBottom = isAtBottom
     }
 
+    LaunchedEffect(isAtBottom) {
+        if (!isAtBottom) {
+            wasAtBottom = false
+        }
+    }
+
     LaunchedEffect(bottomPanelDp) {
         if (wasAtBottom && messagesCount > 0) {
             listState.scrollToItem(messagesCount - 1)
