@@ -46,6 +46,10 @@ object SharkordClient {
     lateinit var session: SessionManager
         private set
 
+    /** Global application context, initialized lazily. */
+    lateinit var applicationContext: Context
+        private set
+
     /**
      * Current server URL (kept in memory for convenience during a session).
      * This is the canonical source during an active session.
@@ -68,7 +72,8 @@ object SharkordClient {
      * Call this once from Application.onCreate() or the first Activity.
      */
     fun initialize(context: Context) {
-        session = SessionManager(context.applicationContext)
+        applicationContext = context.applicationContext
+        session = SessionManager(applicationContext)
     }
 
     /**

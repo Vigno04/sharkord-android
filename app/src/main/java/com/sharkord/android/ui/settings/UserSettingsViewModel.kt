@@ -36,7 +36,11 @@ class UserSettingsViewModel : ViewModel() {
     var newPassword = MutableStateFlow("")
     var confirmNewPassword = MutableStateFlow("")
 
+    // App Settings
+    var maxDiskCacheMb = MutableStateFlow(250)
+
     init {
+        maxDiskCacheMb.value = SharkordClient.session.maxDiskCacheMb
         loadUser()
     }
 
@@ -101,6 +105,11 @@ class UserSettingsViewModel : ViewModel() {
                 _uiState.value = _uiState.value.copy(isSavingPassword = false)
             }
         }
+    }
+
+    fun saveMaxDiskCacheMb(value: Int) {
+        maxDiskCacheMb.value = value
+        SharkordClient.session.maxDiskCacheMb = value
     }
 
     fun uploadAvatar(context: Context, uri: Uri) {

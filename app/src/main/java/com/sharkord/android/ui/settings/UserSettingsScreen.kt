@@ -59,7 +59,7 @@ fun UserSettingsScreen(
     val foregroundText = Color(0xFFFAFAFA)
     val accentColor = Color(0xFF5865F2)
     
-    val tabs = listOf("Profile", "Devices", "Password", "Notifications", "Others")
+    val tabs = listOf("Profile", "Devices", "Password", "Notifications", "App Settings", "Others")
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val coroutineScope = rememberCoroutineScope()
 
@@ -150,7 +150,8 @@ fun UserSettingsScreen(
                             1 -> DevicesTabContent(cardColor, foregroundText, primaryText, accentColor)
                             2 -> PasswordTabContent(viewModel, cardColor, foregroundText, primaryText, accentColor)
                             3 -> NotificationsTabContent(cardColor, foregroundText, primaryText, accentColor)
-                            4 -> OthersTabContent(cardColor, foregroundText, primaryText, accentColor)
+                            4 -> AppSettingsTabContent(viewModel, cardColor, foregroundText, primaryText, accentColor)
+                            5 -> OthersTabContent(cardColor, foregroundText, primaryText, accentColor)
                         }
                     }
                 }
@@ -804,6 +805,39 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
                 }
             }
         }
+    }
+}
+
+@Composable
+fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregroundText: Color, primaryText: Color, accentColor: Color) {
+    val maxDiskCacheMb by viewModel.maxDiskCacheMb.collectAsState()
+
+    val displaySize = if (maxDiskCacheMb >= 1024) {
+        String.format(java.util.Locale.US, "%.1f GB", maxDiskCacheMb / 1024f)
+    } else {
+        "${maxDiskCacheMb} MB"
+    }
+
+    SettingsSection(title = "STORAGE PREFERENCES", cardColor = cardColor, foregroundText = foregroundText) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Max Disk Cache Size", color = foregroundText)
+                Text("Limit how much local storage is used for images.", color = primaryText, fontSize = 12.sp)
+            }
+            Text(displaySize, color = accentColor, fontWeight = FontWeight.Bold)
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Slider(
+            value = maxDiskCacheMb.toFloat(),
+            onValueChange = { viewModel.saveMaxDiskCacheMb(it.toInt()) },
+            valueRange = 50f..10000f,
+            colors = SliderDefaults.colors(
+                thumbColor = accentColor,
+                activeTrackColor = accentColor,
+                inactiveTrackColor = accentColor.copy(alpha = 0.2f)
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 

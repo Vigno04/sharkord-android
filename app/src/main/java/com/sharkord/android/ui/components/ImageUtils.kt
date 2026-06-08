@@ -16,6 +16,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -56,6 +57,7 @@ object ImageCacheManager {
     private val mutex = Mutex()
 
     private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
+    private var hasTrimmedDiskCache = false
 
     private fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
         val (height: Int, width: Int) = options.outHeight to options.outWidth
@@ -71,11 +73,56 @@ object ImageCacheManager {
         return inSampleSize
     }
 
+    private fun getDiskCacheFile(url: String): java.io.File {
+        // Use a simple hash to generate a safe filename
+        val fileName = url.hashCode().toString() + ".img_cache"
+        val cacheDir = java.io.File(SharkordClient.applicationContext.cacheDir, "images")
+        if (!cacheDir.exists()) cacheDir.mkdirs()
+        return java.io.File(cacheDir, fileName)
+    }
+
+    private fun trimDiskCache() {
+        scope.launch {
+            try {
+                val cacheDir = java.io.File(SharkordClient.applicationContext.cacheDir, "images")
+                if (!cacheDir.exists()) return@launch
+
+                val files = cacheDir.listFiles() ?: return@launch
+                var totalSize = files.sumOf { it.length() }
+                
+                // Read from session manager settings
+                val maxMb = SharkordClient.session.maxDiskCacheMb
+                val maxDiskCacheSize = maxMb * 1024 * 1024L
+
+                if (totalSize > maxDiskCacheSize) {
+                    // Sort by last modified, oldest first
+                    val sortedFiles = files.sortedBy { it.lastModified() }
+                    for (file in sortedFiles) {
+                        totalSize -= file.length()
+                        file.delete()
+                        if (totalSize <= maxDiskCacheSize / 2) {
+                            // Trim down to half the max size to avoid constantly trimming on every small addition
+                            break
+                        }
+                    }
+                    Log.d(TAG, "Trimmed disk cache down to ${totalSize / (1024 * 1024)} MB")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error trimming disk cache", e)
+            }
+        }
+    }
+
     /**
      * Loads an image from the network or returns a cached one if it was loaded recently.
      */
     suspend fun loadImage(url: String): ImageCacheEntry? {
         if (url.isBlank()) return null
+
+        if (!hasTrimmedDiskCache) {
+            hasTrimmedDiskCache = true
+            trimDiskCache()
+        }
 
         val cached = cache.get(url)
         if (cached != null) {
@@ -86,12 +133,40 @@ object ImageCacheManager {
         val deferred = mutex.withLock {
             inFlight[url] ?: scope.async {
                 try {
+                    val diskFile = getDiskCacheFile(url)
+                    if (diskFile.exists() && diskFile.length() > 0) {
+                        // Update last modified time to keep it fresh for LRU disk eviction
+                        diskFile.setLastModified(System.currentTimeMillis())
+                        
+                        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                        BitmapFactory.decodeFile(diskFile.absolutePath, options)
+                        options.inSampleSize = calculateInSampleSize(options, 800, 800)
+                        options.inJustDecodeBounds = false
+                        val bmp = BitmapFactory.decodeFile(diskFile.absolutePath, options)
+                        if (bmp != null) {
+                            Log.d(TAG, "Loaded image from disk cache: $url")
+                            val entry = ImageCacheEntry(bitmap = bmp)
+                            cache.put(url, entry)
+                            return@async entry
+                        } else {
+                            diskFile.delete() // Invalid cache file, delete it
+                        }
+                    }
+
                     Log.d(TAG, "Requesting image download from: $url")
                     val request = Request.Builder().url(url).build()
                     SharkordClient.okHttpClient.newCall(request).execute().use { response ->
                         if (response.isSuccessful) {
                             val bytes = response.body?.bytes()
                             if (bytes != null) {
+                                try {
+                                    java.io.FileOutputStream(diskFile).use { fos ->
+                                        fos.write(bytes)
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Failed to save image to disk cache: $url", e)
+                                }
+
                                 val options = BitmapFactory.Options().apply {
                                     inJustDecodeBounds = true
                                 }
