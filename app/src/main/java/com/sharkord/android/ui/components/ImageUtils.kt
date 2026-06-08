@@ -55,6 +55,8 @@ object ImageCacheManager {
     private val inFlight = ConcurrentHashMap<String, Deferred<ImageCacheEntry?>>()
     private val mutex = Mutex()
 
+    private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
+
     private fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
         val (height: Int, width: Int) = options.outHeight to options.outWidth
         var inSampleSize = 1
@@ -81,61 +83,64 @@ object ImageCacheManager {
         }
 
         // De-duplicate in-flight requests for the exact same URL
-        val deferred = coroutineScope {
-            mutex.withLock {
-                inFlight[url] ?: async(Dispatchers.IO) {
-                    try {
-                        Log.d(TAG, "Requesting image download from: $url")
-                        val request = Request.Builder().url(url).build()
-                        SharkordClient.okHttpClient.newCall(request).execute().use { response ->
-                            if (response.isSuccessful) {
-                                val bytes = response.body?.bytes()
-                                if (bytes != null) {
-                                    val options = BitmapFactory.Options().apply {
-                                        inJustDecodeBounds = true
-                                    }
-                                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
-                                    
-                                    options.inSampleSize = calculateInSampleSize(options, 800, 800)
-                                    options.inJustDecodeBounds = false
-                                    
-                                    val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
-                                    
-                                    if (bmp != null) {
-                                        Log.d(TAG, "Successfully downloaded and decoded image from $url (${bytes.size} bytes)")
-                                        val entry = ImageCacheEntry(
-                                            bitmap = bmp
-                                        )
-                                        cache.put(url, entry)
-                                        entry
-                                    } else {
-                                        Log.e(TAG, "Failed to decode bitmap from downloaded bytes for $url")
-                                        null
-                                    }
+        val deferred = mutex.withLock {
+            inFlight[url] ?: scope.async {
+                try {
+                    Log.d(TAG, "Requesting image download from: $url")
+                    val request = Request.Builder().url(url).build()
+                    SharkordClient.okHttpClient.newCall(request).execute().use { response ->
+                        if (response.isSuccessful) {
+                            val bytes = response.body?.bytes()
+                            if (bytes != null) {
+                                val options = BitmapFactory.Options().apply {
+                                    inJustDecodeBounds = true
+                                }
+                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+                                
+                                options.inSampleSize = calculateInSampleSize(options, 800, 800)
+                                options.inJustDecodeBounds = false
+                                
+                                val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+                                
+                                if (bmp != null) {
+                                    Log.d(TAG, "Successfully downloaded and decoded image from $url (${bytes.size} bytes)")
+                                    val entry = ImageCacheEntry(
+                                        bitmap = bmp
+                                    )
+                                    cache.put(url, entry)
+                                    entry
                                 } else {
-                                    Log.e(TAG, "Downloaded response body was empty for $url")
+                                    Log.e(TAG, "Failed to decode bitmap from downloaded bytes for $url")
                                     null
                                 }
                             } else {
-                                Log.e(TAG, "Server returned failure code ${response.code} for image $url")
+                                Log.e(TAG, "Downloaded response body was empty for $url")
                                 null
                             }
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Exception thrown while loading image from $url: ${e.message}", e)
-                        null
-                    } finally {
-                        mutex.withLock {
-                            inFlight.remove(url)
+                        } else {
+                            Log.e(TAG, "Server returned failure code ${response.code} for image $url")
+                            null
                         }
                     }
-                }.also { inFlight[url] = it }
-            }
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    Log.e(TAG, "Exception thrown while loading image from $url: ${e.message}", e)
+                    null
+                } finally {
+                    mutex.withLock {
+                        inFlight.remove(url)
+                    }
+                }
+            }.also { inFlight[url] = it }
         }
 
-        val result = deferred.await()
-        // Fallback to older cached entry if network fetch failed
-        return result ?: cache.get(url)
+        return try {
+            val result = deferred.await()
+            result ?: cache.get(url)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            cache.get(url)
+        }
     }
 
     /**

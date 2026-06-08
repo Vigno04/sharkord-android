@@ -132,6 +132,8 @@ private fun ModViewHeader(
     var showKickDialog by remember { mutableStateOf(false) }
     var showBanDialog by remember { mutableStateOf(false) }
     var showAssignRoleDialog by remember { mutableStateOf(false) }
+    var showDeleteUserDialog by remember { mutableStateOf(false) }
+    var wipeData by remember { mutableStateOf(false) }
     var reasonInput by remember { mutableStateOf("") }
 
     if (showKickDialog) {
@@ -216,6 +218,37 @@ private fun ModViewHeader(
         )
     }
 
+    if (showDeleteUserDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteUserDialog = false },
+            title = { Text("Delete ${user.name}") },
+            text = {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = wipeData, onCheckedChange = { wipeData = it })
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Wipe all data (destructive)", color = Color.White)
+                    }
+                    if (wipeData) {
+                        Text("This will permanently delete all messages and files from this user.", color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                    } else {
+                        Text("The user will be deleted, but messages will remain as __delete_user_.", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteUser(user.id, wipeData)
+                    showDeleteUserDialog = false
+                    onDismissRequest()
+                }) { Text("Delete", color = Color.Red) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteUserDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
     // Banner
     Box(
         modifier = Modifier
@@ -279,8 +312,7 @@ private fun ModViewHeader(
                 }
                 Button(
                     onClick = {
-                        viewModel.deleteUser(user.id)
-                        onDismissRequest()
+                        showDeleteUserDialog = true
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2B2D31)),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),

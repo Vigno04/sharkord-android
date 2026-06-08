@@ -184,6 +184,24 @@ class ServerRepository {
         }
     }
 
+    suspend fun createChannel(name: String, type: com.sharkord.android.data.model.ChannelType, categoryId: Int?): Result<Unit> {
+        return try {
+            val input = JsonObject().apply {
+                addProperty("name", name)
+                addProperty("type", type.value)
+                if (categoryId != null) {
+                    addProperty("categoryId", categoryId)
+                }
+            }
+            webSocket.sendMutationAwait("channels.add", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create channel", e)
+            Result.failure(e)
+        }
+    }
+
+
     // Server Administration (Settings & Roles)
 
     suspend fun getAdminSettings(): Result<com.sharkord.android.data.model.AdminSettings> {
@@ -368,10 +386,11 @@ class ServerRepository {
 
     // Users
 
-    suspend fun deleteUser(userId: Int): Result<Unit> {
+    suspend fun deleteUser(userId: Int, wipe: Boolean = false): Result<Unit> {
         return try {
             val input = com.google.gson.JsonObject().apply {
                 addProperty("userId", userId)
+                addProperty("wipe", wipe)
             }
             webSocket.sendMutationAwait("users.delete", input)
             Result.success(Unit)

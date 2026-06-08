@@ -222,13 +222,25 @@ fun HomeScreen(
                         val currentUser = data.users.find { it.id == data.ownUserId }
                         val userName = currentUser?.name ?: stringResource(id = R.string.common_unknownUser)
 
+                        val userRoles = currentUser?.roleIds?.mapNotNull { roleId -> data.roles?.find { it.id == roleId } } ?: emptyList()
+                        val hasManageChannels = userRoles.any { role ->
+                            val p = role.permissions.map { it.uppercase() }
+                            p.contains("MANAGE_CHANNELS") || p.contains("MANAGE_SETTINGS")
+                        } || data.ownUserId == 1
+
                         // Channels Grouping
                         val uncategorizedText =
                             data.channels.filter { it.categoryId == null && !it.isVoice && !it.isDm }
                         val uncategorizedVoice =
                             data.channels.filter { it.categoryId == null && it.isVoice && !it.isDm }
                         val dmChannels = data.channels.filter { channel ->
-                            channel.isDm && channel.name.removePrefix("DM - ").split(":").contains(data.ownUserId.toString())
+                            if (channel.isDm && channel.name.removePrefix("DM - ").split(":").contains(data.ownUserId.toString())) {
+                                val parts = channel.name.removePrefix("DM - ").split(":")
+                                val otherUserId = parts.firstOrNull { it != data.ownUserId.toString() }?.toIntOrNull()
+                                data.users.any { it.id == otherUserId }
+                            } else {
+                                false
+                            }
                         }
                         val categoriesList = data.categories?.sortedBy { it.position } ?: emptyList()
 
@@ -277,6 +289,80 @@ fun HomeScreen(
                                 .weight(1f),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            if (uiState.isDmsListOpen) {
+                                // DM LIST VIEW
+                                item(key = "dm-header") {
+                                    Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 16.dp, horizontal = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .clickable { viewModel.closeDmsList() }
+                                                    .padding(4.dp)
+                                            ) {
+                                                Text(
+                                                    text = "◀",
+                                                    color = Color.Gray,
+                                                    fontSize = 14.sp
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = "DIRECT MESSAGES",
+                                                    color = Color.Gray,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    letterSpacing = 1.sp
+                                                )
+                                            }
+                                            androidx.compose.material3.IconButton(
+                                                onClick = { viewModel.showMembersSheet(true) },
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Add,
+                                                    contentDescription = "New DM",
+                                                    tint = Color.Gray,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                if (dmChannels.isNotEmpty()) {
+                                    items(dmChannels, key = { "dm-${it.id}" }) { channel ->
+                                        Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                            val parts = channel.name.removePrefix("DM - ").split(":")
+                                            val otherUserId = parts.firstOrNull { it != data.ownUserId.toString() }?.toIntOrNull()
+                                            val otherUser = data.users.find { it.id == otherUserId }
+
+                                            DmChannelItem(
+                                                channelName = channel.name,
+                                                user = otherUser,
+                                                isSelected = uiState.selectedChannelId == channel.id,
+                                                onSelect = { viewModel.selectChannel(channel.id) },
+                                                foregroundText = foregroundText,
+                                                primaryText = primaryText
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    item {
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth().padding(32.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("No Direct Messages yet.", color = Color.Gray, fontSize = 14.sp)
+                                        }
+                                    }
+                                }
+                            } else {
                             // A. SERVER BANNER
                             item {
                                 val logoState =
@@ -330,7 +416,7 @@ fun HomeScreen(
                                     cardColor = cardColor,
                                     foregroundText = foregroundText,
                                     onSearchClick = { viewModel.showSearchSheet() },
-                                    onDirectMessagesClick = { viewModel.showMembersSheet() },
+                                    onDirectMessagesClick = { viewModel.openDmsList() },
                                     onServerClick = { viewModel.showServerSheet() },
                                     isServerSheetOpen = uiState.showServerSheet
                                 )
@@ -338,53 +424,7 @@ fun HomeScreen(
 
                             // C. CHANNELS LIST
                             
-                            // 1. Render Direct Messages
-                            if (dmChannels.isNotEmpty()) {
-                                item(key = "dm-header") {
-                                    Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 8.dp, horizontal = 4.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text(
-                                                    text = "▼",
-                                                    color = Color.Gray,
-                                                    fontSize = 10.sp
-                                                )
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text(
-                                                    text = "DIRECT MESSAGES",
-                                                    color = Color.Gray,
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    letterSpacing = 1.sp
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                                items(dmChannels, key = { "dm-${it.id}" }) { channel ->
-                                    Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                                        val parts = channel.name.removePrefix("DM - ").split(":")
-                                        val otherUserId = parts.firstOrNull { it != data.ownUserId.toString() }?.toIntOrNull()
-                                        val otherUser = data.users.find { it.id == otherUserId }
-
-                                        DmChannelItem(
-                                            channelName = channel.name,
-                                            user = otherUser,
-                                            isSelected = uiState.selectedChannelId == channel.id,
-                                            onSelect = { viewModel.selectChannel(channel.id) },
-                                            foregroundText = foregroundText,
-                                            primaryText = primaryText
-                                        )
-                                    }
-                                }
-                            }
-
+                            // 1. Render Direct Messages (Moved to DMs List View)
                             // A. Render Uncategorized Channels (if any)
                             if (uncategorizedText.isNotEmpty()) {
                                 items(uncategorizedText) { channel ->
@@ -449,12 +489,19 @@ fun HomeScreen(
                                                         letterSpacing = 1.sp
                                                     )
                                                 }
-                                                Icon(
-                                                    Icons.Default.Add,
-                                                    contentDescription = stringResource(id = R.string.common_add),
-                                                    tint = Color.Gray,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
+                                                if (hasManageChannels) {
+                                                    IconButton(
+                                                        onClick = { viewModel.showAddChannelDialog(category.id) },
+                                                        modifier = Modifier.size(24.dp)
+                                                    ) {
+                                                        Icon(
+                                                            Icons.Default.Add,
+                                                            contentDescription = stringResource(id = R.string.common_add),
+                                                            tint = Color.Gray,
+                                                            modifier = Modifier.size(16.dp)
+                                                        )
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -475,6 +522,7 @@ fun HomeScreen(
                                         }
                                     }
                                 }
+                            }
                             }
 
                             // D. BOTTOM SPACER (so text can scroll above the floating profile bar)
@@ -527,8 +575,20 @@ fun HomeScreen(
 
                 // ================= 6. MEMBERS DIRECTORY BOTTOM SHEET =================
                 if (uiState.showMembersSheet) {
+                    val usersToShow = if (uiState.membersSheetFilterDms) {
+                        val existingDmUserIds = data.channels.filter { it.isDm }.mapNotNull { ch ->
+                            val parts = ch.name.removePrefix("DM - ").split(":")
+                            parts.firstOrNull { it != data.ownUserId.toString() }?.toIntOrNull()
+                        }.toSet()
+                        data.users.filter { user ->
+                            user.id != data.ownUserId && user.id !in existingDmUserIds && user.name != "__delete_user_" && user.name != "__deleted_user_"
+                        }
+                    } else {
+                        data.users
+                    }
+
                     MembersBottomSheet(
-                        users = data.users,
+                        users = usersToShow,
                         ownUserId = data.ownUserId,
                         cardColor = cardColor,
                         primaryText = primaryText,
@@ -580,6 +640,18 @@ fun HomeScreen(
 
                 }
                 
+                // ================= ADD CHANNEL DIALOG =================
+                if (uiState.showAddChannelDialog) {
+                    AddChannelDialog(
+                        onDismissRequest = { viewModel.dismissAddChannelDialog() },
+                        onConfirm = { name, type -> viewModel.createChannel(name, type, uiState.addChannelCategoryId) },
+                        bgColor = bgColor,
+                        cardColor = cardColor,
+                        primaryText = primaryText,
+                        foregroundText = foregroundText
+                    )
+                }
+
                 // ================= 8. SEARCH PANEL =================
                 androidx.compose.animation.AnimatedVisibility(
                     visible = uiState.showSearchSheet,

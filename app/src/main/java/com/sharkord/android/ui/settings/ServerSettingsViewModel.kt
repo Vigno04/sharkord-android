@@ -377,10 +377,10 @@ class ServerSettingsViewModel(
 
     // Users
 
-    fun deleteUser(userId: Int) {
+    fun deleteUser(userId: Int, wipe: Boolean = false) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            val result = repository.deleteUser(userId)
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            val result = repository.deleteUser(userId, wipe)
             if (result.isSuccess) {
                 // Remove user from the local serverData list
                 _uiState.update { state ->

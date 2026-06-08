@@ -59,13 +59,27 @@ fun MembersBottomSheet(
             )
             Divider(color = Color.White.copy(alpha = 0.05f))
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentPadding = PaddingValues(16.dp)
-            ) {
-                items(users) { user ->
+            if (users.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Wow, so empty. So many friends",
+                        color = Color.Gray,
+                        fontSize = 14.sp
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentPadding = PaddingValues(16.dp)
+                ) {
+                    items(users) { user ->
                     val bannerColor = try {
                         Color(android.graphics.Color.parseColor(user.bannerColor ?: "#00000000"))
                     } catch (e: Exception) {
@@ -158,5 +172,6 @@ fun MembersBottomSheet(
                 }
             }
         }
+    }
     }
 }

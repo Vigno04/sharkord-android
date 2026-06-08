@@ -48,7 +48,11 @@ data class HomeUiState(
     val searchQuery: String = "",
     val isSearching: Boolean = false,
     val searchResults: List<UnifiedSearchResult>? = null,
-    val activePanel: HomePanel = HomePanel.SERVER
+    val activePanel: HomePanel = HomePanel.SERVER,
+    val showAddChannelDialog: Boolean = false,
+    val addChannelCategoryId: Int? = null,
+    val isDmsListOpen: Boolean = false,
+    val membersSheetFilterDms: Boolean = false
 )
 
 /**
@@ -475,8 +479,8 @@ class HomeViewModel : ViewModel() {
         _uiState.update { it.copy(showProfileSheet = false) }
     }
 
-    fun showMembersSheet() {
-        _uiState.update { it.copy(showMembersSheet = true) }
+    fun showMembersSheet(filterDms: Boolean = false) {
+        _uiState.update { it.copy(showMembersSheet = true, membersSheetFilterDms = filterDms) }
     }
 
     fun dismissMembersSheet() {
@@ -497,6 +501,14 @@ class HomeViewModel : ViewModel() {
 
     fun dismissSearchSheet() {
         _uiState.update { it.copy(showSearchSheet = false, searchQuery = "", searchResults = null) }
+    }
+
+    fun openDmsList() {
+        _uiState.update { it.copy(isDmsListOpen = true) }
+    }
+
+    fun closeDmsList() {
+        _uiState.update { it.copy(isDmsListOpen = false) }
     }
 
     fun setSearchQuery(query: String) {
@@ -530,6 +542,27 @@ class HomeViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.e(TAG, "Search failed", e)
                 _uiState.update { it.copy(isSearching = false, searchResults = emptyList()) }
+            }
+        }
+    }
+
+    fun showAddChannelDialog(categoryId: Int?) {
+        _uiState.update { it.copy(showAddChannelDialog = true, addChannelCategoryId = categoryId) }
+    }
+
+    fun dismissAddChannelDialog() {
+        _uiState.update { it.copy(showAddChannelDialog = false, addChannelCategoryId = null) }
+    }
+
+    fun createChannel(name: String, type: com.sharkord.android.data.model.ChannelType, categoryId: Int?) {
+        viewModelScope.launch {
+            val result = repository.createChannel(name, type, categoryId)
+            if (result.isSuccess) {
+                dismissAddChannelDialog()
+            } else {
+                result.onFailure { error ->
+                    _uiState.update { it.copy(errorMessage = error.message ?: "Failed to create channel") }
+                }
             }
         }
     }

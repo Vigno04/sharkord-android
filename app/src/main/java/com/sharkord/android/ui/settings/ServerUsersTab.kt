@@ -74,7 +74,7 @@ fun ServerUsersTab(
                 UserItemRow(
                     user = user,
                     onModerate = { viewModel.openModView(user.id) },
-                    onDelete = { viewModel.deleteUser(user.id) },
+                    onDelete = { wipeData -> viewModel.deleteUser(user.id, wipeData) },
                     cardColor = cardColor,
                     foregroundText = foregroundText,
                     primaryText = primaryText,
@@ -89,7 +89,7 @@ fun ServerUsersTab(
 fun UserItemRow(
     user: User,
     onModerate: () -> Unit,
-    onDelete: () -> Unit,
+    onDelete: (Boolean) -> Unit,
     cardColor: Color,
     foregroundText: Color,
     primaryText: Color,
@@ -99,6 +99,45 @@ fun UserItemRow(
     val joinDate = user.createdAt?.let { dateFormatter.format(Date(it)) } ?: "Unknown"
     val context = LocalContext.current
     var menuExpanded by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var wipeData by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete ${user.name}") },
+            text = {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = wipeData, onCheckedChange = { wipeData = it })
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Wipe all data (destructive)", color = foregroundText)
+                    }
+                    if (wipeData) {
+                        Text("This will permanently delete all messages and files from this user.", color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                    } else {
+                        Text("The user will be deleted, but messages will remain as __delete_user_.", color = primaryText, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    onDelete(wipeData)
+                }) {
+                    Text("Delete", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel", color = primaryText)
+                }
+            },
+            containerColor = cardColor,
+            titleContentColor = foregroundText,
+            textContentColor = primaryText
+        )
+    }
 
     Row(
         modifier = Modifier
@@ -173,7 +212,7 @@ fun UserItemRow(
                     leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFED4245)) },
                     onClick = {
                         menuExpanded = false
-                        onDelete()
+                        showDeleteDialog = true
                     }
                 )
             }

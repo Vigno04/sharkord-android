@@ -14,6 +14,8 @@ import androidx.compose.material.icons.filled.Reply
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,6 +56,33 @@ fun MessageContextMenu(
     val headerColor = ChatColors.HeaderColor
     val textPrimary = ChatColors.TextPrimary
     val textSecondary = ChatColors.TextSecondary
+
+    var showDeleteConfirm by remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text(stringResource(id = R.string.common_deleteMessageTitle)) },
+            text = { Text(stringResource(id = R.string.common_deleteMessageConfirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    onDelete()
+                    onClose()
+                }) {
+                    Text(stringResource(id = R.string.common_deleteLabel), color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text(stringResource(id = R.string.common_cancel), color = textPrimary)
+                }
+            },
+            containerColor = headerColor,
+            titleContentColor = textPrimary,
+            textContentColor = textSecondary
+        )
+    }
 
     Box(
         modifier = modifier
@@ -210,8 +239,7 @@ fun MessageContextMenu(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
                             .clickable {
-                                onDelete()
-                                onClose()
+                                showDeleteConfirm = true
                             }
                             .padding(vertical = 12.dp, horizontal = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
