@@ -247,6 +247,22 @@ class ServerRepository {
         }
     }
 
+    suspend fun reorderChannels(categoryId: Int, channelIds: List<Int>): Result<Unit> {
+        return try {
+            val input = JsonObject().apply {
+                addProperty("categoryId", categoryId)
+                val idsArray = com.google.gson.JsonArray()
+                channelIds.forEach { idsArray.add(it) }
+                add("channelIds", idsArray)
+            }
+            webSocket.sendMutationAwait("channels.reorder", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to reorder channels", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun getChannelPermissions(channelId: Int): Result<com.sharkord.android.data.model.ChannelPermissionsResponse> {
         return try {
             val input = JsonObject().apply {

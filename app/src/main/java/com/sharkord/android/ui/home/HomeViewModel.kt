@@ -446,12 +446,12 @@ class HomeViewModel : ViewModel() {
 
     // UI Actions
 
-    fun selectChannel(channelId: Int, messageId: Int? = null) {
+    fun selectChannel(channelId: Int, messageId: Int? = null, navigateToChat: Boolean = true) {
         _uiState.update { 
             it.copy(
                 selectedChannelId = channelId, 
                 selectedMessageId = messageId, 
-                activePanel = HomePanel.CHAT,
+                activePanel = if (navigateToChat) HomePanel.CHAT else it.activePanel,
                 jumpTrigger = if (messageId != null) System.currentTimeMillis() else it.jumpTrigger
             ) 
         }
@@ -603,6 +603,31 @@ class HomeViewModel : ViewModel() {
                 dismissDeleteChannelDialog()
             } else {
                 _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message ?: "Failed to delete channel") }
+            }
+        }
+    }
+
+    fun reorderChannels(categoryId: Int, channelIds: List<Int>) {
+        // Optimistic update to prevent visual glitches while websocket events stream in
+        _uiState.update { state ->
+            val data = state.serverData ?: return@update state
+            val currentChannels = data.channels.toMutableList()
+            
+            var currentPosition = 1
+            for (id in channelIds) {
+                val index = currentChannels.indexOfFirst { it.id == id }
+                if (index != -1) {
+                    val channel = currentChannels[index]
+                    currentChannels[index] = channel.copy(position = currentPosition++)
+                }
+            }
+            state.copy(serverData = data.copy(channels = currentChannels))
+        }
+
+        viewModelScope.launch {
+            val result = repository.reorderChannels(categoryId, channelIds)
+            result.onFailure { error ->
+                _uiState.update { it.copy(errorMessage = error.message ?: "Failed to reorder channels") }
             }
         }
     }

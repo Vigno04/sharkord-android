@@ -466,70 +466,28 @@ fun HomeScreen(
                             categoriesList.forEach { category ->
                                 val catChannels =
                                     data.channels.filter { it.categoryId == category.id && !it.isDm }
+                                        .sortedWith(compareBy({ it.position ?: 0 }, { it.id }))
                                 if (catChannels.isNotEmpty() || hasManageChannels) {
                                     val isCollapsed =
                                         uiState.collapsedCategories.contains(category.id)
 
                                     item(key = "cat-${category.id}") {
-                                        Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clip(RoundedCornerShape(6.dp))
-                                                    .clickable { viewModel.toggleCategory(category.id) }
-                                                    .padding(vertical = 8.dp, horizontal = 4.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.SpaceBetween
-                                            ) {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Text(
-                                                        text = if (isCollapsed) "▶" else "▼",
-                                                        color = Color.Gray,
-                                                        fontSize = 10.sp
-                                                    )
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Text(
-                                                        text = category.name.uppercase(),
-                                                        color = Color.Gray,
-                                                        fontSize = 11.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        letterSpacing = 1.sp
-                                                    )
-                                                }
-                                                if (hasManageChannels) {
-                                                    IconButton(
-                                                        onClick = { viewModel.showAddChannelDialog(category.id) },
-                                                        modifier = Modifier.size(24.dp)
-                                                    ) {
-                                                        Icon(
-                                                            Icons.Default.Add,
-                                                            contentDescription = stringResource(id = R.string.common_add),
-                                                            tint = Color.Gray,
-                                                            modifier = Modifier.size(16.dp)
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    if (!isCollapsed) {
-                                        items(catChannels, key = { "chan-${it.id}" }) { channel ->
-                                            Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                                                ChannelItem(
-                                                    channel = channel,
-                                                    isSelected = uiState.selectedChannelId == channel.id,
-                                                    onSelect = {
-                                                        if (!channel.isVoice) viewModel.selectChannel(channel.id)
-                                                    },
-                                                    canManage = hasManageChannels,
-                                                    onEditClick = { onNavigateToChannelSettings(channel.id) },
-                                                    onDeleteClick = { viewModel.showDeleteChannelDialog(channel.id) },
-                                                    foregroundText = foregroundText,
-                                                    primaryText = primaryText
-                                                )
-                                            }
-                                        }
+                                        CategorySection(
+                                            category = category,
+                                            channels = catChannels,
+                                            isCollapsed = isCollapsed,
+                                            hasManageChannels = hasManageChannels,
+                                            selectedChannelId = uiState.selectedChannelId,
+                                            onToggleCategory = { viewModel.toggleCategory(category.id) },
+                                            onAddChannelClick = { viewModel.showAddChannelDialog(category.id) },
+                                            onChannelSelect = { channelId -> viewModel.selectChannel(channelId) },
+                                            onChannelLongPress = { channelId -> viewModel.selectChannel(channelId, navigateToChat = false) },
+                                            onChannelEdit = { channelId -> onNavigateToChannelSettings(channelId) },
+                                            onChannelDelete = { channelId -> viewModel.showDeleteChannelDialog(channelId) },
+                                            onReorderChannels = { newChannelIds -> viewModel.reorderChannels(category.id, newChannelIds) },
+                                            foregroundText = foregroundText,
+                                            primaryText = primaryText
+                                        )
                                     }
                                 }
                             }
