@@ -118,7 +118,7 @@ class HomeViewModel : ViewModel() {
             }
         }
 
-        // Fetch server details in background to ensure we always have the freshest server logo, name and description
+        // Fetch server details in background to ensure freshest server logo, name and description
         viewModelScope.launch {
             SharkordClient.currentServerUrl?.let { url ->
                 repository.fetchServerInfo(url)
@@ -181,7 +181,7 @@ class HomeViewModel : ViewModel() {
                         isLoading = false,
                         reconnectAttempts = attempts,
                         // Only show error to user after 3 failed attempts
-                        // (if we already have data, show banner instead of fullscreen error)
+                        // (if data exists, show banner instead of fullscreen error)
                         errorMessage = if (attempts >= 3) state.message else it.errorMessage
                     )
                 }

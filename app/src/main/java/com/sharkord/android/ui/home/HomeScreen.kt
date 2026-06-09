@@ -61,23 +61,23 @@ fun HomeScreen(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     
-    // We collect the uiState here from our ViewModel as a State object,
-    // so anytime something in the database/connection updates, our screen recomposes/redraws automatically!
+    // Collect uiState
     val uiState by viewModel.uiState.collectAsState()
 
-    // When the screen opens for the first time, we tell the ViewModel to connect to our server!
+    // Initial connection
     LaunchedEffect(Unit) {
         viewModel.connect()
     }
 
-    // Set up some nice dark theme colors matching Discord's aesthetic:
-    val bgColor = Color(0xFF1C1C1C) // Deep dark gray background
-    val cardColor = Color(0xFF2B2B2B) // Slightly lighter card color for contrast
-    val primaryText = Color(0xFFE8E8E8) // Warm light gray for normal text
-    val foregroundText = Color(0xFFFAFAFA) // Pure bright white for headers
-    val accentColor = Color(0xFFE8E8E8)
+    // Theme colors
+    val colors = com.sharkord.android.ui.theme.LocalSharkordColors.current
+    val bgColor = colors.bgColor
+    val cardColor = colors.cardColor
+    val primaryText = colors.primaryText
+    val foregroundText = colors.foregroundText
+    val accentColor = colors.accentColor
 
-    // A Box covers the whole screen. We put the bgColor on it.
+    // Main container
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -137,7 +137,7 @@ fun HomeScreen(
                 }
 
                 Box(modifier = Modifier.fillMaxSize()) {
-                    // 1. UNDERLAY: Chat Panel (rendered on bottom if a channel is selected)
+                    // Chat Panel
                     if (uiState.selectedChannelId != null) {
                         val activeChannel = data.channels.find { it.id == uiState.selectedChannelId }
                         val isDm = activeChannel?.isDm == true
@@ -183,7 +183,7 @@ fun HomeScreen(
                         )
                     }
 
-                    // 2. OVERLAY: Server Channels list (rendered on top, offset by swipeOffset)
+                    // Server Channels list
                     val channelsOffset = with(density) { swipeOffset.value.toDp() }
 
                     Column(
@@ -295,7 +295,7 @@ fun HomeScreen(
                             }
                         }
 
-                        // ================= 1. SINGLE SCROLLABLE LAZYCOLUMN =================
+                        // Main Scrollable Content
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -376,7 +376,7 @@ fun HomeScreen(
                                     }
                                 }
                             } else {
-                            // A. SERVER BANNER
+                            // Server Banner
                             item {
                                 val logoState =
                                     rememberExtendedImageState(SharkordClient.currentServerLogoUrl)
@@ -407,7 +407,7 @@ fun HomeScreen(
                                             modifier = Modifier.fillMaxSize()
                                         )
                                     } else {
-                                        // Fallback premium logo placeholder
+                                        // Fallback logo
                                         val fallbackPainter = painterResource(id = R.drawable.logo)
                                         Image(
                                             painter = fallbackPainter,
@@ -421,7 +421,7 @@ fun HomeScreen(
                                 }
                             }
 
-                            // B. SERVER HEADER, SEARCH, DM NAVIGATION
+                            // Server Header
                             item {
                                 ServerHeader(
                                     serverName = data.serverName,
@@ -435,10 +435,7 @@ fun HomeScreen(
                                 )
                             }
 
-                            // C. CHANNELS LIST
-                            
-                            // 1. Render Direct Messages (Moved to DMs List View)
-                            // A. Render Uncategorized Channels (if any)
+                            // Uncategorized Channels
                             if (uncategorizedText.isNotEmpty()) {
                                 items(uncategorizedText) { channel ->
                                     Box(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -474,7 +471,7 @@ fun HomeScreen(
                                 }
                             }
 
-                            // B. Render Grouped Categories & Channels
+                            // Grouped Categories
                             categoriesList.forEach { category ->
                                 val catChannels =
                                     data.channels.filter { it.categoryId == category.id && !it.isDm }
@@ -505,14 +502,14 @@ fun HomeScreen(
                             }
                             }
 
-                            // D. BOTTOM SPACER (so text can scroll above the floating profile bar)
+                            // Bottom spacer
                             item {
                                 Spacer(modifier = Modifier.height(96.dp))
                             }
                         }
                     }
 
-                    // ================= 4. DISCORD BOTTOM PROFILE BAR =================
+                    // Bottom Profile Bar
                     BottomProfileBar(
                         currentUser = currentUser,
                         userName = userName,
@@ -522,7 +519,7 @@ fun HomeScreen(
                     )
                 }
 
-                // ================= 5. PROFILE & SETTINGS BOTTOM SHEET =================
+                // Profile Bottom Sheet
                 if (uiState.showProfileSheet) {
                     ProfileBottomSheet(
                         currentUser = currentUser,
@@ -531,10 +528,6 @@ fun HomeScreen(
                         serverName = data.serverName,
                         serverId = data.serverId,
                         memberCount = data.users.size,
-                        bgColor = bgColor,
-                        cardColor = cardColor,
-                        primaryText = primaryText,
-                        foregroundText = foregroundText,
                         onDismissRequest = { viewModel.dismissProfileSheet() },
                         onShowMembers = {
                             viewModel.dismissProfileSheet()
@@ -553,7 +546,7 @@ fun HomeScreen(
                     )
                 }
 
-                // ================= 6. MEMBERS DIRECTORY BOTTOM SHEET =================
+                // Members Bottom Sheet
                 if (uiState.showMembersSheet) {
                     val usersToShow = if (uiState.membersSheetFilterDms) {
                         val existingDmUserIds = data.channels.filter { it.isDm }.mapNotNull { ch ->
@@ -561,7 +554,7 @@ fun HomeScreen(
                             parts.firstOrNull { it != data.ownUserId.toString() }?.toIntOrNull()
                         }.toSet()
                         data.users.filter { user ->
-                            user.id != data.ownUserId && user.id !in existingDmUserIds && user.name != "__delete_user_" && user.name != "__deleted_user_"
+                            user.id != data.ownUserId && user.id !in existingDmUserIds && !user.isDeleted
                         }
                     } else {
                         data.users
@@ -570,9 +563,6 @@ fun HomeScreen(
                     MembersBottomSheet(
                         users = usersToShow,
                         ownUserId = data.ownUserId,
-                        cardColor = cardColor,
-                        primaryText = primaryText,
-                        foregroundText = foregroundText,
                         onDismissRequest = { viewModel.dismissMembersSheet() },
                         onMessageClick = { userId ->
                             viewModel.dismissMembersSheet()
@@ -581,7 +571,7 @@ fun HomeScreen(
                     )
                 }
 
-                // ================= 7. SERVER PROFILE BOTTOM SHEET =================
+                // Server Profile Bottom Sheet
                 var showUnderConstruction by remember { mutableStateOf(false) }
 
                 if (uiState.showServerSheet) {
@@ -597,10 +587,6 @@ fun HomeScreen(
                         serverName = data.serverName,
                         serverDescription = data.publicSettings?.description,
                         hasManageServer = hasManageServer,
-                        bgColor = bgColor,
-                        cardColor = cardColor,
-                        primaryText = primaryText,
-                        foregroundText = foregroundText,
                         onDismissRequest = { viewModel.dismissServerSheet() },
                         onShowMembers = {
                             viewModel.dismissServerSheet()
@@ -624,7 +610,7 @@ fun HomeScreen(
 
                 }
                 
-                // ================= ADD CHANNEL DIALOG =================
+                // Add Channel Dialog
                 if (uiState.showAddChannelDialog) {
                     AddChannelDialog(
                         onDismissRequest = { viewModel.dismissAddChannelDialog() },
@@ -636,7 +622,7 @@ fun HomeScreen(
                     )
                 }
 
-                // ================= ADD CATEGORY DIALOG =================
+                // Add Category Dialog
                 if (uiState.showAddCategoryDialog) {
                     AddCategoryDialog(
                         onDismissRequest = { viewModel.dismissAddCategoryDialog() },
@@ -648,7 +634,7 @@ fun HomeScreen(
                     )
                 }
 
-                // ================= DELETE CHANNEL DIALOG =================
+                // Delete Channel Dialog
                 if (uiState.showDeleteChannelDialogForId != null) {
                     val channelId = uiState.showDeleteChannelDialogForId!!
                     val channelToDelete = data.channels.find { it.id == channelId }
@@ -674,7 +660,7 @@ fun HomeScreen(
                     }
                 }
 
-                // ================= 8. SEARCH PANEL =================
+                // Search Panel
                 androidx.compose.animation.AnimatedVisibility(
                     visible = uiState.showSearchSheet,
                     enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { it },

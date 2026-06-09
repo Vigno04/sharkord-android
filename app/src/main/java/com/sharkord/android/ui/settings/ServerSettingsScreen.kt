@@ -163,7 +163,7 @@ fun ServerSettingsScreen(
                             "Invites" -> ServerInvitesTab(uiState.activeInvites, uiState.serverData?.roles ?: emptyList(), viewModel, cardColor, foregroundText, primaryText, accentColor)
                             "Users" -> ServerUsersTab(uiState.serverData?.users ?: emptyList(), viewModel, cardColor, foregroundText, primaryText, accentColor)
                             "Plugins" -> ServerPluginsTab(viewModel, cardColor, foregroundText, primaryText, accentColor)
-                            "Storage" -> ServerStorageTab(viewModel, cardColor, foregroundText, primaryText, accentColor)
+                            "Storage" -> ServerStorageTab(viewModel)
                             "Updates" -> ServerUpdatesTab(viewModel, cardColor, foregroundText, primaryText, accentColor)
                             else -> PlaceholderTab(tabName, primaryText)
                         }

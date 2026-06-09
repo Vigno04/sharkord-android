@@ -106,6 +106,10 @@ object TrpcProtocol {
      * Parses an incoming WebSocket text message into a [TrpcResponse].
      */
     fun parseResponse(text: String): TrpcResponse {
+        // tRPC v11 string-based keepAlive
+        if (text == "PING") return TrpcResponse.Ping(null)
+        if (text == "PONG") return TrpcResponse.Pong
+
         return try {
             val root = JsonParser.parseString(text).asJsonObject
 

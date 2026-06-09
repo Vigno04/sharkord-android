@@ -40,7 +40,7 @@ fun ServerHeader(
     onServerClick: () -> Unit = {},
     isServerSheetOpen: Boolean = false
 ) {
-    // We stack the header, search bar, and direct message bar vertically in this Column
+    // Stack the header, search bar, and direct message bar vertically
     Column(
         modifier = modifier
             .fillMaxWidth()

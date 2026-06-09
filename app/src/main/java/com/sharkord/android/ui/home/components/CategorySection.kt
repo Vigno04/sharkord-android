@@ -129,7 +129,7 @@ fun CategorySection(
                             val maxDown = (localChannels.size - 1 - dragStartIndex) * itemHeightPx
                             dragOffset = (dragOffset + delta).coerceIn(maxUp, maxDown)
 
-                            // Calculate if we moved past the threshold of another item
+                            // Calculate if drag moved past the threshold of another item
                             val newIndex = (dragStartIndex + (dragOffset / itemHeightPx).roundToInt())
                                 .coerceIn(0, localChannels.size - 1)
                             

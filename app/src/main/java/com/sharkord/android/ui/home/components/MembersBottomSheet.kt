@@ -37,12 +37,14 @@ import com.sharkord.android.ui.components.rememberAsyncImagePainter
 fun MembersBottomSheet(
     users: List<User>,
     ownUserId: Int,
-    cardColor: Color,
-    primaryText: Color,
-    foregroundText: Color,
     onDismissRequest: () -> Unit,
     onMessageClick: (Int) -> Unit
 ) {
+    val colors = com.sharkord.android.ui.theme.LocalSharkordColors.current
+    val cardColor = colors.cardColor
+    val primaryText = colors.primaryText
+    val foregroundText = colors.foregroundText
+
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         containerColor = cardColor,
@@ -80,10 +82,12 @@ fun MembersBottomSheet(
                     contentPadding = PaddingValues(16.dp)
                 ) {
                     items(users) { user ->
-                    val bannerColor = try {
-                        Color(android.graphics.Color.parseColor(user.bannerColor ?: "#00000000"))
-                    } catch (e: Exception) {
-                        Color.Transparent
+                    val bannerColor = androidx.compose.runtime.remember(user.bannerColor) {
+                        try {
+                            Color(android.graphics.Color.parseColor(user.bannerColor ?: "#00000000"))
+                        } catch (e: Exception) {
+                            Color.Transparent
+                        }
                     }
                     
                     Row(

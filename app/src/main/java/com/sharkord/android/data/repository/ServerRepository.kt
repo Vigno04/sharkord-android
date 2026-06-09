@@ -816,4 +816,27 @@ class ServerRepository {
             Result.failure(e)
         }
     }
+
+    suspend fun uploadServerLogo(fileBytes: ByteArray, originalName: String): Result<Unit> {
+        return try {
+            val token = SharkordClient.currentToken ?: throw Exception("Not logged in")
+            val url = SharkordClient.currentServerUrl ?: throw Exception("No server URL")
+            val fileUploadResult = http.uploadFile(url, token, originalName, fileBytes)
+            
+            if (fileUploadResult.isFailure) {
+                return Result.failure(fileUploadResult.exceptionOrNull() ?: Exception("Upload failed"))
+            }
+
+            fileUploadResult.onSuccess { fileInfo ->
+                val inputData = com.google.gson.JsonObject().apply {
+                    addProperty("logoId", fileInfo.id)
+                }
+                webSocket.sendMutationAwait("others.updateSettings", inputData)
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to upload server logo", e)
+            Result.failure(e)
+        }
+    }
 }

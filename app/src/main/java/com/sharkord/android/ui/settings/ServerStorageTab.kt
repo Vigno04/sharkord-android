@@ -20,8 +20,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.text.DecimalFormat
 
-val MEGABYTE = 1024L * 1024L
-val GIGABYTE = 1024L * MEGABYTE
+private object StorageConstants {
+    const val MEGABYTE = 1024L * 1024L
+    const val GIGABYTE = 1024L * MEGABYTE
+}
 
 fun formatSize(bytes: Long): String {
     if (bytes <= 0) return "Unlimited"
@@ -42,12 +44,14 @@ fun formatSize(bytes: Long): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServerStorageTab(
-    viewModel: ServerSettingsViewModel,
-    cardColor: Color,
-    foregroundText: Color,
-    primaryText: Color,
-    accentColor: Color
+    viewModel: ServerSettingsViewModel
 ) {
+    val colors = com.sharkord.android.ui.theme.LocalSharkordColors.current
+    val cardColor = colors.cardColor
+    val primaryText = colors.primaryText
+    val foregroundText = colors.foregroundText
+    val accentColor = colors.accentColor
+
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
     val adminSettings = uiState.adminSettings
@@ -106,21 +110,21 @@ fun ServerStorageTab(
             StorageSizeControl(
                 label = "Storage Quota",
                 description = "The maximum amount of storage space the entire server can use.",
-                value = adminSettings.storageQuota ?: (25 * GIGABYTE),
-                minBytes = 1 * GIGABYTE,
+                value = adminSettings.storageQuota ?: (25 * StorageConstants.GIGABYTE),
+                minBytes = 1 * StorageConstants.GIGABYTE,
                 maxBytes = diskMetrics.totalSpace,
                 enabled = isUploadsEnabled,
                 onValueChange = { viewModel.updateAdminSettings(adminSettings.copy(storageQuota = it)) },
                 foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor,
-                unitDivider = GIGABYTE, unitName = "GB"
+                unitDivider = StorageConstants.GIGABYTE, unitName = "GB"
             )
 
             StorageSizeControl(
                 label = "Max File Size",
                 description = "The maximum size of a single file upload.",
-                value = adminSettings.storageUploadMaxFileSize ?: (100 * MEGABYTE),
-                minBytes = 1 * MEGABYTE,
-                maxBytes = 10 * GIGABYTE,
+                value = adminSettings.storageUploadMaxFileSize ?: (100 * StorageConstants.MEGABYTE),
+                minBytes = 1 * StorageConstants.MEGABYTE,
+                maxBytes = 10 * StorageConstants.GIGABYTE,
                 enabled = isUploadsEnabled,
                 onValueChange = { viewModel.updateAdminSettings(adminSettings.copy(storageUploadMaxFileSize = it)) },
                 foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor
@@ -129,9 +133,9 @@ fun ServerStorageTab(
             StorageSizeControl(
                 label = "Max Avatar Size",
                 description = "The maximum size for user avatars.",
-                value = adminSettings.storageMaxAvatarSize ?: (3 * MEGABYTE),
-                minBytes = 1 * MEGABYTE,
-                maxBytes = 50 * MEGABYTE,
+                value = adminSettings.storageMaxAvatarSize ?: (3 * StorageConstants.MEGABYTE),
+                minBytes = 1 * StorageConstants.MEGABYTE,
+                maxBytes = 50 * StorageConstants.MEGABYTE,
                 enabled = isUploadsEnabled,
                 onValueChange = { viewModel.updateAdminSettings(adminSettings.copy(storageMaxAvatarSize = it)) },
                 foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor
@@ -140,9 +144,9 @@ fun ServerStorageTab(
             StorageSizeControl(
                 label = "Max Banner Size",
                 description = "The maximum size for user banners.",
-                value = adminSettings.storageMaxBannerSize ?: (10 * MEGABYTE),
-                minBytes = 1 * MEGABYTE,
-                maxBytes = 50 * MEGABYTE,
+                value = adminSettings.storageMaxBannerSize ?: (10 * StorageConstants.MEGABYTE),
+                minBytes = 1 * StorageConstants.MEGABYTE,
+                maxBytes = 50 * StorageConstants.MEGABYTE,
                 enabled = isUploadsEnabled,
                 onValueChange = { viewModel.updateAdminSettings(adminSettings.copy(storageMaxBannerSize = it)) },
                 foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor
@@ -157,7 +161,7 @@ fun ServerStorageTab(
                 enabled = isUploadsEnabled,
                 onValueChange = { viewModel.updateAdminSettings(adminSettings.copy(storageSpaceQuotaByUser = it)) },
                 foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor,
-                unitDivider = GIGABYTE, unitName = "GB"
+                unitDivider = StorageConstants.GIGABYTE, unitName = "GB"
             )
 
             NumberWithPresetsControl(
@@ -365,7 +369,7 @@ fun StorageSizeControl(
     foregroundText: Color,
     primaryText: Color,
     accentColor: Color,
-    unitDivider: Long = MEGABYTE,
+    unitDivider: Long = StorageConstants.MEGABYTE,
     unitName: String = "MB"
 ) {
     val alpha = if (enabled) 1f else 0.5f

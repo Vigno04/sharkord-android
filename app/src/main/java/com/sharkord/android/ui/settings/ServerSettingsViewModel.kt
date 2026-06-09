@@ -176,14 +176,45 @@ class ServerSettingsViewModel(
     }
 
     fun uploadServerLogo(context: Context, uri: Uri) {
-        // TODO: Implement file upload to storage and update settings
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
-            kotlinx.coroutines.delay(1000)
-            _uiState.value = _uiState.value.copy(
-                isLoading = false,
-                successMessage = "Logo uploaded successfully!"
-            )
+            try {
+                val contentResolver = context.contentResolver
+                val inputStream = contentResolver.openInputStream(uri)
+                val bytes = inputStream?.readBytes()
+                inputStream?.close()
+
+                if (bytes == null) {
+                    _uiState.value = _uiState.value.copy(isLoading = false, error = "Failed to read file")
+                    return@launch
+                }
+
+                var originalName = "logo.png"
+                val cursor = contentResolver.query(uri, null, null, null, null)
+                cursor?.use {
+                    if (it.moveToFirst()) {
+                        val displayNameIndex = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (displayNameIndex != -1) {
+                            originalName = it.getString(displayNameIndex)
+                        }
+                    }
+                }
+
+                val result = repository.uploadServerLogo(bytes, originalName)
+                if (result.isSuccess) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        successMessage = "Logo uploaded successfully!"
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        error = "Failed to upload logo: ${result.exceptionOrNull()?.message}"
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isLoading = false, error = "Error: ${e.message}")
+            }
         }
     }
 

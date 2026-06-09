@@ -236,7 +236,7 @@ fun PermissionsTabContent(
     var showAddRoleDropdown by remember { mutableStateOf(false) }
     var showAddUserDropdown by remember { mutableStateOf(false) }
     
-    // We compute the current permission override map for the selected entity
+    // Compute the current permission override map for the selected entity
     val currentPermissionsMap = remember(selectedRoleId, selectedUserId, uiState.rolePermissions, uiState.userPermissions) {
         val map = mutableMapOf<String, Boolean>()
         if (selectedRoleId != null) {

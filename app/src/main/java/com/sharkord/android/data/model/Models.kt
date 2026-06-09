@@ -164,6 +164,9 @@ data class User(
 ) {
     val userStatus: UserStatus
         get() = UserStatus.fromValue(status ?: "offline")
+
+    val isDeleted: Boolean
+        get() = name == "__delete_user_" || name == "__deleted_user_"
 }
 
 // Emojis

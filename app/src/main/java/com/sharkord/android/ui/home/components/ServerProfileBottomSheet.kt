@@ -32,16 +32,18 @@ fun ServerProfileBottomSheet(
     serverName: String,
     serverDescription: String?,
     hasManageServer: Boolean,
-    bgColor: Color,
-    cardColor: Color,
-    primaryText: Color,
-    foregroundText: Color,
     onDismissRequest: () -> Unit,
     onShowMembers: () -> Unit,
     onServerOptionsClick: () -> Unit,
     onAddCategoryClick: () -> Unit,
     onDisconnectClick: () -> Unit
 ) {
+    val colors = com.sharkord.android.ui.theme.LocalSharkordColors.current
+    val bgColor = colors.bgColor
+    val cardColor = colors.cardColor
+    val primaryText = colors.primaryText
+    val foregroundText = colors.foregroundText
+
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(

@@ -170,7 +170,7 @@ fun ChatPanel(
     LaunchedEffect(lastMessageId) {
         if (lastMessageId == null) return@LaunchedEffect
         
-        // NEVER auto-scroll to bottom if we have a jump target!
+        // Do not auto-scroll to bottom if there is a jump target
         if (uiState.jumpTargetMessageId != null) return@LaunchedEffect
 
         if (!hasInitialLoaded) {

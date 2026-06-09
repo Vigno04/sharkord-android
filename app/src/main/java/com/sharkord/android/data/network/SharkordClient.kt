@@ -34,6 +34,7 @@ object SharkordClient {
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(0, TimeUnit.SECONDS)
         .writeTimeout(0, TimeUnit.SECONDS)
+        .pingInterval(20, TimeUnit.SECONDS)
         .build()
 
     /** HTTP REST API client for /login, /info, etc. */
