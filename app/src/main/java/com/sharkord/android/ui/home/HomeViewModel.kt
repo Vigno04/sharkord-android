@@ -51,6 +51,7 @@ data class HomeUiState(
     val activePanel: HomePanel = HomePanel.SERVER,
     val showAddChannelDialog: Boolean = false,
     val addChannelCategoryId: Int? = null,
+    val showAddCategoryDialog: Boolean = false,
     val showDeleteChannelDialogForId: Int? = null,
     val isDmsListOpen: Boolean = false,
     val membersSheetFilterDms: Boolean = false
@@ -563,6 +564,26 @@ class HomeViewModel : ViewModel() {
             }
             result.onFailure { error ->
                 _uiState.update { it.copy(errorMessage = error.message ?: "Failed to create channel") }
+            }
+        }
+    }
+
+    fun showAddCategoryDialog() {
+        _uiState.update { it.copy(showAddCategoryDialog = true) }
+    }
+
+    fun dismissAddCategoryDialog() {
+        _uiState.update { it.copy(showAddCategoryDialog = false) }
+    }
+
+    fun createCategory(name: String) {
+        viewModelScope.launch {
+            val result = repository.createCategory(name)
+            if (result.isSuccess) {
+                dismissAddCategoryDialog()
+            }
+            result.onFailure { error ->
+                _uiState.update { it.copy(errorMessage = error.message ?: "Failed to create category") }
             }
         }
     }

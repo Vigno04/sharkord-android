@@ -201,6 +201,19 @@ class ServerRepository {
         }
     }
 
+    suspend fun createCategory(name: String): Result<Unit> {
+        return try {
+            val input = JsonObject().apply {
+                addProperty("name", name)
+            }
+            webSocket.sendMutationAwait("categories.add", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create category", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun updateChannel(channelId: Int, name: String, topic: String?, isPrivate: Boolean): Result<Unit> {
         return try {
             val input = JsonObject().apply {

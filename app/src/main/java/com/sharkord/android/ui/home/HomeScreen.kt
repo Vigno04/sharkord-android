@@ -466,7 +466,7 @@ fun HomeScreen(
                             categoriesList.forEach { category ->
                                 val catChannels =
                                     data.channels.filter { it.categoryId == category.id && !it.isDm }
-                                if (catChannels.isNotEmpty()) {
+                                if (catChannels.isNotEmpty() || hasManageChannels) {
                                     val isCollapsed =
                                         uiState.collapsedCategories.contains(category.id)
 
@@ -640,6 +640,10 @@ fun HomeScreen(
                             viewModel.dismissServerSheet()
                             onNavigateToServerSettings()
                         },
+                        onAddCategoryClick = {
+                            viewModel.dismissServerSheet()
+                            viewModel.showAddCategoryDialog()
+                        },
                         onDisconnectClick = {
                             viewModel.logout(context)
                             viewModel.dismissServerSheet()
@@ -655,6 +659,18 @@ fun HomeScreen(
                     AddChannelDialog(
                         onDismissRequest = { viewModel.dismissAddChannelDialog() },
                         onConfirm = { name, type -> viewModel.createChannel(name, type, uiState.addChannelCategoryId) },
+                        bgColor = bgColor,
+                        cardColor = cardColor,
+                        primaryText = primaryText,
+                        foregroundText = foregroundText
+                    )
+                }
+
+                // ================= ADD CATEGORY DIALOG =================
+                if (uiState.showAddCategoryDialog) {
+                    AddCategoryDialog(
+                        onDismissRequest = { viewModel.dismissAddCategoryDialog() },
+                        onConfirm = { name -> viewModel.createCategory(name) },
                         bgColor = bgColor,
                         cardColor = cardColor,
                         primaryText = primaryText,
