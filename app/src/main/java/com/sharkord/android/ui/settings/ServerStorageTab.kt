@@ -23,54 +23,6 @@ import java.text.DecimalFormat
 val MEGABYTE = 1024L * 1024L
 val GIGABYTE = 1024L * MEGABYTE
 
-data class StoragePreset(val label: String, val value: Long)
-
-val QUOTA_PRESETS = listOf(
-    StoragePreset("25 GB", 25 * GIGABYTE),
-    StoragePreset("100 GB", 100 * GIGABYTE),
-    StoragePreset("250 GB", 250 * GIGABYTE)
-)
-
-val MAX_FILE_SIZE_PRESETS = listOf(
-    StoragePreset("25 MB", 25 * MEGABYTE),
-    StoragePreset("100 MB", 100 * MEGABYTE),
-    StoragePreset("500 MB", 500 * MEGABYTE),
-    StoragePreset("1 GB", 1 * GIGABYTE)
-)
-
-val MAX_AVATAR_SIZE_PRESETS = listOf(
-    StoragePreset("1 MB", 1 * MEGABYTE),
-    StoragePreset("3 MB", 3 * MEGABYTE),
-    StoragePreset("10 MB", 10 * MEGABYTE)
-)
-
-val MAX_BANNER_SIZE_PRESETS = listOf(
-    StoragePreset("1 MB", 1 * MEGABYTE),
-    StoragePreset("3 MB", 3 * MEGABYTE),
-    StoragePreset("10 MB", 10 * MEGABYTE)
-)
-
-val QUOTA_BY_USER_PRESETS = listOf(
-    StoragePreset("Unlimited", 0L),
-    StoragePreset("1 GB", 1 * GIGABYTE),
-    StoragePreset("20 GB", 20 * GIGABYTE),
-    StoragePreset("100 GB", 100 * GIGABYTE)
-)
-
-val MAX_FILES_PER_MESSAGE_PRESETS = listOf(
-    StoragePreset("0", 0L),
-    StoragePreset("5", 5L),
-    StoragePreset("10", 10L),
-    StoragePreset("20", 20L)
-)
-
-val SIGNED_URLS_TTL_PRESETS = listOf(
-    StoragePreset("1 hr", 60L * 60L),
-    StoragePreset("6 hr", 6L * 60L * 60L),
-    StoragePreset("12 hr", 12L * 60L * 60L),
-    StoragePreset("24 hr", 24L * 60L * 60L)
-)
-
 fun formatSize(bytes: Long): String {
     if (bytes <= 0) return "Unlimited"
     val format = DecimalFormat("#.##")
@@ -157,10 +109,10 @@ fun ServerStorageTab(
                 value = adminSettings.storageQuota ?: (25 * GIGABYTE),
                 minBytes = 1 * GIGABYTE,
                 maxBytes = diskMetrics.totalSpace,
-                presets = QUOTA_PRESETS.filter { it.value <= diskMetrics.totalSpace },
                 enabled = isUploadsEnabled,
                 onValueChange = { viewModel.updateAdminSettings(adminSettings.copy(storageQuota = it)) },
-                foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor
+                foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor,
+                unitDivider = GIGABYTE, unitName = "GB"
             )
 
             StorageSizeControl(
@@ -169,7 +121,6 @@ fun ServerStorageTab(
                 value = adminSettings.storageUploadMaxFileSize ?: (100 * MEGABYTE),
                 minBytes = 1 * MEGABYTE,
                 maxBytes = 10 * GIGABYTE,
-                presets = MAX_FILE_SIZE_PRESETS,
                 enabled = isUploadsEnabled,
                 onValueChange = { viewModel.updateAdminSettings(adminSettings.copy(storageUploadMaxFileSize = it)) },
                 foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor
@@ -181,7 +132,6 @@ fun ServerStorageTab(
                 value = adminSettings.storageMaxAvatarSize ?: (3 * MEGABYTE),
                 minBytes = 1 * MEGABYTE,
                 maxBytes = 50 * MEGABYTE,
-                presets = MAX_AVATAR_SIZE_PRESETS,
                 enabled = isUploadsEnabled,
                 onValueChange = { viewModel.updateAdminSettings(adminSettings.copy(storageMaxAvatarSize = it)) },
                 foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor
@@ -193,7 +143,6 @@ fun ServerStorageTab(
                 value = adminSettings.storageMaxBannerSize ?: (10 * MEGABYTE),
                 minBytes = 1 * MEGABYTE,
                 maxBytes = 50 * MEGABYTE,
-                presets = MAX_BANNER_SIZE_PRESETS,
                 enabled = isUploadsEnabled,
                 onValueChange = { viewModel.updateAdminSettings(adminSettings.copy(storageMaxBannerSize = it)) },
                 foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor
@@ -205,10 +154,10 @@ fun ServerStorageTab(
                 value = adminSettings.storageSpaceQuotaByUser ?: 0L,
                 minBytes = 0L,
                 maxBytes = diskMetrics.totalSpace,
-                presets = QUOTA_BY_USER_PRESETS.filter { it.value <= diskMetrics.totalSpace || it.value == 0L },
                 enabled = isUploadsEnabled,
                 onValueChange = { viewModel.updateAdminSettings(adminSettings.copy(storageSpaceQuotaByUser = it)) },
-                foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor
+                foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor,
+                unitDivider = GIGABYTE, unitName = "GB"
             )
 
             NumberWithPresetsControl(
@@ -218,7 +167,6 @@ fun ServerStorageTab(
                 min = 1L,
                 max = 100L,
                 unit = "files",
-                presets = MAX_FILES_PER_MESSAGE_PRESETS,
                 enabled = isUploadsEnabled,
                 onValueChange = { viewModel.updateAdminSettings(adminSettings.copy(storageMaxFilesPerMessage = it.toInt())) },
                 foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor
@@ -285,7 +233,6 @@ fun ServerStorageTab(
                     min = 1L,
                     max = 7 * 24 * 60L, // 1 week in minutes
                     unit = "mins",
-                    presets = SIGNED_URLS_TTL_PRESETS.map { StoragePreset(it.label, it.value / 60L) },
                     enabled = true,
                     onValueChange = { viewModel.updateAdminSettings(adminSettings.copy(storageSignedUrlsTtlSeconds = (it * 60L).toInt())) },
                     foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor
@@ -413,12 +360,13 @@ fun StorageSizeControl(
     value: Long,
     minBytes: Long,
     maxBytes: Long,
-    presets: List<StoragePreset>,
     enabled: Boolean,
     onValueChange: (Long) -> Unit,
     foregroundText: Color,
     primaryText: Color,
-    accentColor: Color
+    accentColor: Color,
+    unitDivider: Long = MEGABYTE,
+    unitName: String = "MB"
 ) {
     val alpha = if (enabled) 1f else 0.5f
     val fText = foregroundText.copy(alpha = alpha)
@@ -430,16 +378,18 @@ fun StorageSizeControl(
         Text(description, color = pText, fontSize = 12.sp)
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Slider logic using MB
-        val minMb = (minBytes / MEGABYTE).toFloat()
-        val maxMb = (maxBytes / MEGABYTE).toFloat()
-        val currentMb = (value / MEGABYTE).toFloat().coerceIn(minMb, maxMb)
+        // Slider logic using unitDivider
+        val safeMaxBytes = maxOf(minBytes + unitDivider, maxBytes)
+        val minUnit = (minBytes / unitDivider).toFloat()
+        val maxUnit = (safeMaxBytes / unitDivider).toFloat()
+        val safeMaxUnit = if (maxUnit > minUnit) maxUnit else minUnit + 1f
+        val currentUnit = (value / unitDivider).toFloat().coerceIn(minUnit, safeMaxUnit)
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Slider(
-                value = currentMb,
-                onValueChange = { onValueChange((it * MEGABYTE).toLong()) },
-                valueRange = minMb..maxMb,
+                value = currentUnit,
+                onValueChange = { onValueChange((it.toLong() * unitDivider)) },
+                valueRange = minUnit..safeMaxUnit,
                 enabled = enabled,
                 colors = SliderDefaults.colors(thumbColor = accentColor, activeTrackColor = accentColor),
                 modifier = Modifier.weight(1f)
@@ -454,15 +404,15 @@ fun StorageSizeControl(
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
-                value = if (value == 0L) "" else (value / MEGABYTE).toString(),
+                value = if (value == 0L) "" else (value / unitDivider).toString(),
                 onValueChange = { 
                     val next = it.toLongOrNull() ?: 0L
-                    onValueChange((next * MEGABYTE).coerceIn(minBytes, maxBytes))
+                    onValueChange((next * unitDivider).coerceIn(minBytes, maxBytes))
                 },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.width(100.dp).height(50.dp),
+                modifier = Modifier.width(130.dp).height(50.dp),
                 enabled = enabled,
-                suffix = { Text("MB", color = pText, fontSize = 12.sp) },
+                suffix = { Text(unitName, color = pText, fontSize = 12.sp) },
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
                     unfocusedContainerColor = Color.Transparent,
@@ -474,19 +424,6 @@ fun StorageSizeControl(
                     disabledIndicatorColor = Color.DarkGray
                 )
             )
-            
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                presets.forEach { preset ->
-                    OutlinedButton(
-                        onClick = { onValueChange(preset.value) },
-                        enabled = enabled,
-                        modifier = Modifier.height(36.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp)
-                    ) {
-                        Text(preset.label, fontSize = 12.sp, color = fText)
-                    }
-                }
-            }
         }
     }
 }
@@ -500,7 +437,6 @@ fun NumberWithPresetsControl(
     min: Long,
     max: Long,
     unit: String,
-    presets: List<StoragePreset>,
     enabled: Boolean,
     onValueChange: (Long) -> Unit,
     foregroundText: Color,
@@ -529,7 +465,7 @@ fun NumberWithPresetsControl(
                     onValueChange(next.coerceIn(min, max))
                 },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.width(100.dp).height(50.dp),
+                modifier = Modifier.width(130.dp).height(50.dp),
                 enabled = enabled,
                 suffix = { Text(unit, color = pText, fontSize = 12.sp) },
                 colors = TextFieldDefaults.colors(
@@ -543,19 +479,6 @@ fun NumberWithPresetsControl(
                     disabledIndicatorColor = Color.DarkGray
                 )
             )
-            
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                presets.forEach { preset ->
-                    OutlinedButton(
-                        onClick = { onValueChange(preset.value) },
-                        enabled = enabled,
-                        modifier = Modifier.height(36.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp)
-                    ) {
-                        Text(preset.label, fontSize = 12.sp, color = fText)
-                    }
-                }
-            }
         }
     }
 }

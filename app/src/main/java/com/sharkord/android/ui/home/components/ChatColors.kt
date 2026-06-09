@@ -7,8 +7,8 @@ import androidx.compose.ui.graphics.Color
  * Avoids duplicate hardcoded color values and provides a single source of truth.
  */
 object ChatColors {
-    val BgColor = Color(0xFF1C1C1C)
-    val HeaderColor = Color(0xFF242424)
+    val BgColor = Color(0xFF151515)
+    val HeaderColor = Color(0xFF1A1A1A)
     val CardColor = Color(0xFF2B2B2B)
     val TextPrimary = Color(0xFFE8E8E8)
     val TextSecondary = Color(0xFF9E9E9E)

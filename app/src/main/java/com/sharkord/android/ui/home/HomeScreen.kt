@@ -21,6 +21,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -189,6 +191,16 @@ fun HomeScreen(
                             .fillMaxSize()
                             .offset(x = channelsOffset)
                             .background(bgColor)
+                            .drawBehind {
+                                val strokeWidth = 1.dp.toPx()
+                                val x = size.width - strokeWidth / 2
+                                drawLine(
+                                    color = Color.Black.copy(alpha = 0.6f),
+                                    start = Offset(x, 0f),
+                                    end = Offset(x, size.height),
+                                    strokeWidth = strokeWidth
+                                )
+                            }
                             .pointerInput(screenWidthPx) {
                                 detectHorizontalDragGestures(
                                     onDragEnd = {

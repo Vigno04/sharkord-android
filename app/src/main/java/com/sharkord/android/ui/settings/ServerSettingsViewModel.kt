@@ -35,6 +35,9 @@ data class ServerSettingsUiState(
     val marketplaceEntries: List<com.sharkord.android.data.model.MarketplaceEntry> = emptyList(),
     val isMarketplaceLoading: Boolean = false,
     val marketplaceError: String? = null,
+    val pluginLogs: List<com.sharkord.android.data.model.PluginLogEntry>? = null,
+    val pluginCommands: List<com.sharkord.android.data.model.PluginCommandInfo>? = null,
+    val pluginSettings: com.sharkord.android.data.model.PluginSettingsResponse? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
     val successMessage: String? = null
@@ -347,6 +350,71 @@ class ServerSettingsViewModel(
                 _uiState.update { it.copy(isLoading = false, error = "Failed to update plugin") }
             }
         }
+    }
+
+    fun fetchPluginLogs(pluginId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, pluginLogs = null) }
+            val result = repository.getPluginLogs(pluginId)
+            result.onSuccess { logs ->
+                _uiState.update { it.copy(pluginLogs = logs, isLoading = false) }
+            }.onFailure {
+                _uiState.update { it.copy(isLoading = false, error = "Failed to fetch logs") }
+            }
+        }
+    }
+    
+    fun fetchPluginCommands(pluginId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, pluginCommands = null) }
+            val result = repository.getPluginCommands(pluginId)
+            result.onSuccess { commands ->
+                _uiState.update { it.copy(pluginCommands = commands, isLoading = false) }
+            }.onFailure {
+                _uiState.update { it.copy(isLoading = false, error = "Failed to fetch commands") }
+            }
+        }
+    }
+    
+    fun fetchPluginSettings(pluginId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, pluginSettings = null) }
+            val result = repository.getPluginSettings(pluginId)
+            result.onSuccess { settings ->
+                _uiState.update { it.copy(pluginSettings = settings, isLoading = false) }
+            }.onFailure {
+                _uiState.update { it.copy(isLoading = false, error = "Failed to fetch settings") }
+            }
+        }
+    }
+    
+    fun executePluginCommand(pluginId: String, commandName: String, args: com.google.gson.JsonObject) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val result = repository.executePluginCommand(pluginId, commandName, args)
+            if (result.isSuccess) {
+                _uiState.update { it.copy(isLoading = false, successMessage = "Command executed: ${result.getOrNull()}") }
+            } else {
+                _uiState.update { it.copy(isLoading = false, error = "Failed to execute command") }
+            }
+        }
+    }
+    
+    fun updatePluginSetting(pluginId: String, key: String, value: Any) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val result = repository.updatePluginSetting(pluginId, key, value)
+            if (result.isSuccess) {
+                _uiState.update { it.copy(isLoading = false, successMessage = "Setting updated") }
+                fetchPluginSettings(pluginId) // Reload
+            } else {
+                _uiState.update { it.copy(isLoading = false, error = "Failed to update setting") }
+            }
+        }
+    }
+    
+    fun clearPluginModals() {
+        _uiState.update { it.copy(pluginLogs = null, pluginCommands = null, pluginSettings = null) }
     }
 
     // Updates

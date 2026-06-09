@@ -338,6 +338,41 @@ data class MarketplaceEntry(
     val versions: List<MarketplaceVersion>
 )
 
+data class PluginLogEntry(
+    val pluginId: String,
+    val message: String,
+    val timestamp: Long,
+    val type: String
+)
+
+data class PluginCommandArg(
+    val name: String,
+    val description: String?,
+    val type: String,
+    val required: Boolean = false,
+    val sensitive: Boolean = false
+)
+
+data class PluginCommandInfo(
+    val pluginId: String,
+    val name: String,
+    val description: String?,
+    val args: List<PluginCommandArg>?
+)
+
+data class PluginSettingDefinition(
+    val key: String,
+    val name: String,
+    val description: String?,
+    val type: String,
+    val defaultValue: Any?
+)
+
+data class PluginSettingsResponse(
+    val definitions: List<PluginSettingDefinition>,
+    val values: Map<String, Any?>
+)
+
 // Updates
 
 data class UpdateInfo(
@@ -354,6 +389,8 @@ data class Login(
     val ip: String?,
     val userAgent: String?,
     val success: Boolean,
+    val country: String? = null,
+    val city: String? = null,
     val createdAt: Long
 )
 

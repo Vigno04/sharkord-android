@@ -72,6 +72,53 @@ fun ServerPluginsTab(
         }
     }
 
+    var actionPluginId by remember { mutableStateOf<String?>(null) }
+
+    if (actionPluginId != null) {
+        if (uiState.pluginLogs != null) {
+            PluginLogsSheet(
+                pluginId = actionPluginId!!,
+                logs = uiState.pluginLogs!!,
+                onDismiss = {
+                    actionPluginId = null
+                    viewModel.clearPluginModals()
+                },
+                cardColor = cardColor,
+                foregroundText = foregroundText,
+                primaryText = primaryText,
+                accentColor = accentColor
+            )
+        } else if (uiState.pluginCommands != null) {
+            PluginCommandsSheet(
+                pluginId = actionPluginId!!,
+                commands = uiState.pluginCommands!!,
+                viewModel = viewModel,
+                onDismiss = {
+                    actionPluginId = null
+                    viewModel.clearPluginModals()
+                },
+                cardColor = cardColor,
+                foregroundText = foregroundText,
+                primaryText = primaryText,
+                accentColor = accentColor
+            )
+        } else if (uiState.pluginSettings != null) {
+            PluginSettingsSheet(
+                pluginId = actionPluginId!!,
+                settingsResponse = uiState.pluginSettings!!,
+                viewModel = viewModel,
+                onDismiss = {
+                    actionPluginId = null
+                    viewModel.clearPluginModals()
+                },
+                cardColor = cardColor,
+                foregroundText = foregroundText,
+                primaryText = primaryText,
+                accentColor = accentColor
+            )
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
             text = "SERVER PLUGINS",
@@ -118,6 +165,18 @@ fun ServerPluginsTab(
                     isLoading = uiState.isLoading && uiState.plugins.isEmpty(),
                     viewModel = viewModel,
                     onPluginClick = { selectedPluginId = it },
+                    onOpenLogs = { 
+                        actionPluginId = it
+                        viewModel.fetchPluginLogs(it)
+                    },
+                    onOpenCommands = { 
+                        actionPluginId = it
+                        viewModel.fetchPluginCommands(it)
+                    },
+                    onOpenSettings = { 
+                        actionPluginId = it
+                        viewModel.fetchPluginSettings(it)
+                    },
                     cardColor = cardColor,
                     foregroundText = foregroundText,
                     primaryText = primaryText,
@@ -145,6 +204,9 @@ fun InstalledPluginsList(
     isLoading: Boolean,
     viewModel: ServerSettingsViewModel,
     onPluginClick: (String) -> Unit,
+    onOpenLogs: (String) -> Unit,
+    onOpenCommands: (String) -> Unit,
+    onOpenSettings: (String) -> Unit,
     cardColor: Color,
     foregroundText: Color,
     primaryText: Color,
@@ -166,6 +228,9 @@ fun InstalledPluginsList(
                     plugin = plugin,
                     viewModel = viewModel,
                     onClick = { onPluginClick(plugin.id) },
+                    onOpenLogs = { onOpenLogs(plugin.id) },
+                    onOpenCommands = { onOpenCommands(plugin.id) },
+                    onOpenSettings = { onOpenSettings(plugin.id) },
                     cardColor = cardColor,
                     foregroundText = foregroundText,
                     primaryText = primaryText,
@@ -247,6 +312,9 @@ fun PluginItemRow(
     plugin: PluginInfo,
     viewModel: ServerSettingsViewModel,
     onClick: () -> Unit,
+    onOpenLogs: () -> Unit,
+    onOpenCommands: () -> Unit,
+    onOpenSettings: () -> Unit,
     cardColor: Color,
     foregroundText: Color,
     primaryText: Color,
@@ -318,25 +386,6 @@ fun PluginItemRow(
             }
             
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { Toast.makeText(context, "Logs coming soon", Toast.LENGTH_SHORT).show() }) {
-                    Icon(Icons.Default.Description, contentDescription = "Logs", tint = primaryText)
-                }
-                IconButton(
-                    onClick = { Toast.makeText(context, "Commands coming soon", Toast.LENGTH_SHORT).show() },
-                    enabled = plugin.enabled
-                ) {
-                    Icon(Icons.Default.Terminal, contentDescription = "Commands", tint = if (plugin.enabled) primaryText else Color.Gray)
-                }
-                IconButton(
-                    onClick = { Toast.makeText(context, "Settings coming soon", Toast.LENGTH_SHORT).show() },
-                    enabled = plugin.enabled
-                ) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = if (plugin.enabled) primaryText else Color.Gray)
-                }
-                IconButton(onClick = { showRemoveDialog = true }) {
-                    Icon(Icons.Default.Delete, contentDescription = "Remove", tint = Color.Red)
-                }
-                
                 if (plugin.loadError != null) {
                     Badge(containerColor = Color.Red, contentColor = Color.White) {
                         Text("ERROR")
@@ -364,10 +413,36 @@ fun PluginItemRow(
         }
         
         Spacer(modifier = Modifier.height(8.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("v${plugin.version}", color = primaryText, fontSize = 12.sp)
-            Spacer(modifier = Modifier.width(16.dp))
-            Text("By ${plugin.author}", color = primaryText, fontSize = 12.sp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("v${plugin.version}", color = primaryText, fontSize = 12.sp)
+                Spacer(modifier = Modifier.width(16.dp))
+                Text("By ${plugin.author}", color = primaryText, fontSize = 12.sp)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onOpenLogs) {
+                    Icon(Icons.Default.Description, contentDescription = "Logs", tint = primaryText)
+                }
+                IconButton(
+                    onClick = onOpenCommands,
+                    enabled = plugin.enabled
+                ) {
+                    Icon(Icons.Default.Terminal, contentDescription = "Commands", tint = if (plugin.enabled) primaryText else Color.Gray)
+                }
+                IconButton(
+                    onClick = onOpenSettings,
+                    enabled = plugin.enabled
+                ) {
+                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = if (plugin.enabled) primaryText else Color.Gray)
+                }
+                IconButton(onClick = { showRemoveDialog = true }) {
+                    Icon(Icons.Default.Delete, contentDescription = "Remove", tint = Color.Red)
+                }
+            }
         }
     }
 }
@@ -570,6 +645,45 @@ fun PluginDetailsSheet(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Visit Homepage")
+                }
+            }
+
+            if (marketplaceEntry != null) {
+                val latestVersion = marketplaceEntry.versions.firstOrNull()?.version ?: "0.0.0"
+                val canUpdate = plugin != null && plugin.version != latestVersion
+
+                Spacer(modifier = Modifier.height(8.dp))
+                if (plugin == null) {
+                    Button(
+                        onClick = {
+                            viewModel.installPlugin(marketplaceEntry.plugin.id, latestVersion)
+                            onDismiss()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Install")
+                    }
+                } else if (canUpdate) {
+                    Button(
+                        onClick = {
+                            viewModel.updatePlugin(marketplaceEntry.plugin.id, latestVersion)
+                            onDismiss()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Update to $latestVersion")
+                    }
+                } else {
+                    Button(
+                        onClick = { },
+                        enabled = false,
+                        colors = ButtonDefaults.buttonColors(disabledContainerColor = Color.DarkGray, disabledContentColor = Color.LightGray),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Installed")
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(32.dp))

@@ -466,6 +466,90 @@ class ServerRepository {
         }
     }
 
+    suspend fun getPluginLogs(pluginId: String): Result<List<com.sharkord.android.data.model.PluginLogEntry>> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("pluginId", pluginId)
+            }
+            val response = webSocket.sendQueryAwait("plugins.getLogs", input)
+            
+            // WebSocketManager wraps non-JsonObject responses (like arrays) in {"value": ...}
+            val logsElement = if (response.has("value")) response.get("value") else response
+            
+            val type = object : com.google.gson.reflect.TypeToken<List<com.sharkord.android.data.model.PluginLogEntry>>() {}.type
+            val logs = com.google.gson.Gson().fromJson<List<com.sharkord.android.data.model.PluginLogEntry>>(logsElement, type)
+            Result.success(logs)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get plugin logs", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getPluginCommands(pluginId: String): Result<List<com.sharkord.android.data.model.PluginCommandInfo>> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("pluginId", pluginId)
+            }
+            val response = webSocket.sendQueryAwait("plugins.getCommands", input)
+            val type = object : com.google.gson.reflect.TypeToken<Map<String, List<com.sharkord.android.data.model.PluginCommandInfo>>>() {}.type
+            val commandsMap = com.google.gson.Gson().fromJson<Map<String, List<com.sharkord.android.data.model.PluginCommandInfo>>>(response, type)
+            val commands = commandsMap[pluginId] ?: emptyList()
+            Result.success(commands)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get plugin commands", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun executePluginCommand(pluginId: String, commandName: String, args: com.google.gson.JsonObject): Result<com.google.gson.JsonObject> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("pluginId", pluginId)
+                addProperty("commandName", commandName)
+                add("args", args)
+            }
+            val response = webSocket.sendMutationAwait("plugins.executeCommand", input)
+            Result.success(response)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to execute plugin command", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getPluginSettings(pluginId: String): Result<com.sharkord.android.data.model.PluginSettingsResponse> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("pluginId", pluginId)
+            }
+            val response = webSocket.sendQueryAwait("plugins.getSettings", input)
+            val parsed = com.google.gson.Gson().fromJson(response, com.sharkord.android.data.model.PluginSettingsResponse::class.java)
+            Result.success(parsed)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get plugin settings", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updatePluginSetting(pluginId: String, key: String, value: Any): Result<Unit> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("pluginId", pluginId)
+                addProperty("key", key)
+                when (value) {
+                    is String -> addProperty("value", value)
+                    is Number -> addProperty("value", value)
+                    is Boolean -> addProperty("value", value)
+                    else -> addProperty("value", value.toString())
+                }
+            }
+            webSocket.sendMutationAwait("plugins.updateSetting", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update plugin setting", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun getMarketplacePlugins(): Result<List<com.sharkord.android.data.model.MarketplaceEntry>> {
         return try {
             val url = "https://raw.githubusercontent.com/Sharkord/plugins/refs/heads/main/plugins.json?raw=true"

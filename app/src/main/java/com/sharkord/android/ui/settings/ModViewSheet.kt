@@ -17,6 +17,13 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.PersonRemove
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -480,35 +487,127 @@ private fun ModViewStorage(data: ModViewData) {
 
 @Composable
 private fun ModViewDetails(data: ModViewData) {
-    Text("Recent Logins", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+    Text("Details", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
     Spacer(modifier = Modifier.height(12.dp))
 
-    if (data.logins.isEmpty()) {
-        Text("No recent logins found.", color = Color.Gray, fontSize = 14.sp)
-    } else {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            val dateFormatter = SimpleDateFormat("MMM d, yyyy HH:mm", Locale.getDefault())
-            data.logins.forEach { login ->
-                val date = dateFormatter.format(Date(login.createdAt))
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF2B2D31))
-                        .padding(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(login.ip ?: "Unknown IP", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        Text(if (login.success) "Success" else "Failed", color = if (login.success) Color(0xFF4CAF50) else Color(0xFFED4245), fontSize = 12.sp)
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(login.userAgent ?: "Unknown Device", color = Color.Gray, fontSize = 12.sp)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(date, color = Color.DarkGray, fontSize = 10.sp)
-                }
+    val user = data.user
+    val lastLogin = data.logins.firstOrNull()
+    val dateFormatter = SimpleDateFormat("MMM d, yyyy HH:mm", Locale.getDefault())
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xFF2B2D31))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        DetailRow(
+            icon = Icons.Default.Person,
+            label = "User ID",
+            value = user.id.toString()
+        )
+
+        var showIdentity by remember { mutableStateOf(false) }
+        DetailRowWithToggle(
+            icon = Icons.Default.Person,
+            label = "Identity",
+            value = user.identity ?: "***",
+            visible = showIdentity,
+            onVisibilityChange = { showIdentity = it }
+        )
+
+        var showIp by remember { mutableStateOf(false) }
+        DetailRowWithToggle(
+            icon = Icons.Default.Wifi,
+            label = "IP Address",
+            value = lastLogin?.ip ?: "Unknown",
+            visible = showIp,
+            onVisibilityChange = { showIp = it }
+        )
+
+        var showLocation by remember { mutableStateOf(false) }
+        val locationString = lastLogin?.let { 
+            if (it.country != null || it.city != null) "${it.country ?: "N/A"} - ${it.city ?: "N/A"}" else "Unknown" 
+        } ?: "Unknown"
+        DetailRowWithToggle(
+            icon = Icons.Default.Public,
+            label = "Location",
+            value = locationString,
+            visible = showLocation,
+            onVisibilityChange = { showLocation = it }
+        )
+
+        DetailRow(
+            icon = Icons.Default.DateRange,
+            label = "Joined Server",
+            value = user.createdAt?.let { dateFormatter.format(Date(it)) } ?: "Unknown"
+        )
+
+        DetailRow(
+            icon = Icons.Default.Schedule,
+            label = "Last Active",
+            value = lastLogin?.createdAt?.let { dateFormatter.format(Date(it)) } ?: "Unknown"
+        )
+
+        if (user.banned) {
+            DetailRow(
+                icon = Icons.Default.Gavel,
+                label = "Banned",
+                value = "Yes"
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetailRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+            Icon(icon, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(label, color = Color.Gray, fontSize = 14.sp)
+        }
+        Text(value, color = Color.White, fontSize = 14.sp, maxLines = 1)
+    }
+}
+
+@Composable
+private fun DetailRowWithToggle(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String,
+    visible: Boolean,
+    onVisibilityChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+            Icon(icon, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(label, color = Color.Gray, fontSize = 14.sp)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(if (visible) value else "***", color = Color.White, fontSize = 14.sp, maxLines = 1)
+            Spacer(modifier = Modifier.width(8.dp))
+            IconButton(onClick = { onVisibilityChange(!visible) }, modifier = Modifier.size(24.dp)) {
+                Icon(
+                    imageVector = if (visible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                    contentDescription = null,
+                    tint = Color.Gray,
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
     }
