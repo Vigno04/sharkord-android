@@ -459,7 +459,7 @@ data class JoinServerData(
     val emojis: List<Emoji>? = null,
     val publicSettings: PublicSettings? = null,
     val voiceMap: Map<String, Any>? = null,
-    val readStates: Map<String, Any>? = null,
+    val readStates: Map<String, Int>? = null,
     val channelPermissions: Map<String, Any>? = null,
     val showWelcomeDialog: Boolean = false
 )

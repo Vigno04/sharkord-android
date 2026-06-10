@@ -421,6 +421,8 @@ class WebSocketManager(
         subscribe("channels.onCreate")
         subscribe("channels.onDelete")
         subscribe("channels.onUpdate")
+        subscribe("channels.onReadStateUpdate")
+        subscribe("channels.onReadStateDelta")
 
         // Categories
         subscribe("categories.onCreate")

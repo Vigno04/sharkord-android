@@ -323,6 +323,20 @@ class ServerRepository {
     }
 
 
+    suspend fun markChannelAsRead(channelId: Int): Result<Unit> {
+        return try {
+            val input = com.google.gson.JsonObject().apply {
+                addProperty("channelId", channelId)
+            }
+            webSocket.sendMutationAwait("channels.markAsRead", input)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to mark channel as read", e)
+            Result.failure(e)
+        }
+    }
+
+
     // Server Administration (Settings & Roles)
 
     suspend fun getAdminSettings(): Result<com.sharkord.android.data.model.AdminSettings> {

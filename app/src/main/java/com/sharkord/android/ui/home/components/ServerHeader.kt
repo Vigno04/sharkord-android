@@ -38,7 +38,8 @@ fun ServerHeader(
     onSearchClick: () -> Unit = {},
     onDirectMessagesClick: () -> Unit = {},
     onServerClick: () -> Unit = {},
-    isServerSheetOpen: Boolean = false
+    isServerSheetOpen: Boolean = false,
+    totalUnreadDMs: Int = 0
 ) {
     // Stack the header, search bar, and direct message bar vertically
     Column(
@@ -140,7 +141,7 @@ fun ServerHeader(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(8.dp))
                 .clickable { onDirectMessagesClick() }
-                .padding(horizontal = 4.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -154,8 +155,27 @@ fun ServerHeader(
                 text = stringResource(id = R.string.sidebar_directMessages),
                 color = Color.LightGray,
                 fontSize = 15.sp,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f)
             )
+            
+            if (totalUnreadDMs > 0) {
+                Box(
+                    modifier = Modifier
+                        .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(Color(0xFFE3E5E8)) // Snow/porcelain color
+                        .padding(horizontal = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = totalUnreadDMs.toString(),
+                        color = Color(0xFF2B2B2B), // Dark text for contrast
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))

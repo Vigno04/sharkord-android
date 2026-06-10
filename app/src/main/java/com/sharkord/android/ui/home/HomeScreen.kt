@@ -361,7 +361,8 @@ fun HomeScreen(
                                                 isSelected = uiState.selectedChannelId == channel.id,
                                                 onSelect = { viewModel.selectChannel(channel.id) },
                                                 foregroundText = foregroundText,
-                                                primaryText = primaryText
+                                                primaryText = primaryText,
+                                                unreadCount = uiState.readStates[channel.id] ?: 0
                                             )
                                         }
                                     }
@@ -423,6 +424,8 @@ fun HomeScreen(
 
                             // Server Header
                             item {
+                                val totalUnreadDMs = dmChannels.sumOf { uiState.readStates[it.id] ?: 0 }
+
                                 ServerHeader(
                                     serverName = data.serverName,
                                     memberCount = data.users.size,
@@ -431,7 +434,8 @@ fun HomeScreen(
                                     onSearchClick = { viewModel.showSearchSheet() },
                                     onDirectMessagesClick = { viewModel.openDmsList() },
                                     onServerClick = { viewModel.showServerSheet() },
-                                    isServerSheetOpen = uiState.showServerSheet
+                                    isServerSheetOpen = uiState.showServerSheet,
+                                    totalUnreadDMs = totalUnreadDMs
                                 )
                             }
 
@@ -449,7 +453,8 @@ fun HomeScreen(
                                             onEditClick = { onNavigateToChannelSettings(channel.id) },
                                             onDeleteClick = { viewModel.showDeleteChannelDialog(channel.id) },
                                             foregroundText = foregroundText,
-                                            primaryText = primaryText
+                                            primaryText = primaryText,
+                                            unreadCount = uiState.readStates[channel.id] ?: 0
                                         )
                                     }
                                 }
@@ -465,7 +470,8 @@ fun HomeScreen(
                                             onEditClick = { onNavigateToChannelSettings(channel.id) },
                                             onDeleteClick = { viewModel.showDeleteChannelDialog(channel.id) },
                                             foregroundText = foregroundText,
-                                            primaryText = primaryText
+                                            primaryText = primaryText,
+                                            unreadCount = uiState.readStates[channel.id] ?: 0
                                         )
                                     }
                                 }
@@ -495,7 +501,8 @@ fun HomeScreen(
                                             onChannelDelete = { channelId -> viewModel.showDeleteChannelDialog(channelId) },
                                             onReorderChannels = { newChannelIds -> viewModel.reorderChannels(category.id, newChannelIds) },
                                             foregroundText = foregroundText,
-                                            primaryText = primaryText
+                                            primaryText = primaryText,
+                                            readStates = uiState.readStates
                                         )
                                     }
                                 }

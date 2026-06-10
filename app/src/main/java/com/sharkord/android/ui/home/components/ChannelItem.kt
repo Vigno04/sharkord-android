@@ -60,7 +60,8 @@ fun ChannelItem(
     isDragging: Boolean = false,
     foregroundText: Color,
     primaryText: Color,
-    cardColor: Color = Color(0xFF2B2B2B)
+    cardColor: Color = Color(0xFF2B2B2B),
+    unreadCount: Int = 0
 ) {
     val icon = if (channel.isVoice) Icons.Default.VolumeUp else Icons.Default.Tag
     val bg = if (isSelected || isDragging) Color.White.copy(alpha = 0.08f) else Color.Transparent
@@ -147,8 +148,27 @@ fun ChannelItem(
                 text = channel.name,
                 color = if (isSelected) foregroundText else primaryText,
                 fontSize = 15.sp,
-                fontWeight = textWeight
+                fontWeight = textWeight,
+                modifier = Modifier.weight(1f)
             )
+
+            if (unreadCount > 0) {
+                Box(
+                    modifier = Modifier
+                        .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(Color(0xFFE3E5E8)) // Snow/porcelain color
+                        .padding(horizontal = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = unreadCount.toString(),
+                        color = Color(0xFF2B2B2B), // Dark text for contrast
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
 
         DropdownMenu(

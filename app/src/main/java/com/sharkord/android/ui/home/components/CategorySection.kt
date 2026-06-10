@@ -38,7 +38,8 @@ fun CategorySection(
     onChannelDelete: (Int) -> Unit,
     onReorderChannels: (List<Int>) -> Unit,
     foregroundText: Color,
-    primaryText: Color
+    primaryText: Color,
+    readStates: Map<Int, Int> = emptyMap()
 ) {
     // Local state for dragging
     var localChannels by remember(channels) { mutableStateOf(channels) }
@@ -155,7 +156,8 @@ fun CategorySection(
                         },
                         isDragging = isDragging,
                         foregroundText = foregroundText,
-                        primaryText = primaryText
+                        primaryText = primaryText,
+                        unreadCount = readStates[channel.id] ?: 0
                     )
                 }
             }

@@ -54,7 +54,8 @@ data class HomeUiState(
     val showAddCategoryDialog: Boolean = false,
     val showDeleteChannelDialogForId: Int? = null,
     val isDmsListOpen: Boolean = false,
-    val membersSheetFilterDms: Boolean = false
+    val membersSheetFilterDms: Boolean = false,
+    val readStates: Map<Int, Int> = emptyMap()
 )
 
 /**
@@ -162,12 +163,20 @@ class HomeViewModel : ViewModel() {
                 reconnectBannerJob = null
 
                 val data = state.serverData
+                
+                // Parse string-keyed map into Int-keyed map for readStates
+                val initialReadStates = data.readStates?.mapNotNull { (key, value) ->
+                    val id = key.toIntOrNull()
+                    if (id != null) id to value else null
+                }?.toMap() ?: emptyMap()
+
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         errorMessage = null,
                         reconnectAttempts = 0,
                         serverData = data,
+                        readStates = initialReadStates,
                         selectedChannelId = it.selectedChannelId
                             ?: data.channels.firstOrNull { ch -> !ch.isVoice && !ch.isDm }?.id
                     )
@@ -428,6 +437,32 @@ class HomeViewModel : ViewModel() {
                 is ServerEvent.MessageDeleted -> state
                 is ServerEvent.UserTyping -> state
 
+                // Read States
+                is ServerEvent.ChannelReadStateUpdate -> {
+                    Log.d(TAG, "[EVENT] channels.onReadStateUpdate: channelId=${event.channelId}, count=${event.count}")
+                    // If the channel is actively viewed, ignore updates and instantly mark as read
+                    if (state.selectedChannelId == event.channelId && state.activePanel == HomePanel.CHAT) {
+                        viewModelScope.launch { repository.markChannelAsRead(event.channelId) }
+                        return@update state
+                    }
+                    val newMap = state.readStates.toMutableMap()
+                    newMap[event.channelId] = event.count
+                    state.copy(readStates = newMap)
+                }
+
+                is ServerEvent.ChannelReadStateDelta -> {
+                    Log.d(TAG, "[EVENT] channels.onReadStateDelta: channelId=${event.channelId}, delta=${event.delta}")
+                    if (state.selectedChannelId == event.channelId && state.activePanel == HomePanel.CHAT) {
+                        viewModelScope.launch { repository.markChannelAsRead(event.channelId) }
+                        return@update state
+                    }
+                    val currentCount = state.readStates[event.channelId] ?: 0
+                    val newCount = kotlin.math.max(0, currentCount + event.delta)
+                    val newMap = state.readStates.toMutableMap()
+                    newMap[event.channelId] = newCount
+                    state.copy(readStates = newMap)
+                }
+
                 // Server Settings
 
                 is ServerEvent.ServerSettingsUpdated -> {
@@ -448,17 +483,45 @@ class HomeViewModel : ViewModel() {
 
     fun selectChannel(channelId: Int, messageId: Int? = null, navigateToChat: Boolean = true) {
         _uiState.update { 
+            val newReadStates = it.readStates.toMutableMap()
+            newReadStates[channelId] = 0
+
             it.copy(
                 selectedChannelId = channelId, 
                 selectedMessageId = messageId, 
                 activePanel = if (navigateToChat) HomePanel.CHAT else it.activePanel,
-                jumpTrigger = if (messageId != null) System.currentTimeMillis() else it.jumpTrigger
+                jumpTrigger = if (messageId != null) System.currentTimeMillis() else it.jumpTrigger,
+                readStates = newReadStates
             ) 
+        }
+        
+        // Notify the server that we have read the channel
+        viewModelScope.launch {
+            repository.markChannelAsRead(channelId)
         }
     }
 
     fun setPanel(panel: HomePanel) {
-        _uiState.update { it.copy(activePanel = panel) }
+        _uiState.update { state ->
+            var newReadStates = state.readStates
+            if (panel == HomePanel.CHAT && state.selectedChannelId != null) {
+                newReadStates = state.readStates.toMutableMap().apply {
+                    put(state.selectedChannelId, 0)
+                }
+            }
+            state.copy(
+                activePanel = panel,
+                readStates = newReadStates
+            )
+        }
+
+        if (panel == HomePanel.CHAT) {
+            _uiState.value.selectedChannelId?.let { channelId ->
+                viewModelScope.launch {
+                    repository.markChannelAsRead(channelId)
+                }
+            }
+        }
     }
 
     fun toggleCategory(categoryId: Int) {
