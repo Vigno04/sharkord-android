@@ -27,7 +27,8 @@ fun DmChannelItem(
     isSelected: Boolean,
     onSelect: () -> Unit,
     foregroundText: Color,
-    primaryText: Color
+    primaryText: Color,
+    unreadCount: Int = 0
 ) {
     val bg = if (isSelected) Color.White.copy(alpha = 0.08f) else Color.Transparent
     val textWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
@@ -77,7 +78,26 @@ fun DmChannelItem(
             text = displayName,
             color = if (isSelected) foregroundText else primaryText,
             fontSize = 15.sp,
-            fontWeight = textWeight
+            fontWeight = textWeight,
+            modifier = Modifier.weight(1f)
         )
+
+        if (unreadCount > 0) {
+            Box(
+                modifier = Modifier
+                    .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFE3E5E8)) // Snow/porcelain color
+                    .padding(horizontal = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = unreadCount.toString(),
+                    color = Color(0xFF2B2B2B), // Dark text for contrast
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
     }
 }

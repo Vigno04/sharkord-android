@@ -56,7 +56,7 @@ object TrpcProtocol {
     /**
      * Builds a tRPC query message.
      */
-    fun buildQuery(id: Int, path: String, input: JsonObject = JsonObject()): String {
+    fun buildQuery(id: Int, path: String, input: com.google.gson.JsonElement = JsonObject()): String {
         val message = JsonObject().apply {
             addProperty("id", id)
             addProperty("method", "query")
@@ -71,7 +71,7 @@ object TrpcProtocol {
     /**
      * Builds a tRPC mutation message.
      */
-    fun buildMutation(id: Int, path: String, input: JsonObject): String {
+    fun buildMutation(id: Int, path: String, input: com.google.gson.JsonElement): String {
         val message = JsonObject().apply {
             addProperty("id", id)
             addProperty("method", "mutation")
@@ -86,7 +86,7 @@ object TrpcProtocol {
     /**
      * Builds a tRPC subscription message.
      */
-    fun buildSubscription(id: Int, path: String, input: JsonObject? = null): String {
+    fun buildSubscription(id: Int, path: String, input: com.google.gson.JsonElement? = null): String {
         val message = JsonObject().apply {
             addProperty("id", id)
             addProperty("method", "subscription")
@@ -106,6 +106,10 @@ object TrpcProtocol {
      * Parses an incoming WebSocket text message into a [TrpcResponse].
      */
     fun parseResponse(text: String): TrpcResponse {
+        // tRPC v11 string-based keepAlive
+        if (text == "PING") return TrpcResponse.Ping(null)
+        if (text == "PONG") return TrpcResponse.Pong
+
         return try {
             val root = JsonParser.parseString(text).asJsonObject
 

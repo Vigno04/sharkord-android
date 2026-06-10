@@ -80,12 +80,19 @@ class SessionManager(context: Context) {
         return autoLogin && !token.isNullOrBlank() && !serverUrl.isNullOrBlank()
     }
 
+    var maxDiskCacheMb: Int
+        get() = prefs.getInt(KEY_MAX_DISK_CACHE_MB, 250)
+        set(value) {
+            prefs.edit().putInt(KEY_MAX_DISK_CACHE_MB, value).apply()
+        }
+
     companion object {
         private const val PREFS_NAME = "sharkord_prefs"
         private const val KEY_TOKEN = "login_token"
         private const val KEY_SERVER_URL = "server_url"
         private const val KEY_SERVER_LOGO_URL = "server_logo_url"
         private const val KEY_AUTO_LOGIN = "auto_login"
+        private const val KEY_MAX_DISK_CACHE_MB = "max_disk_cache_mb"
     }
 }
 

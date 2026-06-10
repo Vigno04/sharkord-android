@@ -49,9 +49,20 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.buildAnnotatedString
+
+private val imgRegex = Regex("""<img\b[^>]*>""")
+private val classRegex = Regex("""class=["']([^"']+)["']""")
+private val altRegex = Regex("""alt=["']([^"']+)["']""")
+private val srcRegex = Regex("""src=["']([^"']+)["']""")
+private val tokenRegex = Regex("""\[\[EMOJI\|(.*?)\|(.*?)\]\]""")
 
 /**
  * Renders a single chat message in the message list.
@@ -67,6 +78,7 @@ fun MessageItem(
     users: List<User>,
     roles: List<Role>,
     ownUserId: Int,
+    isHighlighted: Boolean = false,
     modifier: Modifier = Modifier,
     fullscreenMediaId: String? = null,
     onLongClick: (Message) -> Unit = {},
@@ -102,9 +114,72 @@ fun MessageItem(
         }
     }
 
-    // Strip HTML tags from content for plain-text rendering
-    val plainContent = remember(message.content) {
-        HtmlCompat.fromHtml(message.content, HtmlCompat.FROM_HTML_MODE_COMPACT).toString().trim()
+    // Pre-process HTML to preserve custom emojis as tokens before stripping tags
+    val preProcessedHtml = remember(message.content) {
+        val raw = message.content ?: ""
+        imgRegex.replace(raw) { matchResult ->
+            val imgTag = matchResult.value
+            val clazz = classRegex.find(imgTag)?.groupValues?.get(1) ?: ""
+            val alt = altRegex.find(imgTag)?.groupValues?.get(1) ?: ""
+            val src = srcRegex.find(imgTag)?.groupValues?.get(1) ?: ""
+
+            if (src.isNotEmpty()) {
+                "[[EMOJI|$alt|$src]]"
+            } else {
+                "" // Drop other images
+            }
+        }
+    }
+
+    val textWithTokens = remember(preProcessedHtml) {
+        HtmlCompat.fromHtml(preProcessedHtml, HtmlCompat.FROM_HTML_MODE_COMPACT).toString().trim()
+    }
+
+    val inlineContentMap = remember(textWithTokens) { mutableMapOf<String, InlineTextContent>() }
+
+    val annotatedContent = remember(textWithTokens) {
+        buildAnnotatedString {
+            var lastIndex = 0
+            tokenRegex.findAll(textWithTokens).forEach { matchResult ->
+                append(textWithTokens.substring(lastIndex, matchResult.range.first))
+
+                val alt = matchResult.groupValues[1]
+                val src = matchResult.groupValues[2]
+                val id = "emoji_${matchResult.range.first}"
+                
+                val safeAlt = alt.ifEmpty { "emoji" }
+                appendInlineContent(id, safeAlt)
+
+                val isEmojiOnly = tokenRegex.replace(textWithTokens, "").trim().isEmpty()
+                val size = if (isEmojiOnly) 48.sp else 24.sp
+
+                inlineContentMap[id] = InlineTextContent(
+                    Placeholder(width = size, height = size, placeholderVerticalAlign = PlaceholderVerticalAlign.Center)
+                ) {
+                    val fullUrl = if (src.startsWith("http")) src else "${SharkordClient.currentServerUrl}$src"
+                    val painter = rememberAsyncImagePainter(fullUrl)
+                    if (painter != null) {
+                        Image(painter = painter, contentDescription = alt, modifier = Modifier.fillMaxSize())
+                    } else {
+                        Text(text = alt, fontSize = size * 0.5f)
+                    }
+                }
+
+                lastIndex = matchResult.range.last + 1
+            }
+            append(textWithTokens.substring(lastIndex))
+        }
+    }
+
+    val isEmojiOnly = remember(textWithTokens) {
+        val withoutTokens = tokenRegex.replace(textWithTokens, "").trim()
+        if (withoutTokens.isEmpty() && textWithTokens.isNotEmpty()) {
+            true // Only custom emojis
+        } else if (withoutTokens.isNotEmpty()) {
+            EmojiMapper.isEmojiOnly(withoutTokens) // Check if remaining text is only unicode emojis
+        } else {
+            false
+        }
     }
 
     val timestamp by produceState(initialValue = formatTimestamp(message.createdAt), message.createdAt) {
@@ -114,9 +189,23 @@ fun MessageItem(
         }
     }
 
+    val highlightColor = Color(0x22FFFFFF)
+    val transparentHighlight = Color(0x00FFFFFF)
+    val animatableColor = remember { androidx.compose.animation.Animatable(transparentHighlight) }
+    
+    LaunchedEffect(isHighlighted) {
+        if (isHighlighted) {
+            animatableColor.animateTo(highlightColor, androidx.compose.animation.core.tween(300))
+            animatableColor.animateTo(transparentHighlight, androidx.compose.animation.core.tween(300))
+        } else {
+            animatableColor.snapTo(transparentHighlight)
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .background(animatableColor.value)
             .combinedClickable(
                 onLongClick = { onLongClick(message) },
                 onClick = {}
@@ -201,7 +290,11 @@ fun MessageItem(
 
                 val replyPlainContent = remember(message.replyTo.content) {
                     val raw = message.replyTo.content ?: ""
-                    HtmlCompat.fromHtml(raw, HtmlCompat.FROM_HTML_MODE_COMPACT).toString().trim()
+                    val replacedHtml = imgRegex.replace(raw) { matchResult ->
+                        val alt = altRegex.find(matchResult.value)?.groupValues?.get(1) ?: ""
+                        if (alt.isNotEmpty()) alt else ""
+                    }
+                    HtmlCompat.fromHtml(replacedHtml, HtmlCompat.FROM_HTML_MODE_COMPACT).toString().trim()
                 }
 
                 Text(
@@ -299,15 +392,15 @@ fun MessageItem(
                     Spacer(modifier = Modifier.height(2.dp))
                 }
 
-                if (plainContent.isNotEmpty()) {
-                    val isEmojiOnly = remember(plainContent) { EmojiMapper.isEmojiOnly(plainContent) }
+                if (annotatedContent.isNotEmpty()) {
                     val fontSize = if (isEmojiOnly) 36.sp else 15.sp
                     val lineHeight = if (isEmojiOnly) 44.sp else 21.sp
                     Text(
-                        text = plainContent,
+                        text = annotatedContent,
                         color = textSecondary,
                         fontSize = fontSize,
-                        lineHeight = lineHeight
+                        lineHeight = lineHeight,
+                        inlineContent = inlineContentMap
                     )
                 }
 

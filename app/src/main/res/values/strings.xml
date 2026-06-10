@@ -379,6 +379,9 @@
     <string name="settings_defaultRoleUpdated">Default role updated</string>
     <string name="settings_defaultWebcam">Default Webcam</string>
     <string name="settings_deleteBtn">Delete</string>
+    <string name="settings_deleteChannelMsg">Are you sure you want to delete this channel? This action cannot be undone.</string>
+    <string name="settings_deleteChannelTitle">Delete Channel</string>
+    <string name="settings_deleteLabel">Delete</string>
     <string name="settings_deleteEmojiBtn">Delete</string>
     <string name="settings_deleteEmojiMsg">Are you sure you want to delete this emoji? This action cannot be undone.</string>
     <string name="settings_deleteEmojiTitle">Delete Emoji</string>

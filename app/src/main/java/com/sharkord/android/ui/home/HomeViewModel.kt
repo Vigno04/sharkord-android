@@ -17,6 +17,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.google.gson.Gson
+import com.google.gson.JsonObject
+import com.sharkord.android.data.model.UnifiedSearchResult
+import com.sharkord.android.data.model.UnifiedMessageResult
+import com.sharkord.android.data.model.UnifiedFileResult
+import com.sharkord.android.data.model.SearchResults
 
 enum class HomePanel {
     SERVER, CHAT
@@ -30,12 +36,26 @@ data class HomeUiState(
     val isLoading: Boolean = true,
     val serverData: JoinServerData? = null,
     val selectedChannelId: Int? = null,
+    val selectedMessageId: Int? = null,
+    val jumpTrigger: Long = 0L,
     val collapsedCategories: Set<Int> = emptySet(),
     val errorMessage: String? = null,
     val reconnectAttempts: Int = 0,
     val showProfileSheet: Boolean = false,
     val showMembersSheet: Boolean = false,
-    val activePanel: HomePanel = HomePanel.SERVER
+    val showServerSheet: Boolean = false,
+    val showSearchSheet: Boolean = false,
+    val searchQuery: String = "",
+    val isSearching: Boolean = false,
+    val searchResults: List<UnifiedSearchResult>? = null,
+    val activePanel: HomePanel = HomePanel.SERVER,
+    val showAddChannelDialog: Boolean = false,
+    val addChannelCategoryId: Int? = null,
+    val showAddCategoryDialog: Boolean = false,
+    val showDeleteChannelDialogForId: Int? = null,
+    val isDmsListOpen: Boolean = false,
+    val membersSheetFilterDms: Boolean = false,
+    val readStates: Map<Int, Int> = emptyMap()
 )
 
 /**
@@ -99,7 +119,7 @@ class HomeViewModel : ViewModel() {
             }
         }
 
-        // Fetch server details in background to ensure we always have the freshest server logo, name and description
+        // Fetch server details in background to ensure freshest server logo, name and description
         viewModelScope.launch {
             SharkordClient.currentServerUrl?.let { url ->
                 repository.fetchServerInfo(url)
@@ -143,12 +163,20 @@ class HomeViewModel : ViewModel() {
                 reconnectBannerJob = null
 
                 val data = state.serverData
+                
+                // Parse string-keyed map into Int-keyed map for readStates
+                val initialReadStates = data.readStates?.mapNotNull { (key, value) ->
+                    val id = key.toIntOrNull()
+                    if (id != null) id to value else null
+                }?.toMap() ?: emptyMap()
+
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         errorMessage = null,
                         reconnectAttempts = 0,
                         serverData = data,
+                        readStates = initialReadStates,
                         selectedChannelId = it.selectedChannelId
                             ?: data.channels.firstOrNull { ch -> !ch.isVoice && !ch.isDm }?.id
                     )
@@ -162,7 +190,7 @@ class HomeViewModel : ViewModel() {
                         isLoading = false,
                         reconnectAttempts = attempts,
                         // Only show error to user after 3 failed attempts
-                        // (if we already have data, show banner instead of fullscreen error)
+                        // (if data exists, show banner instead of fullscreen error)
                         errorMessage = if (attempts >= 3) state.message else it.errorMessage
                     )
                 }
@@ -409,6 +437,32 @@ class HomeViewModel : ViewModel() {
                 is ServerEvent.MessageDeleted -> state
                 is ServerEvent.UserTyping -> state
 
+                // Read States
+                is ServerEvent.ChannelReadStateUpdate -> {
+                    Log.d(TAG, "[EVENT] channels.onReadStateUpdate: channelId=${event.channelId}, count=${event.count}")
+                    // If the channel is actively viewed, ignore updates and instantly mark as read
+                    if (state.selectedChannelId == event.channelId && state.activePanel == HomePanel.CHAT) {
+                        viewModelScope.launch { repository.markChannelAsRead(event.channelId) }
+                        return@update state
+                    }
+                    val newMap = state.readStates.toMutableMap()
+                    newMap[event.channelId] = event.count
+                    state.copy(readStates = newMap)
+                }
+
+                is ServerEvent.ChannelReadStateDelta -> {
+                    Log.d(TAG, "[EVENT] channels.onReadStateDelta: channelId=${event.channelId}, delta=${event.delta}")
+                    if (state.selectedChannelId == event.channelId && state.activePanel == HomePanel.CHAT) {
+                        viewModelScope.launch { repository.markChannelAsRead(event.channelId) }
+                        return@update state
+                    }
+                    val currentCount = state.readStates[event.channelId] ?: 0
+                    val newCount = kotlin.math.max(0, currentCount + event.delta)
+                    val newMap = state.readStates.toMutableMap()
+                    newMap[event.channelId] = newCount
+                    state.copy(readStates = newMap)
+                }
+
                 // Server Settings
 
                 is ServerEvent.ServerSettingsUpdated -> {
@@ -427,12 +481,47 @@ class HomeViewModel : ViewModel() {
 
     // UI Actions
 
-    fun selectChannel(channelId: Int) {
-        _uiState.update { it.copy(selectedChannelId = channelId, activePanel = HomePanel.CHAT) }
+    fun selectChannel(channelId: Int, messageId: Int? = null, navigateToChat: Boolean = true) {
+        _uiState.update { 
+            val newReadStates = it.readStates.toMutableMap()
+            newReadStates[channelId] = 0
+
+            it.copy(
+                selectedChannelId = channelId, 
+                selectedMessageId = messageId, 
+                activePanel = if (navigateToChat) HomePanel.CHAT else it.activePanel,
+                jumpTrigger = if (messageId != null) System.currentTimeMillis() else it.jumpTrigger,
+                readStates = newReadStates
+            ) 
+        }
+        
+        // Notify the server that we have read the channel
+        viewModelScope.launch {
+            repository.markChannelAsRead(channelId)
+        }
     }
 
     fun setPanel(panel: HomePanel) {
-        _uiState.update { it.copy(activePanel = panel) }
+        _uiState.update { state ->
+            var newReadStates = state.readStates
+            if (panel == HomePanel.CHAT && state.selectedChannelId != null) {
+                newReadStates = state.readStates.toMutableMap().apply {
+                    put(state.selectedChannelId, 0)
+                }
+            }
+            state.copy(
+                activePanel = panel,
+                readStates = newReadStates
+            )
+        }
+
+        if (panel == HomePanel.CHAT) {
+            _uiState.value.selectedChannelId?.let { channelId ->
+                viewModelScope.launch {
+                    repository.markChannelAsRead(channelId)
+                }
+            }
+        }
     }
 
     fun toggleCategory(categoryId: Int) {
@@ -455,12 +544,155 @@ class HomeViewModel : ViewModel() {
         _uiState.update { it.copy(showProfileSheet = false) }
     }
 
-    fun showMembersSheet() {
-        _uiState.update { it.copy(showMembersSheet = true) }
+    fun showMembersSheet(filterDms: Boolean = false) {
+        _uiState.update { it.copy(showMembersSheet = true, membersSheetFilterDms = filterDms) }
     }
 
     fun dismissMembersSheet() {
         _uiState.update { it.copy(showMembersSheet = false) }
+    }
+
+    fun showServerSheet() {
+        _uiState.update { it.copy(showServerSheet = true) }
+    }
+
+    fun dismissServerSheet() {
+        _uiState.update { it.copy(showServerSheet = false) }
+    }
+
+    fun showSearchSheet() {
+        _uiState.update { it.copy(showSearchSheet = true) }
+    }
+
+    fun dismissSearchSheet() {
+        _uiState.update { it.copy(showSearchSheet = false, searchQuery = "", searchResults = null) }
+    }
+
+    fun openDmsList() {
+        _uiState.update { it.copy(isDmsListOpen = true) }
+    }
+
+    fun closeDmsList() {
+        _uiState.update { it.copy(isDmsListOpen = false) }
+    }
+
+    fun setSearchQuery(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+    }
+
+    fun performSearch() {
+        val query = _uiState.value.searchQuery.trim()
+        if (query.isEmpty()) {
+            _uiState.update { it.copy(searchResults = null, isSearching = false) }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSearching = true) }
+            try {
+                val input = JsonObject().apply { addProperty("query", query) }
+                val response = SharkordClient.webSocket.sendQueryAwait("messages.search", input)
+                val results = Gson().fromJson(response, SearchResults::class.java)
+
+                val unifiedList = mutableListOf<UnifiedSearchResult>()
+                results.messages.forEach { msg ->
+                    unifiedList.add(UnifiedMessageResult(key = "msg_${msg.id}", createdAt = msg.createdAt, item = msg))
+                }
+                results.files.forEach { file ->
+                    unifiedList.add(UnifiedFileResult(key = "file_${file.file.id}", createdAt = file.messageCreatedAt, item = file))
+                }
+                unifiedList.sortByDescending { it.createdAt }
+
+                _uiState.update { it.copy(searchResults = unifiedList, isSearching = false) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Search failed", e)
+                _uiState.update { it.copy(isSearching = false, searchResults = emptyList()) }
+            }
+        }
+    }
+
+    fun showAddChannelDialog(categoryId: Int?) {
+        _uiState.update { it.copy(showAddChannelDialog = true, addChannelCategoryId = categoryId) }
+    }
+
+    fun dismissAddChannelDialog() {
+        _uiState.update { it.copy(showAddChannelDialog = false, addChannelCategoryId = null) }
+    }
+
+    fun createChannel(name: String, type: com.sharkord.android.data.model.ChannelType, categoryId: Int?) {
+        viewModelScope.launch {
+            val result = repository.createChannel(name, type, categoryId)
+            if (result.isSuccess) {
+                dismissAddChannelDialog()
+            }
+            result.onFailure { error ->
+                _uiState.update { it.copy(errorMessage = error.message ?: "Failed to create channel") }
+            }
+        }
+    }
+
+    fun showAddCategoryDialog() {
+        _uiState.update { it.copy(showAddCategoryDialog = true) }
+    }
+
+    fun dismissAddCategoryDialog() {
+        _uiState.update { it.copy(showAddCategoryDialog = false) }
+    }
+
+    fun createCategory(name: String) {
+        viewModelScope.launch {
+            val result = repository.createCategory(name)
+            if (result.isSuccess) {
+                dismissAddCategoryDialog()
+            }
+            result.onFailure { error ->
+                _uiState.update { it.copy(errorMessage = error.message ?: "Failed to create category") }
+            }
+        }
+    }
+
+    fun showDeleteChannelDialog(channelId: Int) {
+        _uiState.update { it.copy(showDeleteChannelDialogForId = channelId) }
+    }
+
+    fun dismissDeleteChannelDialog() {
+        _uiState.update { it.copy(showDeleteChannelDialogForId = null) }
+    }
+
+    fun deleteChannel(channelId: Int) {
+        viewModelScope.launch {
+            val result = repository.deleteChannel(channelId)
+            if (result.isSuccess) {
+                dismissDeleteChannelDialog()
+            } else {
+                _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message ?: "Failed to delete channel") }
+            }
+        }
+    }
+
+    fun reorderChannels(categoryId: Int, channelIds: List<Int>) {
+        // Optimistic update to prevent visual glitches while websocket events stream in
+        _uiState.update { state ->
+            val data = state.serverData ?: return@update state
+            val currentChannels = data.channels.toMutableList()
+            
+            var currentPosition = 1
+            for (id in channelIds) {
+                val index = currentChannels.indexOfFirst { it.id == id }
+                if (index != -1) {
+                    val channel = currentChannels[index]
+                    currentChannels[index] = channel.copy(position = currentPosition++)
+                }
+            }
+            state.copy(serverData = data.copy(channels = currentChannels))
+        }
+
+        viewModelScope.launch {
+            val result = repository.reorderChannels(categoryId, channelIds)
+            result.onFailure { error ->
+                _uiState.update { it.copy(errorMessage = error.message ?: "Failed to reorder channels") }
+            }
+        }
     }
 
     /**

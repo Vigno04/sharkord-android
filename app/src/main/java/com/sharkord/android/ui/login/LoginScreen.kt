@@ -47,7 +47,7 @@ fun LoginScreen(
     val context = LocalContext.current
     
     // Synchronously check for a saved valid session on the very first frame
-    // to prevent any flashing of the login form/fields during auto-login transitions!
+    // to prevent flashing of the login form/fields during auto-login transitions
     val hasSavedSession = remember(context) {
         SharkordClient.initialize(context)
         SharkordClient.session.hasValidSession()

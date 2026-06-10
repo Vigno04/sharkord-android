@@ -18,6 +18,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.sharkord.android.ui.home.HomeScreen
 import com.sharkord.android.ui.login.LoginScreen
+import com.sharkord.android.ui.settings.UserSettingsScreen
 import com.sharkord.android.ui.theme.SharkordTheme
 
 class MainActivity : ComponentActivity() {
@@ -66,6 +67,41 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     navController.navigate("login") {
                         popUpTo("home") { inclusive = true }
                     }
+                },
+                onNavigateToSettings = {
+                    navController.navigate("user_settings")
+                },
+                onNavigateToServerSettings = {
+                    navController.navigate("server_settings")
+                },
+                onNavigateToChannelSettings = { channelId ->
+                    navController.navigate("channel_settings/$channelId")
+                }
+            )
+        }
+        composable("user_settings") {
+            UserSettingsScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+        composable("server_settings") {
+            com.sharkord.android.ui.settings.ServerSettingsScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+        composable(
+            route = "channel_settings/{channelId}",
+            arguments = listOf(androidx.navigation.navArgument("channelId") { type = androidx.navigation.NavType.IntType })
+        ) { backStackEntry ->
+            val channelId = backStackEntry.arguments?.getInt("channelId") ?: return@composable
+            com.sharkord.android.ui.settings.ChannelSettingsScreen(
+                channelId = channelId,
+                onBackClick = {
+                    navController.popBackStack()
                 }
             )
         }

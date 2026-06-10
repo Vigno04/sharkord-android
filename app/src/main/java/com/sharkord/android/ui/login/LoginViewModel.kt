@@ -56,7 +56,7 @@ class LoginViewModel : ViewModel() {
         // Restore auto-login preference
         autoLogin = repository.isAutoLoginEnabled()
 
-        // Try to auto-login if we have a saved session
+        // Try to auto-login if a saved session exists
         if (repository.restoreSession()) {
             isAutoLoggingIn = true
             serverUrl = SharkordClient.currentServerUrl ?: ""

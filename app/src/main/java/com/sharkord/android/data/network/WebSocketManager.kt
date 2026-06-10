@@ -117,7 +117,7 @@ class WebSocketManager(
      * Sends a tRPC query and returns the assigned message ID.
      * The response will arrive via the WebSocket message handler.
      */
-    fun sendQuery(path: String, input: JsonObject = JsonObject()): Int {
+    fun sendQuery(path: String, input: com.google.gson.JsonElement = JsonObject()): Int {
         val id = TrpcProtocol.getNextId()
         val message = TrpcProtocol.buildQuery(id, path, input)
         webSocket?.send(message)
@@ -128,7 +128,7 @@ class WebSocketManager(
     /**
      * Sends a tRPC mutation and returns the assigned message ID.
      */
-    fun sendMutation(path: String, input: JsonObject): Int {
+    fun sendMutation(path: String, input: com.google.gson.JsonElement): Int {
         val id = TrpcProtocol.getNextId()
         val message = TrpcProtocol.buildMutation(id, path, input)
         webSocket?.send(message)
@@ -141,7 +141,7 @@ class WebSocketManager(
      * Throws [WebSocketNotConnectedException] if the socket is null,
      * or a [TrpcCallException] if the server returns an error.
      */
-    suspend fun sendQueryAwait(path: String, input: JsonObject = JsonObject()): JsonObject {
+    suspend fun sendQueryAwait(path: String, input: com.google.gson.JsonElement = JsonObject()): JsonObject {
         val id = TrpcProtocol.getNextId()
         val deferred = CompletableDeferred<JsonObject>()
         pendingCalls[id] = deferred
@@ -160,7 +160,7 @@ class WebSocketManager(
      * Throws [WebSocketNotConnectedException] if the socket is null,
      * or a [TrpcCallException] if the server returns an error.
      */
-    suspend fun sendMutationAwait(path: String, input: JsonObject): JsonObject {
+    suspend fun sendMutationAwait(path: String, input: com.google.gson.JsonElement): JsonObject {
         val id = TrpcProtocol.getNextId()
         val deferred = CompletableDeferred<JsonObject>()
         pendingCalls[id] = deferred
@@ -177,7 +177,7 @@ class WebSocketManager(
     /**
      * Subscribes to a tRPC subscription and returns the assigned message ID.
      */
-    fun subscribe(path: String, input: JsonObject? = null): Int {
+    fun subscribe(path: String, input: com.google.gson.JsonElement? = null): Int {
         val id = TrpcProtocol.getNextId()
         val message = TrpcProtocol.buildSubscription(id, path, input)
         activeSubscriptions[id] = path
@@ -233,7 +233,7 @@ class WebSocketManager(
                 val authPayload = TrpcProtocol.buildAuthPayload(token ?: "")
                 webSocket.send(authPayload)
 
-                // Step 2: Immediately send the handshake query (no delay needed!)
+                // Step 2: Immediately send the handshake query
                 // The server's tRPC connectionParams reads from the FIRST message,
                 // and the handshake query arrives as a separate tRPC message
                 // that is processed after auth context is established.
@@ -260,8 +260,11 @@ class WebSocketManager(
                     is TrpcResponse.SubscriptionComplete -> handleSubscriptionComplete(response)
                     is TrpcResponse.Ping -> {
                         Log.d(TAG, "Received tRPC ping, replying with pong")
-                        val idStr = if (response.id != null) response.id.toString() else "null"
-                        webSocket.send("{\"id\":$idStr,\"method\":\"pong\"}")
+                        if (response.id != null) {
+                            webSocket.send("{\"id\":${response.id},\"method\":\"pong\"}")
+                        } else {
+                            webSocket.send("PONG")
+                        }
                     }
                     is TrpcResponse.Pong -> {
                         Log.d(TAG, "Received tRPC pong")
@@ -355,7 +358,7 @@ class WebSocketManager(
                 _serverData.emit(joinData)
             }
 
-            // Step 4: Register all real-time subscriptions now that we are fully connected.
+            // Step 4: Register all real-time subscriptions after connecting.
             // This mirrors the web client's initSubscriptions() call after joinServer succeeds.
             setupRealtimeSubscriptions()
 
@@ -418,6 +421,8 @@ class WebSocketManager(
         subscribe("channels.onCreate")
         subscribe("channels.onDelete")
         subscribe("channels.onUpdate")
+        subscribe("channels.onReadStateUpdate")
+        subscribe("channels.onReadStateDelta")
 
         // Categories
         subscribe("categories.onCreate")
@@ -476,7 +481,7 @@ class WebSocketManager(
 
                 // Wait for connection to either succeed or fail by observing the state flow.
                 // onJoinServerResponse() sets Connected and cancels this job;
-                // onFailure/onClosed sets Error and we loop to the next attempt.
+                // onFailure/onClosed sets Error and loops to the next attempt.
                 val result = _connectionState.first {
                     it.isConnected || it is ConnectionState.Error
                 }

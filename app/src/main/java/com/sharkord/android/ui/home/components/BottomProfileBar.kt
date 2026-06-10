@@ -42,7 +42,7 @@ fun BottomProfileBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onProfileClick() } // Open user settings profile sheet when clicked!
+            .clickable { onProfileClick() } // Open user settings profile sheet when clicked
             .padding(horizontal = 16.dp, vertical = 8.dp) // Outer spacing
     ) {
         // The dark background bar

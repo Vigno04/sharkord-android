@@ -33,6 +33,12 @@ sealed class ServerEvent {
     /** A channel's metadata (name, description, position, etc.) was updated. */
     data class ChannelUpdated(val channel: Channel) : ServerEvent()
 
+    /** A channel's read state count was set explicitly. */
+    data class ChannelReadStateUpdate(val channelId: Int, val count: Int) : ServerEvent()
+
+    /** A channel's read state count received an incremental delta. */
+    data class ChannelReadStateDelta(val channelId: Int, val delta: Int) : ServerEvent()
+
     // Categories
 
     /** A new category was created. */
@@ -148,6 +154,18 @@ object ServerEventHandler {
 
                 "channels.onUpdate" ->
                     ServerEvent.ChannelUpdated(fromJson(event.data, Channel::class.java))
+
+                "channels.onReadStateUpdate" ->
+                    ServerEvent.ChannelReadStateUpdate(
+                        channelId = event.data.get("channelId").asInt,
+                        count = event.data.get("count").asInt
+                    )
+
+                "channels.onReadStateDelta" ->
+                    ServerEvent.ChannelReadStateDelta(
+                        channelId = event.data.get("channelId").asInt,
+                        delta = event.data.get("delta").asInt
+                    )
 
                 // Categories
                 "categories.onCreate" ->

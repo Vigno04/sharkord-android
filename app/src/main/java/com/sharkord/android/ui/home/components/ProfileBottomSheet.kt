@@ -4,12 +4,11 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -17,20 +16,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharkord.android.R
+import com.sharkord.android.data.model.Role
 import com.sharkord.android.data.model.User
 import com.sharkord.android.data.network.SharkordClient
-import com.sharkord.android.ui.components.rememberAsyncImagePainter
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
-/**
- * Bottom sheet displaying options for user profiles, server configurations, showing member list, and logging out (to redo)
- */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileBottomSheet(
     currentUser: User?,
@@ -39,186 +37,219 @@ fun ProfileBottomSheet(
     serverName: String,
     serverId: String?,
     memberCount: Int,
-    bgColor: Color,
-    cardColor: Color,
-    primaryText: Color,
-    foregroundText: Color,
     onDismissRequest: () -> Unit,
     onShowMembers: () -> Unit,
-    onLogoutClick: () -> Unit
+    onLogoutClick: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
+    roles: List<Role> = emptyList()
 ) {
-    // This is the core bottom sheet popup
+    val colors = com.sharkord.android.ui.theme.LocalSharkordColors.current
+    val bgColor = colors.bgColor
+    val cardColor = colors.cardColor
+    val primaryText = colors.primaryText
+    val foregroundText = colors.foregroundText
+
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        containerColor = cardColor,
-        contentColor = primaryText
+        sheetState = sheetState,
+        containerColor = bgColor,
+        contentColor = primaryText,
+        dragHandle = null // Remove default drag handle to allow banner to touch the top
     ) {
-        // Vertical layout container
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
-            // Main title text
-            Text(
-                text = stringResource(id = R.string.profile_user_settings_title),
-                color = foregroundText,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            // This displays our profile card with avatar picture and user name
-            Card(
-                colors = CardDefaults.cardColors(containerColor = bgColor),
-                shape = RoundedCornerShape(12.dp),
+            // Banner Section
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(
-                        1.dp,
-                        Color.White.copy(alpha = 0.05f),
-                        RoundedCornerShape(12.dp)
+                    .height(120.dp)
+                    .background(
+                        try {
+                            Color(android.graphics.Color.parseColor(currentUser?.bannerColor ?: "#2B2B2B"))
+                        } catch (e: Exception) {
+                            cardColor
+                        }
                     )
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val avatarUrl = currentUser?.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }
-                    val avatarPainter = rememberAsyncImagePainter(avatarUrl)
-                    
-                    // Circular Avatar holder
-                    Box(
-                        modifier = Modifier
-                            .size(50.dp)
-                            .clip(CircleShape)
-                            .background(Color.DarkGray),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        avatarPainter?.let {
-                            Image(
-                                painter = it,
-                                contentDescription = "User Logo",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    
-                    // Text details: user's nickname and their unique user ID number
-                    Column {
-                        Text(
-                            text = userName,
-                            color = foregroundText,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = stringResource(id = R.string.settings_userIdLabel) + ": #" + ownUserId,
-                            color = Color.Gray,
-                            fontSize = 12.sp
-                        )
-                    }
+                val bannerUrl = currentUser?.banner?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }
+                val bannerPainter = com.sharkord.android.ui.components.rememberAsyncImagePainter(bannerUrl)
+                if (bannerPainter != null) {
+                    Image(
+                        painter = bannerPainter,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
-            // This card shows details about the current server we are connected to
-            Card(
-                colors = CardDefaults.cardColors(containerColor = bgColor),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(
-                        1.dp,
-                        Color.White.copy(alpha = 0.05f),
-                        RoundedCornerShape(12.dp)
-                    )
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    // Small capitalized category title
-                    Text(
-                        text = stringResource(id = R.string.settings_serverInfoTitle).uppercase(),
-                        color = Color.Gray,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.5.sp
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
 
-                    // Server's name
+            // Profile Info Section
+            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Spacer for the overlapping avatar
+                    Spacer(modifier = Modifier.height(56.dp))
+
                     Text(
-                        text = stringResource(id = R.string.settings_nameLabel) + ": " + serverName,
+                        text = userName,
                         color = foregroundText,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold
                     )
-                    // Server's unique ID
                     Text(
-                        text = "ID: " + (serverId ?: stringResource(id = R.string.settings_unknownValue)),
+                        text = stringResource(id = R.string.settings_userIdLabel) + ": #" + ownUserId,
                         color = Color.Gray,
-                        fontSize = 12.sp
+                        fontSize = 14.sp
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
-                    // Divider line
+                    Spacer(modifier = Modifier.height(16.dp))
                     Divider(color = Color.White.copy(alpha = 0.1f))
-                    Spacer(modifier = Modifier.height(8.dp))
 
-                    // Show members
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onShowMembers() } // When clicked, close this sheet and open the members sheet!
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.Person,
-                                contentDescription = null,
-                                tint = primaryText,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                             Text(
-                                 text = stringResource(id = R.string.profile_show_members),
-                                 color = primaryText,
-                                 fontSize = 14.sp
-                             )
-                        }
-                        // Displays the total member count
+                    if (!currentUser?.bio.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "$memberCount",
+                            text = stringResource(R.string.settings_bioLabel),
                             color = Color.Gray,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = currentUser.bio!!,
+                            color = primaryText,
                             fontSize = 14.sp
                         )
                     }
+
+                    val userRoles = currentUser?.roleIds?.mapNotNull { roleId -> roles.find { it.id == roleId } } ?: emptyList()
+                    if (userRoles.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = stringResource(R.string.settings_usersRolesCol),
+                            color = Color.Gray,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            userRoles.forEach { role ->
+                                val roleColor = try {
+                                    Color(android.graphics.Color.parseColor(role.color))
+                                } catch (e: Exception) {
+                                    Color.Gray
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(cardColor)
+                                        .border(1.dp, roleColor.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(roleColor))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(text = role.name, color = primaryText, fontSize = 12.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (currentUser?.createdAt != null) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        val date = Date(currentUser.createdAt)
+                        val formatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+                        Text(
+                            text = stringResource(R.string.common_memberSince, formatter.format(date)),
+                            color = Color.Gray,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Normal
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Button(
+                        onClick = { onNavigateToSettings() },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF5865F2).copy(alpha = 0.15f),
+                            contentColor = Color(0xFF5865F2)
+                        ),
+                        border = BorderStroke(1.dp, Color(0xFF5865F2).copy(alpha = 0.3f)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+                            Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.settings_userSettingsTitle))
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Button(
+                        onClick = { onLogoutClick() },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFEF4444).copy(alpha = 0.15f),
+                            contentColor = Color(0xFFEF4444)
+                        ),
+                        border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.3f)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                         Text(
+                             stringResource(id = R.string.sidebar_disconnect),
+                             modifier = Modifier.padding(vertical = 4.dp)
+                         )
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+
+                // Overlapping Avatar
+                val avatarUrl = currentUser?.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }
+
+                Box(
+                    modifier = Modifier
+                        .offset(y = (-40).dp)
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(bgColor)
+                        .border(4.dp, bgColor, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(modifier = Modifier.fillMaxSize().clip(CircleShape).background(Color.DarkGray)) {
+                        val avatarPainter = com.sharkord.android.ui.components.rememberAsyncImagePainter(avatarUrl)
+                        if (avatarPainter != null) {
+                            Image(
+                                painter = avatarPainter,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            val fallbackPainter = com.sharkord.android.ui.components.rememberAsyncImagePainter(null)
+                            if (fallbackPainter != null) {
+                                Image(
+                                    painter = fallbackPainter,
+                                    contentDescription = null,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+                    }
                 }
             }
-
-            // Pushes everything up, but allows spacer to be smaller if screen is small
-            Spacer(modifier = Modifier.weight(1f, fill = false))
-
-            // A red outline button to log out / disconnect from the active server
-            Button(
-                onClick = { onLogoutClick() },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFEF4444).copy(alpha = 0.15f), // Transparent red background
-                    contentColor = Color(0xFFEF4444) // Bright red text color
-                ),
-                border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.3f)), // Red border
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                 Text(
-                     stringResource(id = R.string.sidebar_disconnect),
-                     modifier = Modifier.padding(vertical = 4.dp)
-                 )
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
-

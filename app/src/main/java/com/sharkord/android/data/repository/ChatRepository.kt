@@ -35,12 +35,13 @@ class ChatRepository {
      *                   Pass `null` to fetch the newest page.
      * @return [Result.success] with [MessagesPage] on success, [Result.failure] on error.
      */
-    suspend fun getMessages(channelId: Int, cursor: Long? = null): Result<MessagesPage> {
+    suspend fun getMessages(channelId: Int, cursor: Long? = null, targetMessageId: Int? = null): Result<MessagesPage> {
         return try {
             val input = JsonObject().apply {
                 addProperty("channelId", channelId)
                 addProperty("limit", DEFAULT_LIMIT)
                 if (cursor != null) addProperty("cursor", cursor)
+                if (targetMessageId != null) addProperty("targetMessageId", targetMessageId)
             }
             val response = webSocket.sendQueryAwait("messages.get", input)
             val page = gson.fromJson(response, MessagesPage::class.java)

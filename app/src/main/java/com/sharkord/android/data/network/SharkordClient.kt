@@ -31,10 +31,10 @@ object SharkordClient {
      * reader from timing out during prolonged idle periods.
      */
     val okHttpClient: OkHttpClient = OkHttpClient.Builder()
-        .pingInterval(15, TimeUnit.SECONDS)
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(0, TimeUnit.SECONDS)
         .writeTimeout(0, TimeUnit.SECONDS)
+        .pingInterval(20, TimeUnit.SECONDS)
         .build()
 
     /** HTTP REST API client for /login, /info, etc. */
@@ -45,6 +45,10 @@ object SharkordClient {
 
     /** Session/preferences manager. Initialized lazily via [initialize]. */
     lateinit var session: SessionManager
+        private set
+
+    /** Global application context, initialized lazily. */
+    lateinit var applicationContext: Context
         private set
 
     /**
@@ -69,7 +73,8 @@ object SharkordClient {
      * Call this once from Application.onCreate() or the first Activity.
      */
     fun initialize(context: Context) {
-        session = SessionManager(context.applicationContext)
+        applicationContext = context.applicationContext
+        session = SessionManager(applicationContext)
     }
 
     /**

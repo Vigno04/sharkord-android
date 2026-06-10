@@ -58,7 +58,9 @@ data class ChatUiState(
     /** Expose the current user's ID reactively from the server connection state. */
     val ownUserId: Int = -1,
     /** The media file currently being viewed in full-screen lightbox. */
-    val viewingMediaFile: com.sharkord.android.data.model.FileInfo? = null
+    val viewingMediaFile: com.sharkord.android.data.model.FileInfo? = null,
+    /** ID of the message to jump to. Handled and cleared by ChatPanel. */
+    val jumpTargetMessageId: Int? = null
 ) {
     /** Helper check to see if the user is authorized to edit/delete a message. */
     fun canManageMessage(message: Message, roles: List<Role>, users: List<User>): Boolean {
@@ -100,6 +102,7 @@ class ChatViewModel : ViewModel() {
     private var channelId: Int = -1
     private var eventJob: Job? = null
     private var typingExpiryJob: Job? = null
+    private var messageLoadJob: Job? = null
     private var lastTypingSentTime = 0L
 
     private val activeTypingUsers = mutableMapOf<Int, Long>()
@@ -118,52 +121,56 @@ class ChatViewModel : ViewModel() {
     /**
      * Initialises this ViewModel for [channelId].
      */
-    fun init(channelId: Int) {
-        if (this.channelId == channelId) return
+    fun init(channelId: Int, targetMessageId: Int? = null) {
+        if (this.channelId == channelId && targetMessageId == null) return
         this.channelId = channelId
 
         activeTypingUsers.clear()
         val currentOwnId = _uiState.value.ownUserId
         _uiState.value = ChatUiState(ownUserId = currentOwnId) // reset state for the new channel but preserve ownUserId
-        loadInitialMessages()
+        loadInitialMessages(targetMessageId)
         startObservingEvents()
         startTypingExpiryTimer()
     }
 
     // Message Loading
 
-    private fun loadInitialMessages() {
-        val cached = MessagesCacheManager.getChannelCache(channelId)
-        if (cached != null) {
-            _uiState.update {
-                it.copy(
-                    messages = cached.messages,
-                    nextCursor = cached.nextCursor,
-                    hasReachedTop = cached.hasReachedTop,
-                    isLoadingHistory = false
-                )
-            }
-            // Background sync to catch any messages missed while disconnected
-            viewModelScope.launch {
-                repository.getMessages(channelId).onSuccess { page ->
-                    val sorted = page.messages.sortedBy { it.createdAt }
-                    _uiState.update { state ->
-                        val newState = state.copy(
-                            messages = sorted,
-                            nextCursor = page.nextCursor,
-                            hasReachedTop = page.nextCursor == null
-                        )
-                        MessagesCacheManager.updateChannelCache(channelId, ChannelCacheEntry(newState.messages, newState.nextCursor, newState.hasReachedTop))
-                        newState
+    private fun loadInitialMessages(targetMessageId: Int? = null) {
+        if (targetMessageId == null) {
+            val cached = MessagesCacheManager.getChannelCache(channelId)
+            if (cached != null) {
+                _uiState.update {
+                    it.copy(
+                        messages = cached.messages,
+                        nextCursor = cached.nextCursor,
+                        hasReachedTop = cached.hasReachedTop,
+                        isLoadingHistory = false
+                    )
+                }
+                // Background sync to catch any messages missed while disconnected
+                messageLoadJob?.cancel()
+                messageLoadJob = viewModelScope.launch {
+                    repository.getMessages(channelId).onSuccess { page ->
+                        val sorted = page.messages.sortedBy { it.createdAt }
+                        _uiState.update { state ->
+                            val newState = state.copy(
+                                messages = sorted,
+                                nextCursor = page.nextCursor,
+                                hasReachedTop = page.nextCursor == null
+                            )
+                            MessagesCacheManager.updateChannelCache(channelId, ChannelCacheEntry(newState.messages, newState.nextCursor, newState.hasReachedTop))
+                            newState
+                        }
                     }
                 }
+                return
             }
-            return
         }
 
-        viewModelScope.launch {
+        messageLoadJob?.cancel()
+        messageLoadJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoadingHistory = true, errorMessage = null) }
-            repository.getMessages(channelId).fold(
+            repository.getMessages(channelId, targetMessageId = targetMessageId).fold(
                 onSuccess = { page ->
                     val sorted = page.messages.sortedBy { it.createdAt }
                     _uiState.update {
@@ -171,9 +178,12 @@ class ChatViewModel : ViewModel() {
                             messages = sorted,
                             isLoadingHistory = false,
                             nextCursor = page.nextCursor,
-                            hasReachedTop = page.nextCursor == null
+                            hasReachedTop = page.nextCursor == null,
+                            jumpTargetMessageId = targetMessageId
                         )
-                        MessagesCacheManager.updateChannelCache(channelId, ChannelCacheEntry(newState.messages, newState.nextCursor, newState.hasReachedTop))
+                        if (targetMessageId == null) {
+                            MessagesCacheManager.updateChannelCache(channelId, ChannelCacheEntry(newState.messages, newState.nextCursor, newState.hasReachedTop))
+                        }
                         newState
                     }
                 },
@@ -224,6 +234,10 @@ class ChatViewModel : ViewModel() {
                 }
             )
         }
+    }
+
+    fun clearJumpTarget() {
+        _uiState.update { it.copy(jumpTargetMessageId = null) }
     }
 
     // Send, Edit, Delete, Reactions

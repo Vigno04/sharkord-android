@@ -667,7 +667,7 @@ fun ChatInputBar(
                                                 stopAndSendRecording()
                                             }
                                         } else {
-                                            // Single Tap to Toggle record mode!
+                                            // Single Tap to Toggle record mode
                                             isHoldToRecordMode = false
                                             if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
                                                 startRecording() 
