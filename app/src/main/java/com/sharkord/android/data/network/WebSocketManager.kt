@@ -452,6 +452,11 @@ class WebSocketManager(
         subscribe("messages.onDelete")
         subscribe("messages.onTyping")
 
+        // Voice
+        subscribe("voice.onJoin")
+        subscribe("voice.onLeave")
+        subscribe("voice.onUpdateState")
+
         // Server Settings
         subscribe("others.onServerSettingsUpdate")
 

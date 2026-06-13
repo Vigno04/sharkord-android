@@ -39,7 +39,9 @@ fun CategorySection(
     onReorderChannels: (List<Int>) -> Unit,
     foregroundText: Color,
     primaryText: Color,
-    readStates: Map<Int, Int> = emptyMap()
+    readStates: Map<Int, Int> = emptyMap(),
+    voiceMap: com.sharkord.android.data.model.VoiceMap? = null,
+    users: List<com.sharkord.android.data.model.User> = emptyList()
 ) {
     // Local state for dragging
     var localChannels by remember(channels) { mutableStateOf(channels) }
@@ -112,10 +114,10 @@ fun CategorySection(
                         channel = channel,
                         isSelected = selectedChannelId == channel.id,
                         onSelect = {
-                            if (!channel.isVoice) onChannelSelect(channel.id)
+                            onChannelSelect(channel.id)
                         },
                         onLongPress = {
-                            if (!channel.isVoice) onChannelLongPress(channel.id)
+                            onChannelLongPress(channel.id)
                         },
                         canManage = hasManageChannels,
                         onEditClick = { onChannelEdit(channel.id) },
@@ -157,7 +159,14 @@ fun CategorySection(
                         isDragging = isDragging,
                         foregroundText = foregroundText,
                         primaryText = primaryText,
-                        unreadCount = readStates[channel.id] ?: 0
+                        unreadCount = readStates[channel.id] ?: 0,
+                        voiceUsers = if (channel.isVoice && voiceMap != null) {
+                            val channelUsers = voiceMap[channel.id.toString()]?.users ?: emptyMap()
+                            channelUsers.mapNotNull { (userIdStr, state) ->
+                                val user = users.find { it.id.toString() == userIdStr }
+                                if (user != null) VoiceUserDisplay(user, state) else null
+                            }
+                        } else emptyList()
                     )
                 }
             }

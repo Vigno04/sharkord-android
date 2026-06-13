@@ -55,7 +55,8 @@ data class HomeUiState(
     val showDeleteChannelDialogForId: Int? = null,
     val isDmsListOpen: Boolean = false,
     val membersSheetFilterDms: Boolean = false,
-    val readStates: Map<Int, Int> = emptyMap()
+    val readStates: Map<Int, Int> = emptyMap(),
+    val activeVoiceChannelId: Int? = null
 )
 
 /**
@@ -86,6 +87,9 @@ class HomeViewModel : ViewModel() {
      * disconnects show the "Connection lost. Reconnecting..." message.
      */
     private var reconnectBannerJob: Job? = null
+    
+    private var typingJob: Job? = null
+    private var preDeafenMicMuted: Boolean = false
 
     /** Connection state directly from the WebSocket manager. */
     val connectionState: StateFlow<ConnectionState>
@@ -437,6 +441,38 @@ class HomeViewModel : ViewModel() {
                 is ServerEvent.MessageDeleted -> state
                 is ServerEvent.UserTyping -> state
 
+                // Voice
+                is ServerEvent.UserJoinedVoice -> {
+                    Log.d(TAG, "[EVENT] voice.onJoin: channelId=${event.channelId}, userId=${event.userId}")
+                    val newVoiceMap = data.voiceMap?.toMutableMap() ?: mutableMapOf()
+                    val channelUsers = newVoiceMap[event.channelId.toString()]?.users?.toMutableMap() ?: mutableMapOf()
+                    channelUsers[event.userId.toString()] = event.state
+                    newVoiceMap[event.channelId.toString()] = com.sharkord.android.data.model.ServerChannelVoiceState(users = channelUsers)
+                    state.copy(serverData = data.copy(voiceMap = newVoiceMap))
+                }
+
+                is ServerEvent.UserLeftVoice -> {
+                    Log.d(TAG, "[EVENT] voice.onLeave: channelId=${event.channelId}, userId=${event.userId}")
+                    val newVoiceMap = data.voiceMap?.toMutableMap() ?: return@update state
+                    val channelUsers = newVoiceMap[event.channelId.toString()]?.users?.toMutableMap() ?: return@update state
+                    channelUsers.remove(event.userId.toString())
+                    if (channelUsers.isEmpty()) {
+                        newVoiceMap.remove(event.channelId.toString())
+                    } else {
+                        newVoiceMap[event.channelId.toString()] = com.sharkord.android.data.model.ServerChannelVoiceState(users = channelUsers)
+                    }
+                    state.copy(serverData = data.copy(voiceMap = newVoiceMap))
+                }
+
+                is ServerEvent.UserVoiceStateUpdated -> {
+                    Log.d(TAG, "[EVENT] voice.onUpdateState: channelId=${event.channelId}, userId=${event.userId}")
+                    val newVoiceMap = data.voiceMap?.toMutableMap() ?: mutableMapOf()
+                    val channelUsers = newVoiceMap[event.channelId.toString()]?.users?.toMutableMap() ?: mutableMapOf()
+                    channelUsers[event.userId.toString()] = event.state
+                    newVoiceMap[event.channelId.toString()] = com.sharkord.android.data.model.ServerChannelVoiceState(users = channelUsers)
+                    state.copy(serverData = data.copy(voiceMap = newVoiceMap))
+                }
+
                 // Read States
                 is ServerEvent.ChannelReadStateUpdate -> {
                     Log.d(TAG, "[EVENT] channels.onReadStateUpdate: channelId=${event.channelId}, count=${event.count}")
@@ -498,6 +534,100 @@ class HomeViewModel : ViewModel() {
         // Notify the server that we have read the channel
         viewModelScope.launch {
             repository.markChannelAsRead(channelId)
+        }
+    }
+
+    // Voice Actions
+
+    fun joinVoiceChannel(channelId: Int) {
+        viewModelScope.launch {
+            try {
+                // Disconnect from current voice channel first if switching
+                if (_uiState.value.activeVoiceChannelId != null && _uiState.value.activeVoiceChannelId != channelId) {
+                    try {
+                        SharkordClient.webSocket.sendMutationAwait("voice.leave", JsonObject())
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to leave current voice channel before switching", e)
+                    }
+                }
+
+                val input = JsonObject().apply {
+                    addProperty("channelId", channelId)
+                    add("state", JsonObject().apply {
+                        addProperty("micMuted", false)
+                        addProperty("soundMuted", false)
+                    })
+                }
+                SharkordClient.webSocket.sendMutationAwait("voice.join", input)
+                _uiState.update { it.copy(activeVoiceChannelId = channelId) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to join voice channel", e)
+                _uiState.update { it.copy(errorMessage = "Failed to join voice channel") }
+            }
+        }
+    }
+
+    fun leaveVoiceChannel() {
+        viewModelScope.launch {
+            try {
+                SharkordClient.webSocket.sendMutationAwait("voice.leave", JsonObject())
+                _uiState.update { it.copy(activeVoiceChannelId = null) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to leave voice channel", e)
+                _uiState.update { it.copy(errorMessage = "Failed to leave voice channel") }
+            }
+        }
+    }
+
+    fun toggleMic(channelId: Int, currentMuted: Boolean, currentDeafened: Boolean) {
+        val newMuted = !currentMuted
+        // If unmuting while deafened, auto undeafen
+        val newDeafened = if (!newMuted && currentDeafened) false else currentDeafened
+        
+        preDeafenMicMuted = newMuted
+        updateVoiceState(channelId, newMuted, newDeafened)
+    }
+
+    fun toggleDeafen(channelId: Int, currentMuted: Boolean, currentDeafened: Boolean) {
+        val newDeafened = !currentDeafened
+        val newMuted: Boolean
+
+        if (newDeafened) {
+            // We are deafening. Save the current mic state and force mute.
+            preDeafenMicMuted = currentMuted
+            newMuted = true
+        } else {
+            // We are undeafening. Restore the previous mic state.
+            newMuted = preDeafenMicMuted
+        }
+
+        updateVoiceState(channelId, newMuted, newDeafened)
+    }
+
+    fun updateVoiceState(channelId: Int, micMuted: Boolean, soundMuted: Boolean) {
+        // Optimistic UI update to ensure UI never lags or gets out of sync
+        _uiState.update { state ->
+            val data = state.serverData ?: return@update state
+            val newVoiceMap = data.voiceMap?.toMutableMap() ?: mutableMapOf()
+            val channelUsers = newVoiceMap[channelId.toString()]?.users?.toMutableMap() ?: mutableMapOf()
+            
+            val currentState = channelUsers[data.ownUserId.toString()] ?: com.sharkord.android.data.model.VoiceUserState()
+            channelUsers[data.ownUserId.toString()] = currentState.copy(micMuted = micMuted, soundMuted = soundMuted)
+            
+            newVoiceMap[channelId.toString()] = com.sharkord.android.data.model.ServerChannelVoiceState(users = channelUsers)
+            state.copy(serverData = data.copy(voiceMap = newVoiceMap))
+        }
+
+        viewModelScope.launch {
+            try {
+                val input = JsonObject().apply {
+                    addProperty("micMuted", micMuted)
+                    addProperty("soundMuted", soundMuted)
+                }
+                SharkordClient.webSocket.sendMutationAwait("voice.updateState", input)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to update voice state", e)
+            }
         }
     }
 

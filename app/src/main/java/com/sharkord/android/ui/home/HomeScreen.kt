@@ -153,34 +153,79 @@ fun HomeScreen(
                             activeChannel?.name ?: ""
                         }
                         
-                        ChatPanel(
-                            channelId = uiState.selectedChannelId!!,
-                            targetMessageId = uiState.selectedMessageId,
-                            jumpTrigger = uiState.jumpTrigger,
-                            channelName = displayName,
-                            isDm = isDm,
-                            dmUser = otherUser,
-                            users = data.users,
-                            roles = data.roles ?: emptyList(),
-                            customEmojis = data.emojis ?: emptyList(),
-                            onBackClick = {
-                                coroutineScope.launch {
-                                    swipeOffset.animateTo(0f)
-                                    viewModel.setPanel(HomePanel.SERVER)
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .pointerInput(uiState.activePanel) {
-                                    if (uiState.activePanel == HomePanel.CHAT) {
-                                        detectHorizontalDragGestures { change, dragAmount ->
-                                            if (dragAmount > 50) {
-                                                viewModel.setPanel(HomePanel.SERVER)
+                        if (activeChannel?.isVoice == true) {
+                            val channelUsers = data.voiceMap?.get(uiState.selectedChannelId!!.toString())?.users ?: emptyMap()
+                            val currentState = channelUsers[data.ownUserId.toString()]
+                            val isMuted = currentState?.micMuted ?: true
+                            val isDeafened = currentState?.soundMuted ?: true
+
+                            VoicePanel(
+                                channelName = displayName,
+                                voiceUsers = if (data.voiceMap != null) {
+                                    channelUsers.mapNotNull { (userIdStr, state) ->
+                                        val user = data.users.find { it.id.toString() == userIdStr }
+                                        if (user != null) VoiceUserDisplay(user, state) else null
+                                    }
+                                } else emptyList(),
+                                isConnected = uiState.activeVoiceChannelId == uiState.selectedChannelId,
+                                isMuted = isMuted,
+                                isDeafened = isDeafened,
+                                onDisconnectClick = { viewModel.leaveVoiceChannel() },
+                                onConnectClick = { viewModel.joinVoiceChannel(uiState.selectedChannelId!!) },
+                                onToggleMicClick = { _ -> 
+                                    viewModel.toggleMic(uiState.selectedChannelId!!, isMuted, isDeafened) 
+                                },
+                                onToggleDeafenClick = { _ ->
+                                    viewModel.toggleDeafen(uiState.selectedChannelId!!, isMuted, isDeafened)
+                                },
+                                onBackClick = {
+                                    coroutineScope.launch {
+                                        swipeOffset.animateTo(0f)
+                                        viewModel.setPanel(HomePanel.SERVER)
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .pointerInput(uiState.activePanel) {
+                                        if (uiState.activePanel == HomePanel.CHAT) {
+                                            detectHorizontalDragGestures { change, dragAmount ->
+                                                if (dragAmount > 50) {
+                                                    viewModel.setPanel(HomePanel.SERVER)
+                                                }
                                             }
                                         }
                                     }
-                                }
-                        )
+                            )
+                        } else {
+                            ChatPanel(
+                                channelId = uiState.selectedChannelId!!,
+                                targetMessageId = uiState.selectedMessageId,
+                                jumpTrigger = uiState.jumpTrigger,
+                                channelName = displayName,
+                                isDm = isDm,
+                                dmUser = otherUser,
+                                users = data.users,
+                                roles = data.roles ?: emptyList(),
+                                customEmojis = data.emojis ?: emptyList(),
+                                onBackClick = {
+                                    coroutineScope.launch {
+                                        swipeOffset.animateTo(0f)
+                                        viewModel.setPanel(HomePanel.SERVER)
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .pointerInput(uiState.activePanel) {
+                                        if (uiState.activePanel == HomePanel.CHAT) {
+                                            detectHorizontalDragGestures { change, dragAmount ->
+                                                if (dragAmount > 50) {
+                                                    viewModel.setPanel(HomePanel.SERVER)
+                                                }
+                                            }
+                                        }
+                                    }
+                            )
+                        }
                     }
 
                     // Server Channels list
@@ -465,13 +510,22 @@ fun HomeScreen(
                                     ChannelItem(
                                             channel = channel,
                                             isSelected = uiState.selectedChannelId == channel.id,
-                                            onSelect = { /* Voice channel — no text chat */ },
+                                            onSelect = {
+                                                viewModel.selectChannel(channel.id)
+                                            },
                                             canManage = hasManageChannels,
                                             onEditClick = { onNavigateToChannelSettings(channel.id) },
                                             onDeleteClick = { viewModel.showDeleteChannelDialog(channel.id) },
                                             foregroundText = foregroundText,
                                             primaryText = primaryText,
-                                            unreadCount = uiState.readStates[channel.id] ?: 0
+                                            unreadCount = uiState.readStates[channel.id] ?: 0,
+                                            voiceUsers = if (data.voiceMap != null) {
+                                                val channelUsers = data.voiceMap[channel.id.toString()]?.users ?: emptyMap()
+                                                channelUsers.mapNotNull { (userIdStr, state) ->
+                                                    val user = data.users.find { it.id.toString() == userIdStr }
+                                                    if (user != null) VoiceUserDisplay(user, state) else null
+                                                }
+                                            } else emptyList()
                                         )
                                     }
                                 }
@@ -495,14 +549,18 @@ fun HomeScreen(
                                             selectedChannelId = uiState.selectedChannelId,
                                             onToggleCategory = { viewModel.toggleCategory(category.id) },
                                             onAddChannelClick = { viewModel.showAddChannelDialog(category.id) },
-                                            onChannelSelect = { channelId -> viewModel.selectChannel(channelId) },
+                                            onChannelSelect = { channelId ->
+                                                viewModel.selectChannel(channelId)
+                                            },
                                             onChannelLongPress = { channelId -> viewModel.selectChannel(channelId, navigateToChat = false) },
                                             onChannelEdit = { channelId -> onNavigateToChannelSettings(channelId) },
                                             onChannelDelete = { channelId -> viewModel.showDeleteChannelDialog(channelId) },
                                             onReorderChannels = { newChannelIds -> viewModel.reorderChannels(category.id, newChannelIds) },
                                             foregroundText = foregroundText,
                                             primaryText = primaryText,
-                                            readStates = uiState.readStates
+                                            readStates = uiState.readStates,
+                                            voiceMap = data.voiceMap,
+                                            users = data.users
                                         )
                                     }
                                 }

@@ -11,34 +11,34 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
+import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import androidx.compose.foundation.Image
 import com.sharkord.android.data.model.Channel
-
+import com.sharkord.android.data.model.User
+import com.sharkord.android.data.model.VoiceUserState
+import com.sharkord.android.data.network.SharkordClient
+import com.sharkord.android.ui.components.rememberAsyncImagePainter
+import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.HeadsetOff
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.input.pointer.PointerInputScope
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
-import androidx.compose.ui.input.pointer.changedToUp
-import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.zIndex
 
 /**
  * Isolated Component for a single channel item in the list.
@@ -61,7 +61,8 @@ fun ChannelItem(
     foregroundText: Color,
     primaryText: Color,
     cardColor: Color = Color(0xFF2B2B2B),
-    unreadCount: Int = 0
+    unreadCount: Int = 0,
+    voiceUsers: List<VoiceUserDisplay> = emptyList()
 ) {
     val icon = if (channel.isVoice) Icons.Default.VolumeUp else Icons.Default.Tag
     val bg = if (isSelected || isDragging) Color.White.copy(alpha = 0.08f) else Color.Transparent
@@ -78,7 +79,7 @@ fun ChannelItem(
     val currentOnDrag by rememberUpdatedState(onDrag)
     val currentOnDragEnd by rememberUpdatedState(onDragEnd)
 
-    Box(modifier = Modifier.zIndex(if (isDragging) 1f else 0f)) {
+    Column(modifier = Modifier.zIndex(if (isDragging) 1f else 0f)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -171,6 +172,79 @@ fun ChannelItem(
             }
         }
 
+        // VOICE USERS LIST
+        if (channel.isVoice && voiceUsers.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 32.dp, top = 2.dp, bottom = 6.dp)
+            ) {
+                voiceUsers.forEach { voiceUser ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val avatarUrl = voiceUser.user.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }
+                        val avatarPainter = rememberAsyncImagePainter(avatarUrl, fallbackResourceId = null)
+
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(Color.Gray),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (avatarPainter != null) {
+                                Image(
+                                    painter = avatarPainter,
+                                    contentDescription = "User Avatar",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Text(
+                                    text = voiceUser.user.name.take(1).uppercase(),
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.width(8.dp))
+                        
+                        Text(
+                            text = voiceUser.user.name,
+                            color = primaryText,
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            modifier = Modifier.weight(1f)
+                        )
+                        
+                        // Icons for mute/deafen
+                        if (voiceUser.state.micMuted) {
+                            Icon(
+                                Icons.Default.MicOff,
+                                contentDescription = "Muted",
+                                tint = Color.Red.copy(alpha = 0.8f),
+                                modifier = Modifier.size(16.dp).padding(end = 4.dp)
+                            )
+                        }
+                        if (voiceUser.state.soundMuted) {
+                            Icon(
+                                Icons.Default.HeadsetOff,
+                                contentDescription = "Deafened",
+                                tint = Color.Red.copy(alpha = 0.8f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         DropdownMenu(
             expanded = menuExpanded,
             onDismissRequest = { menuExpanded = false },
@@ -200,10 +274,14 @@ fun ChannelItem(
                     leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFED4245)) },
                     onClick = {
                         menuExpanded = false
-                        onDeleteClick()
                     }
                 )
             }
         }
     }
 }
+
+data class VoiceUserDisplay(
+    val user: User,
+    val state: VoiceUserState
+)

@@ -411,13 +411,17 @@ data class ModViewData(
     val messages: List<Message>,
     val storage: StorageData
 )
-// Voice
+// Voice Map
+
+data class ServerChannelVoiceState(
+    val users: Map<String, VoiceUserState> = emptyMap()
+)
 
 /**
  * Represents users currently in voice channels.
- * voiceMap is channelId -> list of userIds.
+ * voiceMap is channelId -> ServerChannelVoiceState
  */
-typealias VoiceMap = Map<String, List<Int>>
+typealias VoiceMap = Map<String, ServerChannelVoiceState>
 
 // Read States
 
@@ -458,7 +462,7 @@ data class JoinServerData(
     val roles: List<Role>? = null,
     val emojis: List<Emoji>? = null,
     val publicSettings: PublicSettings? = null,
-    val voiceMap: Map<String, Any>? = null,
+    val voiceMap: VoiceMap? = null,
     val readStates: Map<String, Int>? = null,
     val channelPermissions: Map<String, Any>? = null,
     val showWelcomeDialog: Boolean = false

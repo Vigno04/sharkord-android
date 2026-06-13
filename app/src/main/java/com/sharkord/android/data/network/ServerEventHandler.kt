@@ -114,6 +114,17 @@ sealed class ServerEvent {
     /** A user started typing in a channel. */
     data class UserTyping(val channelId: Int, val userId: Int, val parentMessageId: Int? = null) : ServerEvent()
 
+    // Voice
+
+    /** A user joined a voice channel. */
+    data class UserJoinedVoice(val channelId: Int, val userId: Int, val state: com.sharkord.android.data.model.VoiceUserState) : ServerEvent()
+
+    /** A user left a voice channel. */
+    data class UserLeftVoice(val channelId: Int, val userId: Int) : ServerEvent()
+
+    /** A user's voice state (mute/deafen) was updated. */
+    data class UserVoiceStateUpdated(val channelId: Int, val userId: Int, val state: com.sharkord.android.data.model.VoiceUserState) : ServerEvent()
+
     // Server Settings
 
     /** Public server settings (name, description, feature flags, etc.) were updated. */
@@ -238,6 +249,27 @@ object ServerEventHandler {
                         parentMessageId = if (pId == null || pId.isJsonNull) null else pId.asInt
                     )
                 }
+
+                // Voice
+                "voice.onJoin" ->
+                    ServerEvent.UserJoinedVoice(
+                        channelId = event.data.get("channelId").asInt,
+                        userId = event.data.get("userId").asInt,
+                        state = fromJson(event.data.get("state").asJsonObject, com.sharkord.android.data.model.VoiceUserState::class.java)
+                    )
+
+                "voice.onLeave" ->
+                    ServerEvent.UserLeftVoice(
+                        channelId = event.data.get("channelId").asInt,
+                        userId = event.data.get("userId").asInt
+                    )
+
+                "voice.onUpdateState" ->
+                    ServerEvent.UserVoiceStateUpdated(
+                        channelId = event.data.get("channelId").asInt,
+                        userId = event.data.get("userId").asInt,
+                        state = fromJson(event.data.get("state").asJsonObject, com.sharkord.android.data.model.VoiceUserState::class.java)
+                    )
 
                 // Server Settings
                 "others.onServerSettingsUpdate" ->
