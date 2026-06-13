@@ -89,16 +89,56 @@ fun VoicePanel(
                 )
             } else {
                 BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                    val cols = if (voiceUsers.size >= 3) 2 else 1
-                    val rows = kotlin.math.ceil(voiceUsers.size.toFloat() / cols).toInt()
-                    
+                    val availableWidth = maxWidth - 32.dp // padding left + right
                     val availableHeight = maxHeight - 32.dp // padding top + bottom
-                    val visibleRows = rows.coerceAtMost(4)
-                    val totalSpacing = 16.dp * (visibleRows - 1)
-                    val itemHeight = if (visibleRows > 0) ((availableHeight - totalSpacing) / visibleRows).coerceAtLeast(0.dp) else availableHeight.coerceAtLeast(0.dp)
                     
+                    val minBoxWidthDp = 140f //controls minimum box width per user
+                    val minBoxHeightDp = 120f //controls minimum box height per user
+                    
+                    val maxPossibleCols = maxOf(1, (availableWidth.value / minBoxWidthDp).toInt())
+                    val maxPossibleRows = maxOf(1, (availableHeight.value / minBoxHeightDp).toInt())
+                    var bestCols = 1
+                    var bestDiff = Float.MAX_VALUE
+                    
+                    for (c in 1..maxPossibleCols) {
+                        if (c > voiceUsers.size && voiceUsers.isNotEmpty()) break
+                        
+                        val r = kotlin.math.ceil(voiceUsers.size.toFloat() / c).toInt()
+                        val visibleR = r.coerceAtMost(maxPossibleRows)
+                        
+                        val totalWSpacing = 16f * (c - 1)
+                        val totalHSpacing = 16f * (visibleR - 1)
+                        
+                        val w = maxOf(1f, (availableWidth.value - totalWSpacing) / c)
+                        val h = maxOf(minBoxHeightDp, (availableHeight.value - totalHSpacing) / maxOf(1, visibleR))
+                        
+                        val ratio = w / h
+                        val diff = kotlin.math.abs(ratio - 1f) + kotlin.math.abs(1f / ratio - 1f)
+                        
+                        if (diff < bestDiff) {
+                            bestDiff = diff
+                            bestCols = c
+                        }
+                    }
+                    
+                    val cols = bestCols
+                    val rows = kotlin.math.ceil(voiceUsers.size.toFloat() / cols).toInt()
+                    val visibleRows = rows.coerceAtMost(maxPossibleRows)
+                    
+                    val totalSpacing = 16.dp * (visibleRows - 1)
+                    val itemHeight = if (visibleRows > 0) {
+                        ((availableHeight - totalSpacing) / visibleRows).coerceAtLeast(minBoxHeightDp.dp)
+                    } else {
+                        availableHeight.coerceAtLeast(minBoxHeightDp.dp)
+                    }
+
+                    val itemsInLastRow = if (voiceUsers.size % cols == 0) cols else voiceUsers.size % cols
+                    val gridCols = if (voiceUsers.isNotEmpty()) lcm(cols, itemsInLastRow) else 1
+                    val normalSpan = if (gridCols > 0) gridCols / cols else 1
+                    val lastRowSpan = if (gridCols > 0) gridCols / itemsInLastRow else 1
+
                     LazyVerticalGrid(
-                        columns = GridCells.Fixed(cols),
+                        columns = GridCells.Fixed(gridCols),
                         contentPadding = PaddingValues(16.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -107,11 +147,8 @@ fun VoicePanel(
                         items(
                             count = voiceUsers.size,
                             span = { index ->
-                                if (cols == 2 && index == voiceUsers.lastIndex && voiceUsers.size % 2 != 0) {
-                                    androidx.compose.foundation.lazy.grid.GridItemSpan(2)
-                                } else {
-                                    androidx.compose.foundation.lazy.grid.GridItemSpan(1)
-                                }
+                                val isLastRow = index >= voiceUsers.size - itemsInLastRow
+                                androidx.compose.foundation.lazy.grid.GridItemSpan(if (isLastRow) lastRowSpan else normalSpan)
                             }
                         ) { index ->
                             val voiceUser = voiceUsers[index]
@@ -263,4 +300,19 @@ fun VoicePanel(
             }
         }
     }
+}
+
+private fun gcd(a: Int, b: Int): Int {
+    var num1 = a
+    var num2 = b
+    while (num2 != 0) {
+        val temp = num2
+        num2 = num1 % num2
+        num1 = temp
+    }
+    return num1
+}
+
+private fun lcm(a: Int, b: Int): Int {
+    return if (a == 0 || b == 0) 0 else (a * b) / gcd(a, b)
 }
