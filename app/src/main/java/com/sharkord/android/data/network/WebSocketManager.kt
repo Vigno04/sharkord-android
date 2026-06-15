@@ -186,6 +186,18 @@ class WebSocketManager(
         return id
     }
 
+    /**
+     * Unsubscribes from a previously established subscription.
+     */
+    fun unsubscribe(id: Int) {
+        if (activeSubscriptions.containsKey(id)) {
+            val message = TrpcProtocol.buildUnsubscribe(id)
+            webSocket?.send(message)
+            activeSubscriptions.remove(id)
+            Log.d(TAG, "Unsubscribed [$id]")
+        }
+    }
+
     // Internal Connection Logic
 
     private fun doConnect() {

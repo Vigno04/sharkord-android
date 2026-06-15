@@ -56,7 +56,10 @@ data class HomeUiState(
     val isDmsListOpen: Boolean = false,
     val membersSheetFilterDms: Boolean = false,
     val readStates: Map<Int, Int> = emptyMap(),
-    val activeVoiceChannelId: Int? = null
+    
+    // Voice
+    val activeVoiceChannelId: Int? = null,
+    val activeSpeakers: Set<String> = emptySet()
 )
 
 /**
@@ -453,6 +456,11 @@ class HomeViewModel : ViewModel() {
 
                 is ServerEvent.UserLeftVoice -> {
                     Log.d(TAG, "[EVENT] voice.onLeave: channelId=${event.channelId}, userId=${event.userId}")
+                    
+                    if (event.channelId == state.activeVoiceChannelId) {
+                        SharkordClient.voiceEngine.clearRemoteProducersForUser(event.userId)
+                    }
+
                     val newVoiceMap = data.voiceMap?.toMutableMap() ?: return@update state
                     val channelUsers = newVoiceMap[event.channelId.toString()]?.users?.toMutableMap() ?: return@update state
                     channelUsers.remove(event.userId.toString())
@@ -471,6 +479,22 @@ class HomeViewModel : ViewModel() {
                     channelUsers[event.userId.toString()] = event.state
                     newVoiceMap[event.channelId.toString()] = com.sharkord.android.data.model.ServerChannelVoiceState(users = channelUsers)
                     state.copy(serverData = data.copy(voiceMap = newVoiceMap))
+                }
+
+                is ServerEvent.VoiceNewProducer -> {
+                    Log.d(TAG, "[EVENT] voice.onNewProducer: channelId=${event.channelId}, remoteId=${event.remoteId}")
+                    if (event.channelId == state.activeVoiceChannelId) {
+                        SharkordClient.voiceEngine.consumeRemoteProducer(event.remoteId, event.kind)
+                    }
+                    state
+                }
+
+                is ServerEvent.VoiceProducerClosed -> {
+                    Log.d(TAG, "[EVENT] voice.onProducerClosed: channelId=${event.channelId}, remoteId=${event.remoteId}")
+                    if (event.channelId == state.activeVoiceChannelId) {
+                        SharkordClient.voiceEngine.removeRemoteProducer(event.remoteId, event.kind)
+                    }
+                    state
                 }
 
                 // Read States
@@ -539,26 +563,43 @@ class HomeViewModel : ViewModel() {
 
     // Voice Actions
 
+    private var audioLevelsJob: kotlinx.coroutines.Job? = null
+
     fun joinVoiceChannel(channelId: Int) {
         viewModelScope.launch {
             try {
                 // Disconnect from current voice channel first if switching
                 if (_uiState.value.activeVoiceChannelId != null && _uiState.value.activeVoiceChannelId != channelId) {
                     try {
-                        SharkordClient.webSocket.sendMutationAwait("voice.leave", JsonObject())
+                        SharkordClient.voiceEngine.leaveChannel()
+                        SharkordClient.webSocket.sendMutationAwait("voice.leave", com.google.gson.JsonObject())
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to leave current voice channel before switching", e)
                     }
                 }
 
-                val input = JsonObject().apply {
+                val input = com.google.gson.JsonObject().apply {
                     addProperty("channelId", channelId)
-                    add("state", JsonObject().apply {
+                    add("state", com.google.gson.JsonObject().apply {
                         addProperty("micMuted", false)
                         addProperty("soundMuted", false)
                     })
                 }
-                SharkordClient.webSocket.sendMutationAwait("voice.join", input)
+                val routerCapabilities = SharkordClient.webSocket.sendMutationAwait("voice.join", input)
+                SharkordClient.voiceEngine.joinChannel(channelId, routerCapabilities)
+                SharkordClient.voiceEngine.setMicEnabled(true)
+                SharkordClient.voiceEngine.setSoundEnabled(true)
+                
+                audioLevelsJob?.cancel()
+                audioLevelsJob = viewModelScope.launch {
+                    SharkordClient.voiceEngine.audioLevels.collect { levels ->
+                        // The WebRTC audioLevel can be 0.0 to 1.0, or sometimes an integer scale. 
+                        // We check both > 0.02f and > 5.0f to be safe against different scaling.
+                        val speakers = levels.filter { it.value > 0.02f || it.value > 5f }.keys
+                        _uiState.update { it.copy(activeSpeakers = speakers) }
+                    }
+                }
+                
                 _uiState.update { it.copy(activeVoiceChannelId = channelId) }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to join voice channel", e)
@@ -570,7 +611,12 @@ class HomeViewModel : ViewModel() {
     fun leaveVoiceChannel() {
         viewModelScope.launch {
             try {
-                SharkordClient.webSocket.sendMutationAwait("voice.leave", JsonObject())
+                audioLevelsJob?.cancel()
+                audioLevelsJob = null
+                _uiState.update { it.copy(activeSpeakers = emptySet()) }
+
+                SharkordClient.voiceEngine.leaveChannel()
+                SharkordClient.webSocket.sendMutationAwait("voice.leave", com.google.gson.JsonObject())
                 _uiState.update { it.copy(activeVoiceChannelId = null) }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to leave voice channel", e)
@@ -617,6 +663,9 @@ class HomeViewModel : ViewModel() {
             newVoiceMap[channelId.toString()] = com.sharkord.android.data.model.ServerChannelVoiceState(users = channelUsers)
             state.copy(serverData = data.copy(voiceMap = newVoiceMap))
         }
+
+        SharkordClient.voiceEngine.setMicEnabled(!micMuted)
+        SharkordClient.voiceEngine.setSoundEnabled(!soundMuted)
 
         viewModelScope.launch {
             try {

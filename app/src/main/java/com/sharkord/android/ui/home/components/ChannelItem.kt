@@ -283,5 +283,6 @@ fun ChannelItem(
 
 data class VoiceUserDisplay(
     val user: User,
-    val state: VoiceUserState
+    val state: VoiceUserState,
+    val isSpeaking: Boolean = false
 )

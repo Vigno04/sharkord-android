@@ -1,6 +1,8 @@
 package com.sharkord.android.ui.home.components
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -11,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -152,11 +155,16 @@ fun VoicePanel(
                             }
                         ) { index ->
                             val voiceUser = voiceUsers[index]
+                            
+                            val borderWidth by animateDpAsState(targetValue = if (voiceUser.isSpeaking) 3.dp else 0.dp)
+                            val borderColor = if (voiceUser.isSpeaking) Color.Green else Color.Transparent
+                            
                             Box(
                                 modifier = Modifier
                                     .height(itemHeight)
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(colors.cardColor),
+                                    .background(colors.cardColor)
+                                    .border(borderWidth, borderColor, RoundedCornerShape(16.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 // Avatar placeholder or Image

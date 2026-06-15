@@ -41,7 +41,9 @@ fun CategorySection(
     primaryText: Color,
     readStates: Map<Int, Int> = emptyMap(),
     voiceMap: com.sharkord.android.data.model.VoiceMap? = null,
-    users: List<com.sharkord.android.data.model.User> = emptyList()
+    users: List<com.sharkord.android.data.model.User> = emptyList(),
+    ownUserId: Int = -1,
+    activeSpeakers: Set<String> = emptySet()
 ) {
     // Local state for dragging
     var localChannels by remember(channels) { mutableStateOf(channels) }
@@ -164,7 +166,14 @@ fun CategorySection(
                             val channelUsers = voiceMap[channel.id.toString()]?.users ?: emptyMap()
                             channelUsers.mapNotNull { (userIdStr, state) ->
                                 val user = users.find { it.id.toString() == userIdStr }
-                                if (user != null) VoiceUserDisplay(user, state) else null
+                                if (user != null) {
+                                    val isSpeaking = if (user.id == ownUserId) {
+                                        activeSpeakers.contains("local")
+                                    } else {
+                                        activeSpeakers.contains(user.id.toString())
+                                    }
+                                    VoiceUserDisplay(user, state, isSpeaking)
+                                } else null
                             }
                         } else emptyList()
                     )

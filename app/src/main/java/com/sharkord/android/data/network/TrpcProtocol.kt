@@ -103,6 +103,17 @@ object TrpcProtocol {
     }
 
     /**
+     * Builds a tRPC subscription unsubscribe message.
+     */
+    fun buildUnsubscribe(id: Int): String {
+        val message = JsonObject().apply {
+            addProperty("id", id)
+            addProperty("method", "subscription.stop")
+        }
+        return gson.toJson(message)
+    }
+
+    /**
      * Parses an incoming WebSocket text message into a [TrpcResponse].
      */
     fun parseResponse(text: String): TrpcResponse {

@@ -125,6 +125,12 @@ sealed class ServerEvent {
     /** A user's voice state (mute/deafen) was updated. */
     data class UserVoiceStateUpdated(val channelId: Int, val userId: Int, val state: com.sharkord.android.data.model.VoiceUserState) : ServerEvent()
 
+    /** A new producer stream was added in the voice channel. */
+    data class VoiceNewProducer(val channelId: Int, val remoteId: Int, val kind: com.sharkord.android.data.model.StreamKind) : ServerEvent()
+
+    /** A producer stream was closed in the voice channel. */
+    data class VoiceProducerClosed(val channelId: Int, val remoteId: Int, val kind: com.sharkord.android.data.model.StreamKind) : ServerEvent()
+
     // Server Settings
 
     /** Public server settings (name, description, feature flags, etc.) were updated. */
@@ -269,6 +275,20 @@ object ServerEventHandler {
                         channelId = event.data.get("channelId").asInt,
                         userId = event.data.get("userId").asInt,
                         state = fromJson(event.data.get("state").asJsonObject, com.sharkord.android.data.model.VoiceUserState::class.java)
+                    )
+
+                "voice.onNewProducer" ->
+                    ServerEvent.VoiceNewProducer(
+                        channelId = event.data.get("channelId").asInt,
+                        remoteId = event.data.get("remoteId").asInt,
+                        kind = com.sharkord.android.data.model.StreamKind.fromValue(event.data.get("kind").asString)
+                    )
+
+                "voice.onProducerClosed" ->
+                    ServerEvent.VoiceProducerClosed(
+                        channelId = event.data.get("channelId").asInt,
+                        remoteId = event.data.get("remoteId").asInt,
+                        kind = com.sharkord.android.data.model.StreamKind.fromValue(event.data.get("kind").asString)
                     )
 
                 // Server Settings

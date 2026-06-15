@@ -40,6 +40,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import com.sharkord.android.R
 import com.sharkord.android.data.model.Channel
 import com.sharkord.android.data.network.SharkordClient
@@ -159,19 +164,40 @@ fun HomeScreen(
                             val isMuted = currentState?.micMuted ?: true
                             val isDeafened = currentState?.soundMuted ?: true
 
+                            val permissionLauncher = rememberLauncherForActivityResult(
+                                ActivityResultContracts.RequestPermission()
+                            ) { isGranted: Boolean ->
+                                if (isGranted) {
+                                    viewModel.joinVoiceChannel(uiState.selectedChannelId!!)
+                                }
+                            }
+
                             VoicePanel(
                                 channelName = displayName,
                                 voiceUsers = if (data.voiceMap != null) {
                                     channelUsers.mapNotNull { (userIdStr, state) ->
                                         val user = data.users.find { it.id.toString() == userIdStr }
-                                        if (user != null) VoiceUserDisplay(user, state) else null
+                                        if (user != null) {
+                                            val isSpeaking = if (user.id == data.ownUserId) {
+                                                uiState.activeSpeakers.contains("local")
+                                            } else {
+                                                uiState.activeSpeakers.contains(user.id.toString())
+                                            }
+                                            VoiceUserDisplay(user, state, isSpeaking)
+                                        } else null
                                     }
                                 } else emptyList(),
                                 isConnected = uiState.activeVoiceChannelId == uiState.selectedChannelId,
                                 isMuted = isMuted,
                                 isDeafened = isDeafened,
                                 onDisconnectClick = { viewModel.leaveVoiceChannel() },
-                                onConnectClick = { viewModel.joinVoiceChannel(uiState.selectedChannelId!!) },
+                                onConnectClick = { 
+                                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                                        viewModel.joinVoiceChannel(uiState.selectedChannelId!!)
+                                    } else {
+                                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                    }
+                                },
                                 onToggleMicClick = { _ -> 
                                     viewModel.toggleMic(uiState.selectedChannelId!!, isMuted, isDeafened) 
                                 },
@@ -523,7 +549,14 @@ fun HomeScreen(
                                                 val channelUsers = data.voiceMap[channel.id.toString()]?.users ?: emptyMap()
                                                 channelUsers.mapNotNull { (userIdStr, state) ->
                                                     val user = data.users.find { it.id.toString() == userIdStr }
-                                                    if (user != null) VoiceUserDisplay(user, state) else null
+                                                    if (user != null) {
+                                                        val isSpeaking = if (user.id == data.ownUserId) {
+                                                            uiState.activeSpeakers.contains("local")
+                                                        } else {
+                                                            uiState.activeSpeakers.contains(user.id.toString())
+                                                        }
+                                                        VoiceUserDisplay(user, state, isSpeaking)
+                                                    } else null
                                                 }
                                             } else emptyList()
                                         )
@@ -560,7 +593,9 @@ fun HomeScreen(
                                             primaryText = primaryText,
                                             readStates = uiState.readStates,
                                             voiceMap = data.voiceMap,
-                                            users = data.users
+                                            users = data.users,
+                                            ownUserId = data.ownUserId,
+                                            activeSpeakers = uiState.activeSpeakers
                                         )
                                     }
                                 }

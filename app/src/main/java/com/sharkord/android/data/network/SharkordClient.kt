@@ -43,6 +43,10 @@ object SharkordClient {
     /** WebSocket manager for tRPC connection lifecycle. */
     val webSocket: WebSocketManager = WebSocketManager(okHttpClient)
 
+    /** Voice engine managing mediasoup WebRTC pipeline. */
+    lateinit var voiceEngine: VoiceEngine
+        private set
+
     /** Session/preferences manager. Initialized lazily via [initialize]. */
     lateinit var session: SessionManager
         private set
@@ -75,6 +79,7 @@ object SharkordClient {
     fun initialize(context: Context) {
         applicationContext = context.applicationContext
         session = SessionManager(applicationContext)
+        voiceEngine = VoiceEngine(applicationContext, webSocket)
     }
 
     /**
