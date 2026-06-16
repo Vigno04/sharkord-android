@@ -26,9 +26,27 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.coerceAtLeast
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.media.AudioManager
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import com.sharkord.android.ui.components.rememberAsyncImagePainter
 import com.sharkord.android.data.network.SharkordClient
 import com.sharkord.android.ui.theme.LocalSharkordColors
+
+enum class AudioOutputMode {
+    AUTO,
+    SPEAKER,
+    EARPIECE
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,10 +60,71 @@ fun VoicePanel(
     onConnectClick: () -> Unit,
     onToggleMicClick: (Boolean) -> Unit = {},
     onToggleDeafenClick: (Boolean) -> Unit = {},
+    onOpenChatClick: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = LocalSharkordColors.current
+    val context = LocalContext.current
+
+    var audioOutputMode by remember { mutableStateOf(AudioOutputMode.AUTO) }
+    var isNear by remember { mutableStateOf(false) }
+
+    val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    val sensorManager = remember { context.getSystemService(Context.SENSOR_SERVICE) as SensorManager }
+    val proximitySensor = remember { sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY) }
+
+    DisposableEffect(Unit) {
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent) {
+                if (event.sensor.type == Sensor.TYPE_PROXIMITY) {
+                    val distance = event.values[0]
+                    isNear = distance < (proximitySensor?.maximumRange ?: 5f) && distance < 5f
+                }
+            }
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+        }
+        proximitySensor?.let {
+            sensorManager.registerListener(listener, it, SensorManager.SENSOR_DELAY_NORMAL)
+        }
+        onDispose {
+            sensorManager.unregisterListener(listener)
+        }
+    }
+
+    LaunchedEffect(audioOutputMode, isNear, isConnected) {
+        if (!isConnected) return@LaunchedEffect
+        
+        val targetSpeakerphoneOn = when (audioOutputMode) {
+            AudioOutputMode.SPEAKER -> true
+            AudioOutputMode.EARPIECE -> false
+            AudioOutputMode.AUTO -> !isNear
+        }
+        
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            val devices = audioManager.availableCommunicationDevices
+            if (targetSpeakerphoneOn) {
+                val speaker = devices.firstOrNull { it.type == android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+                if (speaker != null) {
+                    audioManager.setCommunicationDevice(speaker)
+                } else {
+                    audioManager.clearCommunicationDevice()
+                }
+            } else {
+                val earpiece = devices.firstOrNull { it.type == android.media.AudioDeviceInfo.TYPE_BUILTIN_EARPIECE }
+                if (earpiece != null) {
+                    audioManager.setCommunicationDevice(earpiece)
+                } else {
+                    audioManager.clearCommunicationDevice()
+                }
+            }
+        }
+        
+        @Suppress("DEPRECATION")
+        if (audioManager.isSpeakerphoneOn != targetSpeakerphoneOn) {
+            audioManager.isSpeakerphoneOn = targetSpeakerphoneOn
+        }
+    }
 
     Column(modifier = modifier.background(colors.bgColor)) {
         // Top Bar
@@ -77,6 +156,39 @@ fun VoicePanel(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
+
+            // Audio Output Mode Button
+            IconButton(onClick = {
+                audioOutputMode = when (audioOutputMode) {
+                    AudioOutputMode.AUTO -> AudioOutputMode.SPEAKER
+                    AudioOutputMode.SPEAKER -> AudioOutputMode.EARPIECE
+                    AudioOutputMode.EARPIECE -> AudioOutputMode.AUTO
+                }
+            }) {
+                if (audioOutputMode == AudioOutputMode.AUTO) {
+                    Text(
+                        text = "AUTO",
+                        color = colors.foregroundText,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                } else {
+                    Icon(
+                        imageVector = if (audioOutputMode == AudioOutputMode.SPEAKER) Icons.Default.VolumeUp else Icons.Default.Hearing,
+                        contentDescription = "Audio Output Mode",
+                        tint = colors.foregroundText
+                    )
+                }
+            }
+
+            // Chat Button
+            IconButton(onClick = onOpenChatClick) {
+                Icon(
+                    Icons.Default.ChatBubble,
+                    contentDescription = "Open Chat",
+                    tint = colors.foregroundText
+                )
+            }
         }
 
         Divider(color = colors.cardColor, thickness = 1.dp)

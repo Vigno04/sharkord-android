@@ -74,11 +74,14 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
     private var localAudioSource: AudioSource? = null
     private var eglBase: EglBase? = null
 
-    private var currentChannelId: Int? = null
+    var currentChannelId: Int? = null
+        private set
     
     // Voice State Flags
-    private var isMicMuted = false
-    private var isSoundMuted = false
+    var isMicMuted = false
+        private set
+    var isSoundMuted = false
+        private set
 
     // Subscription IDs
     private var onNewProducerSubId: Int? = null

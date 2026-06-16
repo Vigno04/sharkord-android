@@ -758,9 +758,22 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
                         isNear = near
                         if (near) {
                             audioManager.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                val earpiece = audioManager.availableCommunicationDevices.firstOrNull { it.type == android.media.AudioDeviceInfo.TYPE_BUILTIN_EARPIECE }
+                                if (earpiece != null) {
+                                    audioManager.setCommunicationDevice(earpiece)
+                                } else {
+                                    audioManager.clearCommunicationDevice()
+                                }
+                            }
+                            @Suppress("DEPRECATION")
                             audioManager.isSpeakerphoneOn = false
                         } else {
                             audioManager.mode = android.media.AudioManager.MODE_NORMAL
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                audioManager.clearCommunicationDevice()
+                            }
+                            @Suppress("DEPRECATION")
                             audioManager.isSpeakerphoneOn = true
                             onPausePlayback.value()
                         }
@@ -789,6 +802,10 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
                 Log.e("AudioPlayer", "WakeLock release failed", e)
             }
             audioManager.mode = android.media.AudioManager.MODE_NORMAL
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                audioManager.clearCommunicationDevice()
+            }
+            @Suppress("DEPRECATION")
             audioManager.isSpeakerphoneOn = true
             isNear = false
         }
@@ -800,6 +817,10 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
                 Log.e("AudioPlayer", "WakeLock release failed", e)
             }
             audioManager.mode = android.media.AudioManager.MODE_NORMAL
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                audioManager.clearCommunicationDevice()
+            }
+            @Suppress("DEPRECATION")
             audioManager.isSpeakerphoneOn = true
             isNear = false
         }

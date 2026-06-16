@@ -59,7 +59,8 @@ data class HomeUiState(
     
     // Voice
     val activeVoiceChannelId: Int? = null,
-    val activeSpeakers: Set<String> = emptySet()
+    val activeSpeakers: Set<String> = emptySet(),
+    val isViewingVoiceChat: Boolean = false
 )
 
 /**
@@ -177,6 +178,8 @@ class HomeViewModel : ViewModel() {
                     if (id != null) id to value else null
                 }?.toMap() ?: emptyMap()
 
+                val restoredVoiceChannelId = SharkordClient.voiceEngine.currentChannelId
+
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -185,7 +188,9 @@ class HomeViewModel : ViewModel() {
                         serverData = data,
                         readStates = initialReadStates,
                         selectedChannelId = it.selectedChannelId
-                            ?: data.channels.firstOrNull { ch -> !ch.isVoice && !ch.isDm }?.id
+                            ?: restoredVoiceChannelId
+                            ?: data.channels.firstOrNull { ch -> !ch.isVoice && !ch.isDm }?.id,
+                        activeVoiceChannelId = restoredVoiceChannelId
                     )
                 }
             }
@@ -565,7 +570,7 @@ class HomeViewModel : ViewModel() {
 
     private var audioLevelsJob: kotlinx.coroutines.Job? = null
 
-    fun joinVoiceChannel(channelId: Int) {
+    fun joinVoiceChannel(channelId: Int, context: Context, channelName: String) {
         viewModelScope.launch {
             try {
                 // Disconnect from current voice channel first if switching
@@ -573,6 +578,11 @@ class HomeViewModel : ViewModel() {
                     try {
                         SharkordClient.voiceEngine.leaveChannel()
                         SharkordClient.webSocket.sendMutationAwait("voice.leave", com.google.gson.JsonObject())
+                        // Stop the service before starting a new connection
+                        val stopIntent = android.content.Intent(context, com.sharkord.android.data.network.VoiceService::class.java).apply {
+                            action = com.sharkord.android.data.network.VoiceService.ACTION_STOP
+                        }
+                        context.startService(stopIntent)
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to leave current voice channel before switching", e)
                     }
@@ -600,6 +610,13 @@ class HomeViewModel : ViewModel() {
                     }
                 }
                 
+                // Start Foreground Service
+                val startIntent = android.content.Intent(context, com.sharkord.android.data.network.VoiceService::class.java).apply {
+                    action = com.sharkord.android.data.network.VoiceService.ACTION_START
+                    putExtra("EXTRA_CHANNEL_NAME", channelName)
+                }
+                androidx.core.content.ContextCompat.startForegroundService(context, startIntent)
+
                 _uiState.update { it.copy(activeVoiceChannelId = channelId) }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to join voice channel", e)
@@ -608,7 +625,7 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    fun leaveVoiceChannel() {
+    fun leaveVoiceChannel(context: Context) {
         viewModelScope.launch {
             try {
                 audioLevelsJob?.cancel()
@@ -617,6 +634,13 @@ class HomeViewModel : ViewModel() {
 
                 SharkordClient.voiceEngine.leaveChannel()
                 SharkordClient.webSocket.sendMutationAwait("voice.leave", com.google.gson.JsonObject())
+                
+                // Stop Foreground Service
+                val stopIntent = android.content.Intent(context, com.sharkord.android.data.network.VoiceService::class.java).apply {
+                    action = com.sharkord.android.data.network.VoiceService.ACTION_STOP
+                }
+                context.startService(stopIntent)
+                
                 _uiState.update { it.copy(activeVoiceChannelId = null) }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to leave voice channel", e)
@@ -701,6 +725,10 @@ class HomeViewModel : ViewModel() {
                 }
             }
         }
+    }
+
+    fun setViewingVoiceChat(viewing: Boolean) {
+        _uiState.update { it.copy(isViewingVoiceChat = viewing) }
     }
 
     fun toggleCategory(categoryId: Int) {
