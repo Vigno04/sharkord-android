@@ -110,8 +110,9 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
 
         val audioDeviceModule = JavaAudioDeviceModule.builder(context)
             .setAudioAttributes(audioAttributes)
-            .setUseHardwareAcousticEchoCanceler(true)
-            .setUseHardwareNoiseSuppressor(true)
+            .setSampleRate(48000)
+            .setUseHardwareAcousticEchoCanceler(false)
+            .setUseHardwareNoiseSuppressor(false)
             .createAudioDeviceModule()
 
         val builder = PeerConnectionFactory.builder()
@@ -147,8 +148,6 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         }
         
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-        @Suppress("DEPRECATION")
-        audioManager.isSpeakerphoneOn = true
 
         scope.launch {
             try {
@@ -326,10 +325,10 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         if (peerConnectionFactory == null || sendTransport == null) return
 
         val audioConstraints = MediaConstraints().apply {
-            mandatory.add(MediaConstraints.KeyValuePair("googEchoCancellation", "true"))
+            mandatory.add(MediaConstraints.KeyValuePair("googEchoCancellation", "false"))
             mandatory.add(MediaConstraints.KeyValuePair("googAutoGainControl", "true"))
-            mandatory.add(MediaConstraints.KeyValuePair("googNoiseSuppression", "true"))
-            mandatory.add(MediaConstraints.KeyValuePair("googHighpassFilter", "true"))
+            mandatory.add(MediaConstraints.KeyValuePair("googNoiseSuppression", "false"))
+            mandatory.add(MediaConstraints.KeyValuePair("googHighpassFilter", "false"))
         }
 
         localAudioSource = peerConnectionFactory?.createAudioSource(audioConstraints)
@@ -342,13 +341,15 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
             }
         }
 
+        val codecOptions = """{"opusStereo":false,"opusFec":true,"opusDtx":false,"opusMaxPlaybackRate":48000,"opusMaxAverageBitrate":128000}"""
+        
         try {
             micProducer = sendTransport?.produce(
                 producerListener,
                 localAudioTrack,
                 null,
-                null,
-                null
+                codecOptions,
+                """{"kind":"audio"}"""
             )
             
             if (isMicMuted) {
@@ -576,8 +577,6 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         }
         
         audioManager.mode = AudioManager.MODE_NORMAL
-        @Suppress("DEPRECATION")
-        audioManager.isSpeakerphoneOn = false
         
         // Let peer connection factory stay active, as well as eglBase.
     }

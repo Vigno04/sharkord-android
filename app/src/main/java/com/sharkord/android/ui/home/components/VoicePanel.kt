@@ -27,10 +27,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.coerceAtLeast
 import android.content.Context
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -41,12 +38,6 @@ import androidx.compose.ui.platform.LocalContext
 import com.sharkord.android.ui.components.rememberAsyncImagePainter
 import com.sharkord.android.data.network.SharkordClient
 import com.sharkord.android.ui.theme.LocalSharkordColors
-
-enum class AudioOutputMode {
-    AUTO,
-    SPEAKER,
-    EARPIECE
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,62 +58,113 @@ fun VoicePanel(
     val colors = LocalSharkordColors.current
     val context = LocalContext.current
 
-    var audioOutputMode by remember { mutableStateOf(AudioOutputMode.AUTO) }
-    var isNear by remember { mutableStateOf(false) }
+    var showOutputDropdown by remember { mutableStateOf(false) }
+    var showInputDropdown by remember { mutableStateOf(false) }
+    var selectedOutputDeviceId by remember { mutableStateOf<Int?>(null) }
+    var selectedInputDeviceId by remember { mutableStateOf<Int?>(null) }
+    var deviceListTrigger by remember { mutableStateOf(0) }
+
+    var availableOutputs by remember { mutableStateOf<List<AudioDeviceInfo>>(emptyList()) }
+    var availableInputs by remember { mutableStateOf<List<AudioDeviceInfo>>(emptyList()) }
 
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
-    val sensorManager = remember { context.getSystemService(Context.SENSOR_SERVICE) as SensorManager }
-    val proximitySensor = remember { sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY) }
 
-    DisposableEffect(Unit) {
-        val listener = object : SensorEventListener {
-            override fun onSensorChanged(event: SensorEvent) {
-                if (event.sensor.type == Sensor.TYPE_PROXIMITY) {
-                    val distance = event.values[0]
-                    isNear = distance < (proximitySensor?.maximumRange ?: 5f) && distance < 5f
+    DisposableEffect(audioManager) {
+        val callback = object : android.media.AudioDeviceCallback() {
+            override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>?) {
+                deviceListTrigger++
+                val newBtOutput = addedDevices?.firstOrNull {
+                    it.isSink && (it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || 
+                                  it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || 
+                                  (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && it.type == 26))
+                }
+                if (newBtOutput != null) {
+                    selectedOutputDeviceId = newBtOutput.id
                 }
             }
-            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+
+            override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) {
+                deviceListTrigger++
+                if (removedDevices?.any { it.id == selectedOutputDeviceId } == true) {
+                    selectedOutputDeviceId = null
+                }
+                if (removedDevices?.any { it.id == selectedInputDeviceId } == true) {
+                    selectedInputDeviceId = null
+                }
+            }
         }
-        proximitySensor?.let {
-            sensorManager.registerListener(listener, it, SensorManager.SENSOR_DELAY_NORMAL)
-        }
+        audioManager.registerAudioDeviceCallback(callback, null)
         onDispose {
-            sensorManager.unregisterListener(listener)
+            audioManager.unregisterAudioDeviceCallback(callback)
         }
     }
 
-    LaunchedEffect(audioOutputMode, isNear, isConnected) {
+    LaunchedEffect(showOutputDropdown, showInputDropdown, isConnected, deviceListTrigger) {
+        val dedupKey: (AudioDeviceInfo) -> String = {
+            if (it.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE || it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER || it.type == AudioDeviceInfo.TYPE_BUILTIN_MIC) "${it.type}"
+            else it.productName?.toString()?.takeIf { name -> name.isNotBlank() } ?: it.id.toString()
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            val allowedOutputTypes = setOf(
+                AudioDeviceInfo.TYPE_BUILTIN_EARPIECE,
+                AudioDeviceInfo.TYPE_BUILTIN_SPEAKER,
+                AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+                AudioDeviceInfo.TYPE_WIRED_HEADSET,
+                AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+                AudioDeviceInfo.TYPE_USB_HEADSET,
+                AudioDeviceInfo.TYPE_USB_DEVICE,
+                26 // TYPE_BLE_HEADSET
+            )
+            val allowedInputTypes = setOf(
+                AudioDeviceInfo.TYPE_BUILTIN_MIC,
+                AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+                AudioDeviceInfo.TYPE_WIRED_HEADSET,
+                AudioDeviceInfo.TYPE_USB_HEADSET,
+                AudioDeviceInfo.TYPE_USB_DEVICE,
+                26 // TYPE_BLE_HEADSET
+            )
+
+            val outputs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).filter { it.isSink && it.type in allowedOutputTypes }
+            val inputs = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS).filter { it.isSource && it.type in allowedInputTypes }
+            
+            availableOutputs = outputs.distinctBy(dedupKey).toList()
+            availableInputs = inputs.distinctBy(dedupKey).toList()
+        }
+    }
+
+    LaunchedEffect(selectedOutputDeviceId, selectedInputDeviceId, isConnected) {
         if (!isConnected) return@LaunchedEffect
         
-        val targetSpeakerphoneOn = when (audioOutputMode) {
-            AudioOutputMode.SPEAKER -> true
-            AudioOutputMode.EARPIECE -> false
-            AudioOutputMode.AUTO -> !isNear
-        }
-        
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            val devices = audioManager.availableCommunicationDevices
-            if (targetSpeakerphoneOn) {
-                val speaker = devices.firstOrNull { it.type == android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
-                if (speaker != null) {
-                    audioManager.setCommunicationDevice(speaker)
+            val targetId = selectedOutputDeviceId ?: selectedInputDeviceId
+            if (targetId != null) {
+                val commDevices = audioManager.availableCommunicationDevices
+                var commDevice = commDevices.firstOrNull { it.id == targetId }
+                if (commDevice == null) {
+                    val selectedDevice = availableInputs.find { it.id == targetId } ?: availableOutputs.find { it.id == targetId }
+                    if (selectedDevice != null) {
+                        val expectedType = if (selectedDevice.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) AudioDeviceInfo.TYPE_BLUETOOTH_SCO else selectedDevice.type
+                        commDevice = commDevices.firstOrNull { it.type == expectedType && it.productName == selectedDevice.productName }
+                        if (commDevice == null && expectedType == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
+                            commDevice = commDevices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
+                        }
+                    }
+                }
+                
+                if (commDevice != null) {
+                    audioManager.setCommunicationDevice(commDevice)
                 } else {
                     audioManager.clearCommunicationDevice()
                 }
             } else {
-                val earpiece = devices.firstOrNull { it.type == android.media.AudioDeviceInfo.TYPE_BUILTIN_EARPIECE }
-                if (earpiece != null) {
-                    audioManager.setCommunicationDevice(earpiece)
-                } else {
-                    audioManager.clearCommunicationDevice()
-                }
+                audioManager.clearCommunicationDevice()
             }
-        }
-        
-        @Suppress("DEPRECATION")
-        if (audioManager.isSpeakerphoneOn != targetSpeakerphoneOn) {
-            audioManager.isSpeakerphoneOn = targetSpeakerphoneOn
+        } else {
+            val isSpeaker = availableOutputs.find { it.id == selectedOutputDeviceId }?.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+            @Suppress("DEPRECATION")
+            audioManager.isSpeakerphoneOn = isSpeaker == true
         }
     }
 
@@ -158,27 +200,154 @@ fun VoicePanel(
             )
 
             // Audio Output Mode Button
-            IconButton(onClick = {
-                audioOutputMode = when (audioOutputMode) {
-                    AudioOutputMode.AUTO -> AudioOutputMode.SPEAKER
-                    AudioOutputMode.SPEAKER -> AudioOutputMode.EARPIECE
-                    AudioOutputMode.EARPIECE -> AudioOutputMode.AUTO
+            Box {
+                IconButton(onClick = { showOutputDropdown = true }) {
+                    val currentDevice = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).find { it.id == selectedOutputDeviceId } ?: availableOutputs.find { it.id == selectedOutputDeviceId }
+                    val isBluetooth = currentDevice?.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || 
+                                      currentDevice?.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || 
+                                      (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && (currentDevice?.type == 26 || currentDevice?.type == 27)) ||
+                                      currentDevice?.type == 23 // TYPE_HEARING_AID
+                                      
+                    if (selectedOutputDeviceId == null) {
+                        Text(
+                            text = "A",
+                            color = colors.foregroundText,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else if (isBluetooth) {
+                        Icon(Icons.Default.Bluetooth, contentDescription = "Bluetooth", tint = colors.foregroundText)
+                    } else if (currentDevice?.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE) {
+                        Icon(Icons.Default.Hearing, contentDescription = "Earpiece", tint = colors.foregroundText)
+                    } else {
+                        Icon(Icons.Default.VolumeUp, contentDescription = "Speaker", tint = colors.foregroundText)
+                    }
                 }
-            }) {
-                if (audioOutputMode == AudioOutputMode.AUTO) {
-                    Text(
-                        text = "AUTO",
-                        color = colors.foregroundText,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
+                DropdownMenu(
+                    expanded = showOutputDropdown,
+                    onDismissRequest = { showOutputDropdown = false },
+                    modifier = Modifier.background(colors.cardColor)
+                ) {
+                    DropdownMenuItem(
+                        leadingIcon = {
+                            Text(
+                                text = "A",
+                                color = colors.foregroundText,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        },
+                        text = { Text("Auto", color = colors.foregroundText) },
+                        onClick = {
+                            selectedOutputDeviceId = null
+                            showOutputDropdown = false
+                        }
                     )
-                } else {
-                    Icon(
-                        imageVector = if (audioOutputMode == AudioOutputMode.SPEAKER) Icons.Default.VolumeUp else Icons.Default.Hearing,
-                        contentDescription = "Audio Output Mode",
-                        tint = colors.foregroundText
-                    )
+                    availableOutputs.forEach { device ->
+                        DropdownMenuItem(
+                            leadingIcon = {
+                                val isBluetooth = device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || 
+                                                  device.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || 
+                                                  (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && (device.type == 26 || device.type == 27)) ||
+                                                  device.type == 23
+                                if (isBluetooth) {
+                                    Icon(Icons.Default.Bluetooth, contentDescription = null, tint = colors.foregroundText)
+                                } else if (device.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE) {
+                                    Icon(Icons.Default.Hearing, contentDescription = null, tint = colors.foregroundText)
+                                } else {
+                                    Icon(Icons.Default.VolumeUp, contentDescription = null, tint = colors.foregroundText)
+                                }
+                            },
+                            text = { 
+                                val name = when (device.type) {
+                                    AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "Earpiece"
+                                    AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "Stereo"
+                                    else -> device.productName?.toString()?.takeIf { it.isNotBlank() } ?: "Device ${device.id}"
+                                }
+                                Text(name, color = colors.foregroundText) 
+                            },
+                            onClick = {
+                                selectedOutputDeviceId = device.id
+                                showOutputDropdown = false
+                            }
+                        )
+                    }
                 }
+            }
+
+            // Audio Input Mode Button
+            if (availableInputs.size > 1) {
+                Box {
+                IconButton(onClick = { showInputDropdown = true }) {
+                    val currentMic = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS).find { it.id == selectedInputDeviceId } ?: availableInputs.find { it.id == selectedInputDeviceId }
+                    val isBluetoothMic = currentMic?.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || 
+                                         currentMic?.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || 
+                                         (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && (currentMic?.type == 26 || currentMic?.type == 27)) ||
+                                         currentMic?.type == 23
+                                         
+                    if (selectedInputDeviceId == null) {
+                        Text(
+                            text = "A",
+                            color = colors.foregroundText,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else if (isBluetoothMic) {
+                        Icon(Icons.Default.Bluetooth, contentDescription = "Bluetooth Mic", tint = colors.foregroundText)
+                    } else {
+                        Icon(Icons.Default.Mic, contentDescription = "Select Audio Input", tint = colors.foregroundText)
+                    }
+                }
+                DropdownMenu(
+                    expanded = showInputDropdown,
+                    onDismissRequest = { showInputDropdown = false },
+                    modifier = Modifier.background(colors.cardColor)
+                ) {
+                    DropdownMenuItem(
+                        leadingIcon = {
+                            Text(
+                                text = "A",
+                                color = colors.foregroundText,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        },
+                        text = { Text("Auto", color = colors.foregroundText) },
+                        onClick = {
+                            selectedInputDeviceId = null
+                            showInputDropdown = false
+                        }
+                    )
+                    availableInputs.forEach { device ->
+                        DropdownMenuItem(
+                            leadingIcon = {
+                                val isBluetoothMic = device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || 
+                                                     device.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || 
+                                                     (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && (device.type == 26 || device.type == 27)) ||
+                                                     device.type == 23
+                                if (isBluetoothMic) {
+                                    Icon(Icons.Default.Bluetooth, contentDescription = null, tint = colors.foregroundText)
+                                } else {
+                                    Icon(Icons.Default.Mic, contentDescription = null, tint = colors.foregroundText)
+                                }
+                            },
+                            text = { 
+                                val name = when (device.type) {
+                                    AudioDeviceInfo.TYPE_BUILTIN_MIC -> "Phone Mic"
+                                    else -> device.productName?.toString()?.takeIf { it.isNotBlank() } ?: "Mic ${device.id}"
+                                }
+                                Text(name, color = colors.foregroundText) 
+                            },
+                            onClick = {
+                                selectedInputDeviceId = device.id
+                                showInputDropdown = false
+                            }
+                        )
+                    }
+                }
+            }
             }
 
             // Chat Button
