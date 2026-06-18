@@ -121,10 +121,10 @@ data class Channel(
     val createdAt: Long? = null
 ) {
     val isVoice: Boolean
-        get() = type == ChannelType.VOICE.value
+        get() = type == ChannelType.VOICE.value && !isDm
 
     val isText: Boolean
-        get() = type == ChannelType.TEXT.value
+        get() = type == ChannelType.TEXT.value || isDm
 }
 
 // Roles

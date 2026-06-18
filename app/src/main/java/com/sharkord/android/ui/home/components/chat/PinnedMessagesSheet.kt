@@ -95,6 +95,10 @@ fun PinnedMessagesSheet(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(cardColor, RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        com.sharkord.android.ui.navigation.MessageNavigationManager.jumpToMessage(msg.channelId, msg.id)
+                                        onClose()
+                                    }
                                     .padding(12.dp)
                                     .padding(bottom = 8.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,

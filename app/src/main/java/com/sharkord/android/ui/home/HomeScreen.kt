@@ -9,6 +9,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -150,6 +151,11 @@ fun HomeScreen(
                     }
                 }
 
+                // Close DM list when pressing back button
+                BackHandler(enabled = uiState.activePanel == HomePanel.SERVER && uiState.isDmsListOpen) {
+                    viewModel.closeDmsList()
+                }
+
                 Box(modifier = Modifier.fillMaxSize()) {
                     // Chat Panel
                     if (uiState.selectedChannelId != null) {
@@ -193,6 +199,7 @@ fun HomeScreen(
                                     users = data.users,
                                     roles = data.roles ?: emptyList(),
                                     customEmojis = data.emojis ?: emptyList(),
+                                    isActive = uiState.activePanel == HomePanel.CHAT && uiState.isViewingVoiceChat,
                                     onBackClick = {
                                         viewModel.setViewingVoiceChat(false)
                                     },
@@ -352,6 +359,7 @@ fun HomeScreen(
                                 users = data.users,
                                 roles = data.roles ?: emptyList(),
                                 customEmojis = data.emojis ?: emptyList(),
+                                isActive = uiState.activePanel == HomePanel.CHAT,
                                 onBackClick = {
                                     coroutineScope.launch {
                                         swipeOffset.animateTo(0f)

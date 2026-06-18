@@ -66,6 +66,7 @@ fun ChatPanel(
     users: List<User>,
     roles: List<Role>,
     customEmojis: List<Emoji>,
+    isActive: Boolean = true,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ChatViewModel = viewModel(key = "chat_$channelId")
@@ -211,7 +212,7 @@ fun ChatPanel(
     }
 
     // System back button interception
-    BackHandler {
+    BackHandler(enabled = isActive) {
         when {
             uiState.viewingMediaFile != null -> viewModel.setViewingMediaFile(null)
             showMenuMessage != null          -> showMenuMessage = null

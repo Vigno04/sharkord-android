@@ -134,6 +134,13 @@ class HomeViewModel : ViewModel() {
             }
         }
 
+        // Observe global jump events
+        viewModelScope.launch {
+            com.sharkord.android.ui.navigation.MessageNavigationManager.jumpEvents.collect { event ->
+                selectChannel(channelId = event.channelId, messageId = event.messageId, navigateToChat = true)
+            }
+        }
+
         // Initiate the WebSocket connection
         if (!repository.connectWebSocket()) {
             _uiState.update {
