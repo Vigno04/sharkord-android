@@ -26,20 +26,20 @@ class UserSettingsViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(UserSettingsState())
     val uiState: StateFlow<UserSettingsState> = _uiState.asStateFlow()
 
-    // Profile Fields
+    // profile Fields
     var name = MutableStateFlow("")
     var bio = MutableStateFlow("")
     var bannerColor = MutableStateFlow("#FFFFFF")
 
-    // Password Fields
+    // password Fields
     var currentPassword = MutableStateFlow("")
     var newPassword = MutableStateFlow("")
     var confirmNewPassword = MutableStateFlow("")
 
-    // App Settings
+    // app Settings
     var maxDiskCacheMb = MutableStateFlow(250)
 
-    // Devices Settings
+    // devices Settings
     var defaultAudioRoute = MutableStateFlow("None")
     var echoCancellation = MutableStateFlow(true)
     var noiseSuppression = MutableStateFlow(true)
@@ -227,7 +227,7 @@ class UserSettingsViewModel : ViewModel() {
                 val serverUrl = SharkordClient.currentServerUrl ?: return null
                 val token = SharkordClient.currentToken ?: return null
                 
-                // Get filename from uri or fallback
+                // get filename from uri or fallback
                 val fileName = "upload.jpg" // Could extract real name
                 
                 val result = SharkordClient.http.uploadFile(serverUrl, token, fileName, bytes)

@@ -56,7 +56,7 @@ fun ServerProfileBottomSheet(
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
-            // Banner Section
+            // banner Section
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -64,12 +64,12 @@ fun ServerProfileBottomSheet(
                     .background(cardColor)
             )
 
-            // Server Info Section
+            // server Info Section
             Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
                 Column(
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Spacer for the overlapping logo
+                    // spacer for the overlapping logo
                     Spacer(modifier = Modifier.height(56.dp))
 
                     Text(
@@ -175,7 +175,7 @@ fun ServerProfileBottomSheet(
                     Spacer(modifier = Modifier.height(24.dp))
                 }
 
-                // Overlapping Logo
+                // overlapping Logo
                 Box(
                     modifier = Modifier
                         .offset(y = (-40).dp)

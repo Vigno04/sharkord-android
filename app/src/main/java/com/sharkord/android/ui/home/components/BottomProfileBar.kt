@@ -27,9 +27,7 @@ import com.sharkord.android.data.model.User
 import com.sharkord.android.data.network.SharkordClient
 import com.sharkord.android.ui.components.rememberAsyncImagePainter
 
-/**
- * Floating profile pill at the bottom of the home screen.
- */
+// floating profile pill at the bottom of the home screen
 @Composable
 fun BottomProfileBar(
     currentUser: User?,
@@ -38,14 +36,14 @@ fun BottomProfileBar(
     onProfileClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Layer the floating circular avatar on top of the background bar
+    // layer the floating circular avatar on top of the background bar
     Box(
         modifier = modifier
             .fillMaxWidth()
             .clickable { onProfileClick() } // Open user settings profile sheet when clicked
             .padding(horizontal = 16.dp, vertical = 8.dp) // Outer spacing
     ) {
-        // The dark background bar
+        // the dark background bar
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -59,7 +57,7 @@ fun BottomProfileBar(
                     RoundedCornerShape(16.dp)
                 )
         ) {
-            // Text details inside the bar (name & "Online" status)
+            // text details inside the bar (name & "Online" status)
             Column(
                 modifier = Modifier
                     .fillMaxHeight()
@@ -67,7 +65,7 @@ fun BottomProfileBar(
                 verticalArrangement = Arrangement.Center
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // User's name
+                    // user's name
                     Text(
                         text = userName,
                         color = foregroundText,
@@ -75,7 +73,7 @@ fun BottomProfileBar(
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    // Down-arrow indicating they can click it for menu
+                    // down-arrow indicating they can click it for menu
                     Icon(
                         Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
@@ -83,7 +81,7 @@ fun BottomProfileBar(
                         modifier = Modifier.size(16.dp)
                     )
                 }
-                // Online label (to implement)
+                // online label (to implement)
                 Text(
                     text = stringResource(id = R.string.common_online),
                     color = Color.Gray,
@@ -92,7 +90,7 @@ fun BottomProfileBar(
             }
         }
 
-        // The Avatar (Floating on the left side of the bar)
+        // the Avatar (Floating on the left side of the bar)
         Box(
             modifier = Modifier
                 .align(Alignment.CenterStart)
@@ -101,7 +99,7 @@ fun BottomProfileBar(
             val avatarUrl = currentUser?.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }
             val avatarPainter = rememberAsyncImagePainter(avatarUrl)
             
-            // Draw the profile avatar image
+            // draw the profile avatar image
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -118,7 +116,7 @@ fun BottomProfileBar(
                     )
                 }
             }
-            // Green Online Dot: small green circle in the bottom right corner of the avatar (to implement)
+            // green Online Dot: small green circle in the bottom right corner of the avatar (to implement)
             Box(
                 modifier = Modifier
                     .size(16.dp)

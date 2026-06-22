@@ -76,7 +76,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
     private var sendTransport: SendTransport? = null
     private var recvTransport: RecvTransport? = null
     private var micProducer: Producer? = null
-    // Map key is "$remoteId:${kind.value}"
+    // map key is "$remoteId:${kind.value}"
     private val consumers = java.util.concurrent.ConcurrentHashMap<String, Consumer>()
 
     private var peerConnectionFactory: PeerConnectionFactory? = null
@@ -95,19 +95,19 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         private set
     val cameraEnabled: Boolean get() = videoEngine.cameraEnabled
 
-    // Subscription IDs
+    // subscription IDs
     private var onNewProducerSubId: Int? = null
     private var onProducerClosedSubId: Int? = null
     private var eventCollectionJob: Job? = null
 
-    // Prevent duplicate transport connect calls — mediasoup-droid may call onConnect
+    // prevent duplicate transport connect calls — mediasoup-droid may call onConnect
     // for every new consumer/producer on the same transport, but the server only
-    // accepts the first connectTransport call.
+    // accepts the first connectTransport call
     private var producerTransportConnected = false
     private var consumerTransportConnected = false
 
-    // Mutex to serialize all consume operations. Consuming audio and video concurrently
-    // causes an SDP m-line ordering conflict in WebRTC ("order of m-lines doesn't match").
+    // mutex to serialize all consume operations. Consuming audio and video concurrently
+    // causes an SDP m-line ordering conflict in WebRTC ("order of m-lines doesn't match")
     private val consumeMutex = Mutex()
 
     private var audioFocusRequest: AudioFocusRequest? = null
@@ -118,11 +118,9 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         org.webrtc.Logging.enableLogToDebugOutput(org.webrtc.Logging.Severity.LS_NONE)
     }
 
-    /**
-     * Creates a fresh PeerConnectionFactory with both audio and video codecs.
-     * Must be called fresh for each voice session because the audio device module
-     * captures a reference to the session state.
-     */
+    // creates a fresh PeerConnectionFactory with both audio and video codecs
+    // must be called fresh for each voice session because the audio device module
+    // captures a reference to the session state
     private fun buildPeerConnectionFactory(): PeerConnectionFactory {
         if (!peerConnectionFactoryInitialized) {
             val options = PeerConnectionFactory.InitializationOptions.builder(context)
@@ -168,7 +166,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         currentChannelId = channelId
         _connectionState.value = VoiceConnectionState.CONNECTING
 
-        // Build a fresh factory for each session
+        // build a fresh factory for each session
         peerConnectionFactory?.dispose()
         peerConnectionFactory = buildPeerConnectionFactory()
 
@@ -199,7 +197,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                 val pcOptions = org.mediasoup.droid.PeerConnection.Options()
                 pcOptions.setFactory(peerConnectionFactory)
 
-                // Extract the actual RTP capabilities if it's wrapped in an outer object
+                // extract the actual RTP capabilities if it's wrapped in an outer object
                 var actualCaps: JsonObject = routerRtpCapabilities
                 if (routerRtpCapabilities.has("rtpCapabilities")) {
                     actualCaps = routerRtpCapabilities.getAsJsonObject("rtpCapabilities")
@@ -209,7 +207,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                     actualCaps = routerRtpCapabilities.getAsJsonObject("routerCapabilities")
                 }
 
-                // Force physical rotation by stripping video-orientation header extension
+                // force physical rotation by stripping video-orientation header extension
                 if (actualCaps.has("headerExtensions")) {
                     val exts = actualCaps.getAsJsonArray("headerExtensions")
                     val filteredExts = com.google.gson.JsonArray()
@@ -328,7 +326,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                             add("rtpParameters", gson.fromJson(rtpParameters, JsonObject::class.java))
                         }
                         val produceResponse = webSocketManager.sendMutationAwait("voice.produce", input)
-                        // Server returns producer.id directly (a plain string), wrapped in {"value": "<id>"}
+                        // server returns producer.id directly (a plain string), wrapped in {"value": "<id>"}
                         val producerId = produceResponse.get("value")?.asString
                         if (producerId.isNullOrEmpty()) {
                             throw RuntimeException("Server returned empty producer ID for kind=$kind")
@@ -443,7 +441,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
             val data = gson.fromJson(response, JsonObject::class.java)
 
             // IMPORTANT: consume sequentially — concurrent consumption causes SDP m-line
-            // ordering conflicts in WebRTC ("order of m-lines in answer doesn't match offer").
+            // ordering conflicts in WebRTC ("order of m-lines in answer doesn't match offer")
             val remoteAudioIds = data.getAsJsonArray("remoteAudioIds")
             remoteAudioIds?.forEach {
                 val remoteId = it.asInt
@@ -460,21 +458,17 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         }
     }
 
-    /**
-     * Fire-and-forget wrapper: schedules a sequential consume via the mutex.
-     * Used by real-time events (onNewProducer).
-     */
+    // fire-and-forget wrapper: schedules a sequential consume via the mutex
+    // used by real-time events (onNewProducer)
     fun consumeRemoteProducer(remoteId: Int, kind: StreamKind) {
         scope.launch {
             consumeRemoteProducerSuspend(remoteId, kind)
         }
     }
 
-    /**
-     * Suspend version that holds [consumeMutex] to ensure consume operations are
-     * strictly sequential. Concurrent consumption causes an SDP m-line ordering
-     * conflict in WebRTC: "order of m-lines in answer doesn't match order in offer".
-     */
+    // suspend version that holds [consumeMutex] to ensure consume operations are
+    // strictly sequential. Concurrent consumption causes an SDP m-line ordering
+    // conflict in WebRTC: "order of m-lines in answer doesn't match order in offer"
     private suspend fun consumeRemoteProducerSuspend(remoteId: Int, kind: StreamKind) {
         consumeMutex.withLock {
             try {
@@ -492,7 +486,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                 val response = webSocketManager.sendMutationAwait("voice.consume", input)
                 val data = gson.fromJson(response, JsonObject::class.java)
 
-                // Server returns: { producerId, consumerId, consumerKind, consumerRtpParameters, consumerType, qualityLayers }
+                // server returns: { producerId, consumerId, consumerKind, consumerRtpParameters, consumerType, qualityLayers }
                 val consumerId = data.get("consumerId").asString
                 val producerId = data.get("producerId").asString
                 val consumerKind = data.get("consumerKind")?.asString ?: kind.value
@@ -500,7 +494,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
 
                 val consumerKey = "$remoteId:$consumerKind"
 
-                // Close any existing consumer for this key
+                // close any existing consumer for this key
                 consumers[consumerKey]?.let {
                     if (!it.isClosed) it.close()
                     consumers.remove(consumerKey)
@@ -551,8 +545,8 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         scope.launch {
             consumeMutex.withLock {
                 val key = "$remoteId:${kind.value}"
-                // Remove video track from UI FIRST — this triggers Compose to remove
-                // the SurfaceViewRenderer before we invalidate native resources.
+                // remove video track from UI FIRST — this triggers Compose to remove
+                // the SurfaceViewRenderer before we invalidate native resources
                 if (kind == StreamKind.VIDEO) {
                     videoEngine.removeRemoteVideoTrack(remoteId.toString())
                     val consumerToClose = consumers.remove(key) ?: return@withLock
@@ -566,7 +560,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                     }
                 } else {
                     consumers.remove(key)?.let { consumer ->
-                        // Disable the track to stop frame delivery to any remaining sinks
+                        // disable the track to stop frame delivery to any remaining sinks
                         try {
                             val track = consumer.track
                             track?.setEnabled(false)
@@ -581,7 +575,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
     fun clearRemoteProducersForUser(userId: Int) {
         scope.launch {
             consumeMutex.withLock {
-                // Remove video track from UI FIRST
+                // remove video track from UI FIRST
                 videoEngine.removeRemoteVideoTrack(userId.toString())
                 val keysToRemove = consumers.keys.filter { it.startsWith("$userId:") }
                 keysToRemove.forEach { key ->
@@ -639,7 +633,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                 if (_isConnected.value) {
                     val newLevels = mutableMapOf<String, Float>()
 
-                    // Local mic
+                    // local mic
                     if (micProducer != null && !isMicMuted) {
                         try {
                             val statsStr = micProducer?.stats
@@ -660,7 +654,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                         } catch (e: Exception) { }
                     }
 
-                    // Remote consumers
+                    // remote consumers
                     consumers.forEach { (key, consumer) ->
                         if (consumer.kind == "audio" && !isSoundMuted && !consumer.isPaused) {
                             try {
@@ -677,7 +671,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                                             }
                                         }
                                     }
-                                    // Strip the ":audio" suffix from key to get remoteId
+                                    // strip the ":audio" suffix from key to get remoteId
                                     val remoteIdStr = key.substringBefore(":")
                                     newLevels[remoteIdStr] = level
                                 }
@@ -708,11 +702,11 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         _isConnected.value = false
         currentChannelId = null
 
-        // Reset transport-connected guards so next join can call connectTransport again
+        // reset transport-connected guards so next join can call connectTransport again
         producerTransportConnected = false
         consumerTransportConnected = false
 
-        // Detach from UI immediately
+        // detach from UI immediately
         videoEngine.clearRemoteVideoTracks()
 
         val oldMicProducer = micProducer
@@ -744,10 +738,10 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
 
             delay(800) // Ensure UI unmounts AND VideoEngine finishes its 500ms cleanup
             
-            // Close producers
+            // close producers
             oldMicProducer?.let { if (!it.isClosed) it.close() }
 
-            // Close all consumers
+            // close all consumers
             consumersToClose.forEach { consumer ->
                 try {
                     consumer.track?.setEnabled(false)
@@ -755,22 +749,22 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                 if (!consumer.isClosed) consumer.close()
             }
 
-            // Close transports BEFORE disposing device
+            // close transports BEFORE disposing device
             oldSendTransport?.let { if (!it.isClosed) it.close() }
             oldRecvTransport?.let { if (!it.isClosed) it.close() }
 
-            // Dispose device
+            // dispose device
             oldDevice?.dispose()
 
-            // Dispose audio resources
+            // dispose audio resources
             oldLocalAudioTrack?.dispose()
             oldLocalAudioSource?.dispose()
 
-            // Dispose factory - will be rebuilt fresh on next join
+            // dispose factory - will be rebuilt fresh on next join
             oldPeerConnectionFactory?.dispose()
         }
 
-        // Release audio focus
+        // release audio focus
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }

@@ -21,48 +21,46 @@ import kotlinx.coroutines.delay
 import com.sharkord.android.data.network.ConnectionState
 import com.sharkord.android.R
 
-/**
- * UI state for the chat panel of a single channel.
- */
+// UI state for the chat panel of a single channel
 data class ChatUiState(
-    /** Message list, newest at the end (chronological order). */
+    // message list, newest at the end (chronological order)
     val messages: List<Message> = emptyList(),
-    /** True while the initial page of messages is loading. */
+    // true while the initial page of messages is loading
     val isLoadingHistory: Boolean = true,
-    /** True while older messages (pagination) are loading. */
+    // true while older messages (pagination) are loading
     val isLoadingOlder: Boolean = false,
-    /** True while a send is in-flight. */
+    // true while a send is in-flight
     val isSending: Boolean = false,
-    /** Non-null when an error occurred that should be surfaced to the user. */
+    // non-null when an error occurred that should be surfaced to the user
     val errorMessage: String? = null,
-    /** Cursor for the next older page. Null when there are no more older messages. */
+    // cursor for the next older page. Null when there are no more older messages
     val nextCursor: Long? = null,
-    /** True once we've loaded all the way to the top (no more older messages). */
+    // true once we've loaded all the way to the top (no more older messages)
     val hasReachedTop: Boolean = false,
-    /** Active reply target message. */
+    // active reply target message
     val replyTarget: Message? = null,
-    /** Active editing message. Null when not in editing mode. */
+    // active editing message. Null when not in editing mode
     val editingMessage: Message? = null,
-    /** Set of active typing user IDs in this channel. */
+    // set of active typing user IDs in this channel
     val typingUsers: Set<Int> = emptySet(),
-    /** Pinned messages for this channel. */
+    // pinned messages for this channel
     val pinnedMessages: List<Message> = emptyList(),
-    /** True while pinned messages are loading. */
+    // true while pinned messages are loading
     val isLoadingPinned: Boolean = false,
-    /** Controls pinned messages overlay visibility. */
+    // controls pinned messages overlay visibility
     val showPinnedMessages: Boolean = false,
-    /** Pending attached files. */
+    // pending attached files
     val attachedFiles: List<com.sharkord.android.data.model.FileInfo> = emptyList(),
-    /** True while an attachment upload is in-flight. */
+    // true while an attachment upload is in-flight
     val isUploadingAttachment: Boolean = false,
-    /** Expose the current user's ID reactively from the server connection state. */
+    // expose the current user's ID reactively from the server connection state
     val ownUserId: Int = -1,
-    /** The media file currently being viewed in full-screen lightbox. */
+    // the media file currently being viewed in full-screen lightbox
     val viewingMediaFile: com.sharkord.android.data.model.FileInfo? = null,
-    /** ID of the message to jump to. Handled and cleared by ChatPanel. */
+    // ID of the message to jump to. Handled and cleared by ChatPanel
     val jumpTargetMessageId: Int? = null
 ) {
-    /** Helper check to see if the user is authorized to edit/delete a message. */
+    // helper check to see if the user is authorized to edit/delete a message
     fun canManageMessage(message: Message, roles: List<Role>, users: List<User>): Boolean {
         if (ownUserId == -1) return false
         if (message.userId == ownUserId) return true
@@ -72,7 +70,7 @@ data class ChatUiState(
         return userRoles.any { it.permissions.contains("MANAGE_MESSAGES") }
     }
 
-    /** Helper check to see if the user is authorized to pin messages. */
+    // helper check to see if the user is authorized to pin messages
     fun canPinMessage(roles: List<Role>, users: List<User>): Boolean {
         if (ownUserId == -1) return false
         val currentUser = users.find { it.id == ownUserId } ?: return false
@@ -82,12 +80,9 @@ data class ChatUiState(
     }
 }
 
-/**
- * ViewModel for a single text channel's chat panel.
- *
- * One instance is created per channel (keyed by channelId in the Compose `viewModel()` call),
- * so switching channels doesn't discard the already-loaded message history.
- */
+// viewModel for a single text channel's chat panel
+// one instance is created per channel (keyed by channelId in the Compose `viewModel()` call),
+// so switching channels doesn't discard the already-loaded message history
 class ChatViewModel : ViewModel() {
 
     companion object {
@@ -116,11 +111,9 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    // Lifecycle
+    // lifecycle
 
-    /**
-     * Initialises this ViewModel for [channelId].
-     */
+    // initialises this ViewModel for [channelId]
     fun init(channelId: Int, targetMessageId: Int? = null) {
         if (this.channelId == channelId && targetMessageId == null) return
         this.channelId = channelId
@@ -133,7 +126,7 @@ class ChatViewModel : ViewModel() {
         startTypingExpiryTimer()
     }
 
-    // Message Loading
+    // message Loading
 
     private fun loadInitialMessages(targetMessageId: Int? = null) {
         if (targetMessageId == null) {
@@ -147,7 +140,7 @@ class ChatViewModel : ViewModel() {
                         isLoadingHistory = false
                     )
                 }
-                // Background sync to catch any messages missed while disconnected
+                // background sync to catch any messages missed while disconnected
                 messageLoadJob?.cancel()
                 messageLoadJob = viewModelScope.launch {
                     repository.getMessages(channelId).onSuccess { page ->
@@ -200,9 +193,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Loads the next older page of messages.
-     */
+    // loads the next older page of messages
     fun loadOlderMessages() {
         val state = _uiState.value
         if (state.isLoadingOlder || state.hasReachedTop || state.nextCursor == null) return
@@ -240,11 +231,9 @@ class ChatViewModel : ViewModel() {
         _uiState.update { it.copy(jumpTargetMessageId = null) }
     }
 
-    // Send, Edit, Delete, Reactions
+    // send, Edit, Delete, Reactions
 
-    /**
-     * Sends a new message, optionally with attached files.
-     */
+    // sends a new message, optionally with attached files
     fun sendMessage(content: String) {
         val trimmed = content.trim()
         val attached = _uiState.value.attachedFiles
@@ -281,17 +270,17 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    /** Sets or clears the active reply target message. */
+    // sets or clears the active reply target message
     fun setReplyTarget(message: Message?) {
         _uiState.update { it.copy(replyTarget = message) }
     }
 
-    /** Sets or clears the active message being edited. */
+    // sets or clears the active message being edited
     fun setEditingMessage(message: Message?) {
         _uiState.update { it.copy(editingMessage = message) }
     }
 
-    /** Submits message edit to server. */
+    // submits message edit to server
     fun submitEdit(messageId: Int, newContent: String) {
         val trimmed = newContent.trim()
         if (trimmed.isEmpty()) return
@@ -317,7 +306,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    /** Deletes message on server. */
+    // deletes message on server
     fun submitDelete(messageId: Int) {
         viewModelScope.launch {
             _uiState.update { it.copy(errorMessage = null) }
@@ -330,7 +319,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    /** Toggles emoji reaction on message. */
+    // toggles emoji reaction on message
     fun toggleReaction(messageId: Int, emoji: String) {
         viewModelScope.launch {
             repository.toggleReaction(messageId, emoji).onFailure { error ->
@@ -342,7 +331,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    /** Toggles pinned status of message. */
+    // toggles pinned status of message
     fun togglePin(messageId: Int) {
         viewModelScope.launch {
             repository.togglePin(messageId).onFailure { error ->
@@ -354,9 +343,9 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    // Pinned Messages Panel
+    // pinned Messages Panel
 
-    /** Loads pinned messages for this channel. */
+    // loads pinned messages for this channel
     fun loadPinnedMessages() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingPinned = true, errorMessage = null) }
@@ -377,7 +366,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    /** Controls visibility of pinned messages bottom sheet. */
+    // controls visibility of pinned messages bottom sheet
     fun setPinnedMessagesVisible(visible: Boolean) {
         _uiState.update { it.copy(showPinnedMessages = visible) }
         if (visible) {
@@ -385,9 +374,9 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    // File Upload & Voice Messaging
+    // file Upload & Voice Messaging
 
-    /** Uploads a file and attaches it to the draft. */
+    // uploads a file and attaches it to the draft
     fun uploadAndAttachFile(originalName: String, fileBytes: ByteArray, localUri: String? = null) {
         viewModelScope.launch {
             _uiState.update { it.copy(isUploadingAttachment = true, errorMessage = null) }
@@ -410,7 +399,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    /** Removes a previously uploaded file from the attachment list. */
+    // removes a previously uploaded file from the attachment list
     fun removeAttachedFile(fileId: String) {
         _uiState.update { state ->
             state.copy(
@@ -419,7 +408,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    /** Uploads a custom voice note raw bytes and posts it to the channel immediately. */
+    // uploads a custom voice note raw bytes and posts it to the channel immediately
     fun sendAudioVoiceNote(fileName: String, fileBytes: ByteArray) {
         viewModelScope.launch {
             _uiState.update { it.copy(isSending = true, errorMessage = null) }
@@ -449,7 +438,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    // Media Lightbox & Download
+    // media Lightbox & Download
 
     fun setViewingMediaFile(file: com.sharkord.android.data.model.FileInfo?) {
         _uiState.update { it.copy(viewingMediaFile = file) }
@@ -557,9 +546,9 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    // Typing Indicators
+    // typing Indicators
 
-    /** Outbound: call when user is typing. */
+    // outbound: call when user is typing
     fun onType(text: String) {
         if (text.isBlank()) return
         val now = System.currentTimeMillis()
@@ -586,17 +575,17 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    /** Clears error message. */
+    // clears error message
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
     }
 
-    /** Sets a custom error message. */
+    // sets a custom error message
     fun setErrorMessage(message: String) {
         _uiState.update { it.copy(errorMessage = message) }
     }
 
-    // Real-Time Event Handling
+    // real-Time Event Handling
 
     private fun startObservingEvents() {
         eventJob?.cancel()

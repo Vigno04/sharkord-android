@@ -9,13 +9,11 @@ data class ChannelCacheEntry(
     val hasReachedTop: Boolean
 )
 
-/**
- * Singleton cache for channel messages to allow instant switching between channels
- * without losing scroll position or triggering full network reloads.
- */
+// singleton cache for channel messages to allow instant switching between channels
+// without losing scroll position or triggering full network reloads
 object MessagesCacheManager {
-    // Cache up to 50 channels in memory.
-    // Text data is very small, so this is extremely safe memory-wise.
+    // cache up to 50 channels in memory
+    // text data is very small, so this is extremely safe memory-wise
     private val cache = LruCache<Int, ChannelCacheEntry>(50)
 
     fun getChannelCache(channelId: Int): ChannelCacheEntry? {

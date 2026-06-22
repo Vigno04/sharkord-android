@@ -64,12 +64,9 @@ private val altRegex = Regex("""alt=["']([^"']+)["']""")
 private val srcRegex = Regex("""src=["']([^"']+)["']""")
 private val tokenRegex = Regex("""\[\[EMOJI\|(.*?)\|(.*?)\]\]""")
 
-/**
- * Renders a single chat message in the message list.
- *
- * Groups consecutive messages from the same author (compact mode) to mirror
- * Discord's visual style — only the first message in a run shows the avatar + name.
- */
+// renders a single chat message in the message list
+// groups consecutive messages from the same author (compact mode) to mirror
+// discord's visual style — only the first message in a run shows the avatar + name
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun MessageItem(
@@ -94,13 +91,13 @@ fun MessageItem(
 
     val author = users.find { it.id == message.userId }
 
-    // Show the avatar + author header only when this is the first message in a consecutive run
+    // show the avatar + author header only when this is the first message in a consecutive run
     val showHeader = previousMessage == null
         || previousMessage.userId != message.userId
         || (message.createdAt - previousMessage.createdAt) > TimeUnit.MINUTES.toMillis(5)
         || message.replyTo != null
 
-    // Resolve author's top-role color
+    // resolve author's top-role color
     val nameColor = remember(author, roles) {
         val authorRoleIds = author?.roleIds ?: emptyList()
         val topRole = roles
@@ -114,7 +111,7 @@ fun MessageItem(
         }
     }
 
-    // Pre-process HTML to preserve custom emojis as tokens before stripping tags
+    // pre-process HTML to preserve custom emojis as tokens before stripping tags
     val preProcessedHtml = remember(message.content) {
         val raw = message.content ?: ""
         imgRegex.replace(raw) { matchResult ->
@@ -211,7 +208,7 @@ fun MessageItem(
                 onClick = {}
             )
     ) {
-        // If it is a reply, render the curved connection line and original message preview
+        // if it is a reply, render the curved connection line and original message preview
         if (message.replyTo != null) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -220,7 +217,7 @@ fun MessageItem(
                     .clickable { onReplyClick(message.replyTo.id) }
                     .padding(start = 12.dp, top = 6.dp, bottom = 2.dp)
             ) {
-                // Curved connecting thread
+                // curved connecting thread
                 Canvas(
                     modifier = Modifier
                         .width(36.dp)
@@ -240,7 +237,7 @@ fun MessageItem(
 
                 Spacer(modifier = Modifier.width(4.dp))
 
-                // Resolve target author for the reply preview
+                // resolve target author for the reply preview
                 val replyAuthor = users.find { it.id == message.replyTo.userId }
 
                 Box(
@@ -319,7 +316,7 @@ fun MessageItem(
                 ),
             verticalAlignment = Alignment.Top
         ) {
-            // Left column: avatar or spacer
+            // left column: avatar or spacer
             if (showHeader) {
                 Box(
                     modifier = Modifier
@@ -345,7 +342,7 @@ fun MessageItem(
                             strokeWidth = 2.dp
                         )
                         else -> {
-                            // Empty (no avatar) or Failure — show initials
+                            // empty (no avatar) or Failure — show initials
                             val initials = getInitials(author?.name ?: "?")
                             val bgColor = getUsernameColor(author?.name ?: "?")
                             Box(
@@ -363,13 +360,13 @@ fun MessageItem(
                     }
                 }
             } else {
-                // Compact mode — reserve the same width as the avatar column so text aligns
+                // compact mode — reserve the same width as the avatar column so text aligns
                 Spacer(modifier = Modifier.width(40.dp))
             }
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Right column: header (name + time) and content
+            // right column: header (name + time) and content
             Column(modifier = Modifier.weight(1f)) {
                 if (showHeader) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -404,7 +401,7 @@ fun MessageItem(
                     )
                 }
 
-                // Edited indicator
+                // edited indicator
                 if (message.editedAt != null) {
                     Text(
                         text = "(edited)",
@@ -414,7 +411,7 @@ fun MessageItem(
                     )
                 }
 
-                // Media & File attachments: display photos/audios inline or generic chips
+                // media & File attachments: display photos/audios inline or generic chips
                 if (message.files.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(6.dp))
                     message.files.forEach { file ->
@@ -518,11 +515,11 @@ fun MessageItem(
                                                 )
                                             }
                                             else -> {
-                                                // Fallback background or nothing
+                                                // fallback background or nothing
                                             }
                                         }
 
-                                        // Play icon overlay ALWAYS visible when not playing
+                                        // play icon overlay ALWAYS visible when not playing
                                         Box(
                                             modifier = Modifier
                                                 .size(48.dp)
@@ -652,9 +649,7 @@ fun MessageItem(
     }
 }
 
-/**
- * Custom voice note / audio playback card interface.
- */
+// custom voice note / audio playback card interface
 @Composable
 fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
@@ -694,7 +689,7 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
         }
     }
 
-    // Playback progress loop
+    // playback progress loop
     LaunchedEffect(isPlaying) {
         if (isPlaying) {
             while (isPlaying && mediaPlayer != null) {
@@ -887,7 +882,7 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
     }
 }
 
-// Helpers
+// helpers
 
 private fun formatTimestamp(epochMs: Long): String {
     val now = System.currentTimeMillis()
@@ -923,10 +918,8 @@ private fun getFileIcon(fileName: String, mimeType: String?): String {
     }
 }
 
-/**
- * Returns initials from a display name, mirroring the web app's getInitialsFromName():
- * single-word names -> first letter; multi-word -> first letter of first two words.
- */
+// returns initials from a display name, mirroring the web app's getInitialsFromName():
+// single-word names -> first letter; multi-word -> first letter of first two words
 private fun getInitials(name: String): String {
     val words = name.trim().split(" ").filter { it.isNotEmpty() }
     return when {
@@ -936,7 +929,7 @@ private fun getInitials(name: String): String {
     }
 }
 
-/** Stable deterministic background color for a user's avatar based on their name. */
+// stable deterministic background color for a user's avatar based on their name
 private fun getUsernameColor(name: String): Color {
     val palette = listOf(
         Color(0xFF5865F2), // Discord blurple

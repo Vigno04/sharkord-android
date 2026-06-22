@@ -115,7 +115,7 @@ fun MediaLightboxViewer(
             }
         }
 
-        // Top Controls
+        // top Controls
         Row(
             modifier = Modifier
                 .align(Alignment.TopCenter)

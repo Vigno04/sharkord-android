@@ -19,24 +19,19 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 
-/**
- * Manages the tRPC WebSocket connection to the Sharkord server.
- *
- * Implements a proper state machine for connection lifecycle:
- * Disconnected → Connecting → Authenticating → HandshakePending → JoinPending → Connected
- *
- * After reaching [ConnectionState.Connected], all real-time tRPC subscriptions are
- * automatically registered, mirroring what the web client does in `initSubscriptions()`.
- * Incoming subscription events are emitted on [incomingEvents] and routed by path to
- * [ServerEventHandler] for typed parsing.
- *
- * Features:
- * - Response-based sequencing (no arbitrary delays)
- * - Auto-incrementing tRPC message IDs
- * - Exponential backoff reconnection
- * - Auto-registration of all server-side real-time subscriptions
- * - Connection state exposed as StateFlow for reactive UI updates
- */
+// manages the tRPC WebSocket connection to the Sharkord server
+// implements a proper state machine for connection lifecycle:
+// disconnected → Connecting → Authenticating → HandshakePending → JoinPending → Connected
+// after reaching [ConnectionState.Connected], all real-time tRPC subscriptions are
+// automatically registered, mirroring what the web client does in `initSubscriptions()`
+// incoming subscription events are emitted on [incomingEvents] and routed by path to
+// [ServerEventHandler] for typed parsing
+// features:
+// - Response-based sequencing (no arbitrary delays)
+// - Auto-incrementing tRPC message IDs
+// - Exponential backoff reconnection
+// - Auto-registration of all server-side real-time subscriptions
+// - Connection state exposed as StateFlow for reactive UI updates
 class WebSocketManager(
     private val okHttpClient: OkHttpClient,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -44,7 +39,7 @@ class WebSocketManager(
     companion object {
         private const val TAG = "WebSocketManager"
 
-        // Reconnection backoff parameters
+        // reconnection backoff parameters
         private const val INITIAL_RETRY_DELAY_MS = 1000L
         private const val MAX_RETRY_DELAY_MS = 30_000L
         private const val BACKOFF_MULTIPLIER = 2.0
@@ -57,38 +52,36 @@ class WebSocketManager(
     private var reconnectJob: Job? = null
     private var shouldReconnect = false
 
-    // Track pending tRPC request IDs and their purpose
+    // track pending tRPC request IDs and their purpose
     private var handshakeId: Int? = null
     private var joinServerId: Int? = null
 
-    // Subscription tracking: tRPC id -> subscription path
-    // Internal visibility for documentation purposes (see TrpcProtocol comment on Success routing)
+    // subscription tracking: tRPC id -> subscription path
+    // internal visibility for documentation purposes (see TrpcProtocol comment on Success routing)
     internal val activeSubscriptions = mutableMapOf<Int, String>()
 
-    // Pending one-shot calls (query/mutation): tRPC id -> deferred result
-    // Callers suspend via sendQueryAwait / sendMutationAwait until the response arrives.
+    // pending one-shot calls (query/mutation): tRPC id -> deferred result
+    // callers suspend via sendQueryAwait / sendMutationAwait until the response arrives
     private val pendingCalls = mutableMapOf<Int, CompletableDeferred<JsonObject>>()
 
-    // Public State
+    // public State
 
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
-    /** Observe the current connection lifecycle state. */
+    // observe the current connection lifecycle state
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
     private val _serverData = MutableSharedFlow<JoinServerData>(replay = 1)
-    /** Emits the JoinServerData when successfully connected. */
+    // emits the JoinServerData when successfully connected
     val serverData: SharedFlow<JoinServerData> = _serverData.asSharedFlow()
 
     private val _incomingEvents = MutableSharedFlow<IncomingEvent>(extraBufferCapacity = 64)
-    /** Emits real-time events from tRPC subscriptions. */
+    // emits real-time events from tRPC subscriptions
     val incomingEvents: SharedFlow<IncomingEvent> = _incomingEvents.asSharedFlow()
 
-    // Public API
+    // public API
 
-    /**
-     * Initiates a WebSocket connection to the server.
-     * If already connected, disconnects first.
-     */
+    // initiates a WebSocket connection to the server
+    // if already connected, disconnects first
     fun connect(serverUrl: String, token: String) {
         this.token = token
         this.serverUrl = serverUrl
@@ -98,9 +91,7 @@ class WebSocketManager(
         doConnect()
     }
 
-    /**
-     * Explicitly disconnects and stops reconnection attempts.
-     */
+    // explicitly disconnects and stops reconnection attempts
     fun disconnect() {
         shouldReconnect = false
         reconnectJob?.cancel()
@@ -113,10 +104,8 @@ class WebSocketManager(
         _connectionState.value = ConnectionState.Disconnected
     }
 
-    /**
-     * Sends a tRPC query and returns the assigned message ID.
-     * The response will arrive via the WebSocket message handler.
-     */
+    // sends a tRPC query and returns the assigned message ID
+    // the response will arrive via the WebSocket message handler
     fun sendQuery(path: String, input: com.google.gson.JsonElement = JsonObject()): Int {
         val id = TrpcProtocol.getNextId()
         val message = TrpcProtocol.buildQuery(id, path, input)
@@ -125,9 +114,7 @@ class WebSocketManager(
         return id
     }
 
-    /**
-     * Sends a tRPC mutation and returns the assigned message ID.
-     */
+    // sends a tRPC mutation and returns the assigned message ID
     fun sendMutation(path: String, input: com.google.gson.JsonElement): Int {
         val id = TrpcProtocol.getNextId()
         val message = TrpcProtocol.buildMutation(id, path, input)
@@ -136,11 +123,9 @@ class WebSocketManager(
         return id
     }
 
-    /**
-     * Sends a tRPC query and suspends until the server responds.
-     * Throws [WebSocketNotConnectedException] if the socket is null,
-     * or a [TrpcCallException] if the server returns an error.
-     */
+    // sends a tRPC query and suspends until the server responds
+    // throws [WebSocketNotConnectedException] if the socket is null,
+    // or a [TrpcCallException] if the server returns an error
     suspend fun sendQueryAwait(path: String, input: com.google.gson.JsonElement = JsonObject()): JsonObject {
         val id = TrpcProtocol.getNextId()
         val deferred = CompletableDeferred<JsonObject>()
@@ -155,11 +140,9 @@ class WebSocketManager(
         return deferred.await()
     }
 
-    /**
-     * Sends a tRPC mutation and suspends until the server responds.
-     * Throws [WebSocketNotConnectedException] if the socket is null,
-     * or a [TrpcCallException] if the server returns an error.
-     */
+    // sends a tRPC mutation and suspends until the server responds
+    // throws [WebSocketNotConnectedException] if the socket is null,
+    // or a [TrpcCallException] if the server returns an error
     suspend fun sendMutationAwait(path: String, input: com.google.gson.JsonElement): JsonObject {
         val id = TrpcProtocol.getNextId()
         val deferred = CompletableDeferred<JsonObject>()
@@ -174,9 +157,7 @@ class WebSocketManager(
         return deferred.await()
     }
 
-    /**
-     * Subscribes to a tRPC subscription and returns the assigned message ID.
-     */
+    // subscribes to a tRPC subscription and returns the assigned message ID
     fun subscribe(path: String, input: com.google.gson.JsonElement? = null): Int {
         val id = TrpcProtocol.getNextId()
         val message = TrpcProtocol.buildSubscription(id, path, input)
@@ -186,9 +167,7 @@ class WebSocketManager(
         return id
     }
 
-    /**
-     * Unsubscribes from a previously established subscription.
-     */
+    // unsubscribes from a previously established subscription
     fun unsubscribe(id: Int) {
         if (activeSubscriptions.containsKey(id)) {
             val message = TrpcProtocol.buildUnsubscribe(id)
@@ -198,7 +177,7 @@ class WebSocketManager(
         }
     }
 
-    // Internal Connection Logic
+    // internal Connection Logic
 
     private fun doConnect() {
         _connectionState.value = ConnectionState.Connecting
@@ -206,9 +185,9 @@ class WebSocketManager(
         handshakeId = null
         joinServerId = null
 
-        // Clear stale subscription IDs from any previous connection — IDs are reset above
+        // clear stale subscription IDs from any previous connection — IDs are reset above
         // via resetIdCounter(), so old entries would never match incoming messages anyway
-        // and would accumulate as a memory leak across reconnects.
+        // and would accumulate as a memory leak across reconnects
         activeSubscriptions.clear()
         cancelPendingCalls("WebSocket reconnecting")
 
@@ -241,14 +220,14 @@ class WebSocketManager(
                 Log.d(TAG, "WebSocket opened. Sending authentication...")
                 _connectionState.value = ConnectionState.Authenticating
 
-                // Step 1: Send the auth token payload
+                // step 1: Send the auth token payload
                 val authPayload = TrpcProtocol.buildAuthPayload(token ?: "")
                 webSocket.send(authPayload)
 
-                // Step 2: Immediately send the handshake query
-                // The server's tRPC connectionParams reads from the FIRST message,
+                // step 2: Immediately send the handshake query
+                // the server's tRPC connectionParams reads from the FIRST message,
                 // and the handshake query arrives as a separate tRPC message
-                // that is processed after auth context is established.
+                // that is processed after auth context is established
                 _connectionState.value = ConnectionState.HandshakePending
 
                 handshakeId = TrpcProtocol.getNextId()
@@ -310,21 +289,21 @@ class WebSocketManager(
         }
     }
 
-    // Message Handlers
+    // message Handlers
 
     private fun handleSuccess(response: TrpcResponse.Success, webSocket: WebSocket) {
         when (response.id) {
             handshakeId -> onHandshakeResponse(response.data, webSocket)
             joinServerId -> onJoinServerResponse(response.data)
             else -> {
-                // Check if this is a pending one-shot call (query/mutation)
+                // check if this is a pending one-shot call (query/mutation)
                 val pending = pendingCalls.remove(response.id)
                 if (pending != null) {
                     pending.complete(response.data)
                     return
                 }
 
-                // Otherwise it's a subscription push event
+                // otherwise it's a subscription push event
                 val subPath = activeSubscriptions[response.id]
                 if (subPath != null) {
                     scope.launch {
@@ -344,7 +323,7 @@ class WebSocketManager(
 
             _connectionState.value = ConnectionState.JoinPending(handshake.handshakeHash)
 
-            // Step 3: Send joinServer with the handshake hash
+            // step 3: Send joinServer with the handshake hash
             joinServerId = TrpcProtocol.getNextId()
             val input = JsonObject().apply {
                 addProperty("handshakeHash", handshake.handshakeHash)
@@ -370,11 +349,11 @@ class WebSocketManager(
                 _serverData.emit(joinData)
             }
 
-            // Step 4: Register all real-time subscriptions after connecting.
-            // This mirrors the web client's initSubscriptions() call after joinServer succeeds.
+            // step 4: Register all real-time subscriptions after connecting
+            // this mirrors the web client's initSubscriptions() call after joinServer succeeds
             setupRealtimeSubscriptions()
 
-            // Reset reconnection state on successful connection
+            // reset reconnection state on successful connection
             reconnectJob?.cancel()
 
             Log.d(TAG, "WebSocket kept open for real-time operations")
@@ -389,11 +368,11 @@ class WebSocketManager(
         val errorMsg = response.error.message
         Log.e(TAG, "tRPC error [${response.id}]: $errorMsg (code: ${response.error.code})")
 
-        // If this error is for the handshake or join, it's fatal for this connection
+        // if this error is for the handshake or join, it's fatal for this connection
         if (response.id == handshakeId || response.id == joinServerId) {
             _connectionState.value = ConnectionState.Error(errorMsg)
             webSocket?.close(1000, "Auth error")
-            // Don't auto-reconnect on auth errors (e.g., invalid token)
+            // don't auto-reconnect on auth errors (e.g., invalid token)
             if (response.error.code == "UNAUTHORIZED" || response.error.code == "FORBIDDEN") {
                 shouldReconnect = false
             } else {
@@ -402,7 +381,7 @@ class WebSocketManager(
             return
         }
 
-        // Reject any pending one-shot call that was waiting for this id
+        // reject any pending one-shot call that was waiting for this id
         val pending = response.id?.let { pendingCalls.remove(it) }
         if (pending != null) {
             pending.completeExceptionally(TrpcCallException(errorMsg, response.error.code))
@@ -414,68 +393,64 @@ class WebSocketManager(
         Log.d(TAG, "Subscription completed [${response.id}]: $subPath")
     }
 
-    // Real-Time Subscriptions
+    // real-Time Subscriptions
 
-    /**
-     * Registers all real-time tRPC subscriptions after a successful joinServer.
-     *
-     * Mirrors the web client's `initSubscriptions()` which calls:
-     *   subscribeToChannels / subscribeToCategories / subscribeToUsers /
-     *   subscribeToRoles / subscribeToEmojis / subscribeToMessages / subscribeToServer
-     *
-     * Incoming events are emitted on [incomingEvents] and should be parsed by
-     * [ServerEventHandler] to produce typed [ServerEvent] instances for the UI layer.
-     */
+    // registers all real-time tRPC subscriptions after a successful joinServer
+    // mirrors the web client's `initSubscriptions()` which calls:
+    // subscribeToChannels / subscribeToCategories / subscribeToUsers /
+    // subscribeToRoles / subscribeToEmojis / subscribeToMessages / subscribeToServer
+    // incoming events are emitted on [incomingEvents] and should be parsed by
+    // [ServerEventHandler] to produce typed [ServerEvent] instances for the UI layer
     private fun setupRealtimeSubscriptions() {
         Log.d(TAG, "Registering real-time subscriptions...")
 
-        // Channels
+        // channels
         subscribe("channels.onCreate")
         subscribe("channels.onDelete")
         subscribe("channels.onUpdate")
         subscribe("channels.onReadStateUpdate")
         subscribe("channels.onReadStateDelta")
 
-        // Categories
+        // categories
         subscribe("categories.onCreate")
         subscribe("categories.onDelete")
         subscribe("categories.onUpdate")
 
-        // Users
+        // users
         subscribe("users.onJoin")
         subscribe("users.onLeave")
         subscribe("users.onUpdate")
         subscribe("users.onCreate")
         subscribe("users.onDelete")
 
-        // Roles
+        // roles
         subscribe("roles.onCreate")
         subscribe("roles.onDelete")
         subscribe("roles.onUpdate")
 
-        // Emojis
+        // emojis
         subscribe("emojis.onCreate")
         subscribe("emojis.onDelete")
         subscribe("emojis.onUpdate")
 
-        // Messages
+        // messages
         subscribe("messages.onNew")
         subscribe("messages.onUpdate")
         subscribe("messages.onDelete")
         subscribe("messages.onTyping")
 
-        // Voice
+        // voice
         subscribe("voice.onJoin")
         subscribe("voice.onLeave")
         subscribe("voice.onUpdateState")
 
-        // Server Settings
+        // server Settings
         subscribe("others.onServerSettingsUpdate")
 
         Log.d(TAG, "Registered ${activeSubscriptions.size} real-time subscriptions")
     }
 
-    // Reconnection
+    // reconnection
 
     private fun scheduleReconnect() {
         if (!shouldReconnect) return
@@ -496,9 +471,9 @@ class WebSocketManager(
                 Log.d(TAG, "Reconnect attempt $attempt...")
                 doConnect()
 
-                // Wait for connection to either succeed or fail by observing the state flow.
+                // wait for connection to either succeed or fail by observing the state flow
                 // onJoinServerResponse() sets Connected and cancels this job;
-                // onFailure/onClosed sets Error and loops to the next attempt.
+                // onFailure/onClosed sets Error and loops to the next attempt
                 val result = _connectionState.first {
                     it.isConnected || it is ConnectionState.Error
                 }
@@ -511,7 +486,7 @@ class WebSocketManager(
         }
     }
 
-    // Helpers
+    // helpers
 
     private fun cancelPendingCalls(reason: String) {
         val exception = CancellationException(reason)
@@ -520,24 +495,18 @@ class WebSocketManager(
     }
 }
 
-/**
- * Represents an incoming real-time event from a tRPC subscription.
- */
+// represents an incoming real-time event from a tRPC subscription
 data class IncomingEvent(
-    /** The tRPC subscription path (e.g., "channels.onCreate", "messages.onNew"). */
+    // the tRPC subscription path (e.g., "channels.onCreate", "messages.onNew")
     val path: String,
-    /** The raw event data payload, to be parsed by [ServerEventHandler]. */
+    // the raw event data payload, to be parsed by [ServerEventHandler]
     val data: JsonObject
 )
 
-/**
- * Thrown by [WebSocketManager.sendQueryAwait] / [WebSocketManager.sendMutationAwait]
- * when the server responds with a tRPC error frame.
- */
+// thrown by [WebSocketManager.sendQueryAwait] / [WebSocketManager.sendMutationAwait]
+// when the server responds with a tRPC error frame
 class TrpcCallException(message: String, val code: String? = null) : Exception(message)
 
-/**
- * Thrown by [WebSocketManager.sendQueryAwait] / [WebSocketManager.sendMutationAwait]
- * when the WebSocket is not currently open.
- */
+// thrown by [WebSocketManager.sendQueryAwait] / [WebSocketManager.sendMutationAwait]
+// when the WebSocket is not currently open
 class WebSocketNotConnectedException(message: String) : Exception(message)

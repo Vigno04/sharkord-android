@@ -62,7 +62,7 @@ fun SearchPanel(
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    // Debounce logic
+    // debounce logic
     LaunchedEffect(searchQuery) {
         if (searchQuery.isNotEmpty()) {
             delay(300)
@@ -71,8 +71,8 @@ fun SearchPanel(
     }
 
     LaunchedEffect(Unit) {
-        // Small delay to ensure the bottom sheet is fully composed and 
-        // animated into view before requesting focus and showing the keyboard.
+        // small delay to ensure the bottom sheet is fully composed and
+        // animated into view before requesting focus and showing the keyboard
         delay(100)
         focusRequester.requestFocus()
         keyboardController?.show()
@@ -86,7 +86,7 @@ fun SearchPanel(
             .background(bgColor)
             .systemBarsPadding()
     ) {
-        // Header / Search Bar
+        // header / Search Bar
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -131,7 +131,7 @@ fun SearchPanel(
                 )
             }
 
-            // Results
+            // results
             Box(modifier = Modifier.weight(1f)) {
                 if (isSearching && searchResults == null) {
                     CircularProgressIndicator(
@@ -238,7 +238,7 @@ private fun MessageResultContent(
     Spacer(modifier = Modifier.height(6.dp))
     
     Row(verticalAlignment = Alignment.CenterVertically) {
-        // Avatar
+        // avatar
         Box(
             modifier = Modifier
                 .size(20.dp)
@@ -268,7 +268,7 @@ private fun MessageResultContent(
         
         Spacer(modifier = Modifier.width(6.dp))
         
-        // Author name
+        // author name
         Text(
             text = author?.name ?: stringResource(R.string.settings_unknownValue),
             color = foregroundText,

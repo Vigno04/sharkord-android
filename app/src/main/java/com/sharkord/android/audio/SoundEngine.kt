@@ -34,9 +34,7 @@ enum class SoundType(val value: String) {
     REMOTE_USER_STOPPED_SCREENSHARE("remote_user_stopped_screenshare")
 }
 
-// ---------------------------------------------------------
-// Web Audio API Emulation DSL
-// ---------------------------------------------------------
+// web Audio API Emulation DSL
 
 sealed class ParamEvent(val value: Float, val time: Float) {
     class SetValue(value: Float, time: Float) : ParamEvent(value, time)
@@ -136,11 +134,11 @@ class SynthContext {
     }
 
     fun OscNode.connect(dest: Destination) {
-        // Just syntactic sugar for ending the chain
+        // just syntactic sugar for ending the chain
     }
 
     fun GainNode.connect(dest: Destination) {
-        // Just syntactic sugar for ending the chain
+        // just syntactic sugar for ending the chain
     }
 
     fun render(): ShortArray {
@@ -196,9 +194,7 @@ class SynthContext {
     }
 }
 
-// ---------------------------------------------------------
-// Sound Engine Definition & Logic
-// ---------------------------------------------------------
+// sound Engine Definition & Logic
 
 object SoundEngine {
 
@@ -576,7 +572,7 @@ object SoundEngine {
                 val context = com.sharkord.android.data.network.SharkordClient.applicationContext
                 val audioManager = context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
                 
-                val usageAttribute = if (audioManager.mode == android.media.AudioManager.MODE_IN_COMMUNICATION) {
+                val usageAttribute = if (audioManager.mode == android.media.AudioManager.MODE_IN_COMMUNICATION || type == SoundType.OWN_USER_LEFT_VOICE_CHANNEL) {
                     AudioAttributes.USAGE_VOICE_COMMUNICATION
                 } else {
                     AudioAttributes.USAGE_ASSISTANCE_SONIFICATION
@@ -600,7 +596,7 @@ object SoundEngine {
                 track.setVolume(AudioTrack.getMaxVolume())
                 track.play()
 
-                // Vibrate
+                // vibrate
                 try {
                     val vibrator = com.sharkord.android.data.network.SharkordClient.applicationContext.getSystemService(android.content.Context.VIBRATOR_SERVICE) as android.os.Vibrator
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -613,7 +609,7 @@ object SoundEngine {
                     e.printStackTrace()
                 }
 
-                // Release the track after playing
+                // release the track after playing
                 Thread.sleep((pcmData.size.toFloat() / ctx.SAMPLE_RATE * 1000).toLong() + 100)
                 track.release()
             } catch (e: Exception) {

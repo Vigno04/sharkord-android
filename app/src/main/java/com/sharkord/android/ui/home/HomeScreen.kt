@@ -54,7 +54,6 @@ import com.sharkord.android.ui.components.rememberExtendedImageState
 import com.sharkord.android.ui.home.components.*
 import kotlinx.coroutines.launch
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -67,15 +66,15 @@ fun HomeScreen(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     
-    // Collect uiState
+    // collect uiState
     val uiState by viewModel.uiState.collectAsState()
 
-    // Initial connection
+    // initial connection
     LaunchedEffect(Unit) {
         viewModel.connect()
     }
 
-    // Theme colors
+    // theme colors
     val colors = com.sharkord.android.ui.theme.LocalSharkordColors.current
     val bgColor = colors.bgColor
     val cardColor = colors.cardColor
@@ -83,7 +82,7 @@ fun HomeScreen(
     val foregroundText = colors.foregroundText
     val accentColor = colors.accentColor
 
-    // Main container
+    // main container
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -129,13 +128,13 @@ fun HomeScreen(
                 val density = LocalDensity.current
                 val screenWidthPx = remember(screenWidthDp) { with(density) { screenWidthDp.toPx() } }
                 
-                // Track dynamic swipe-to-dismiss offset of the Channels List in pixels
+                // track dynamic swipe-to-dismiss offset of the Channels List in pixels
                 val swipeOffset = remember { Animatable(if (uiState.activePanel == HomePanel.SERVER) 0f else -screenWidthPx) }
                 val voiceSwipeOffset = remember { Animatable(if (uiState.isViewingVoiceChat) -screenWidthPx else 0f) }
                 val coroutineScope = rememberCoroutineScope()
                 val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
 
-                // Programmatic panel transitions
+                // programmatic panel transitions
                 LaunchedEffect(uiState.activePanel) {
                     if (uiState.activePanel == HomePanel.SERVER) {
                         keyboardController?.hide()
@@ -153,13 +152,13 @@ fun HomeScreen(
                     }
                 }
 
-                // Close DM list when pressing back button
+                // close DM list when pressing back button
                 BackHandler(enabled = uiState.activePanel == HomePanel.SERVER && uiState.isDmsListOpen) {
                     viewModel.closeDmsList()
                 }
 
                 Box(modifier = Modifier.fillMaxSize()) {
-                    // Chat Panel
+                    // chat Panel
                     if (uiState.selectedChannelId != null) {
                         val activeChannel = data.channels.find { it.id == uiState.selectedChannelId }
                         val isDm = activeChannel?.isDm == true
@@ -198,7 +197,7 @@ fun HomeScreen(
                             }
 
                             Box(modifier = Modifier.fillMaxSize()) {
-                                // Chat Panel (underneath)
+                                // chat Panel (underneath)
                                 ChatPanel(
                                     channelId = uiState.selectedChannelId!!,
                                     targetMessageId = uiState.selectedMessageId,
@@ -247,7 +246,7 @@ fun HomeScreen(
                                         }
                                 )
 
-                                // Voice Panel (sliding on top)
+                                // voice Panel (sliding on top)
                                 val vOffset = with(density) { voiceSwipeOffset.value.toDp() }
                                 VoicePanel(
                                     channelName = displayName,
@@ -428,7 +427,7 @@ fun HomeScreen(
                         }
                     }
 
-                    // Server Channels list
+                    // server Channels list
                     val channelsOffset = with(density) { swipeOffset.value.toDp() }
 
                     Column(
@@ -451,11 +450,11 @@ fun HomeScreen(
                                     onDragEnd = {
                                         coroutineScope.launch {
                                             if (swipeOffset.value < -screenWidthPx / 3) {
-                                                // Complete swipe back to chat panel
+                                                // complete swipe back to chat panel
                                                 swipeOffset.animateTo(-screenWidthPx)
                                                 viewModel.setPanel(HomePanel.CHAT)
                                             } else {
-                                                // Return to current server panel position
+                                                // return to current server panel position
                                                 swipeOffset.animateTo(0f)
                                             }
                                         }
@@ -476,7 +475,7 @@ fun HomeScreen(
                             },
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Find authenticated user in returned list to confirm correct name
+                        // find authenticated user in returned list to confirm correct name
                         val currentUser = data.users.find { it.id == data.ownUserId }
                         val userName = currentUser?.name ?: stringResource(id = R.string.common_unknownUser)
 
@@ -486,7 +485,7 @@ fun HomeScreen(
                             p.contains("MANAGE_CHANNELS") || p.contains("MANAGE_SETTINGS")
                         } || data.ownUserId == 1
 
-                        // Channels Grouping
+                        // channels Grouping
                         val uncategorizedText =
                             data.channels.filter { it.categoryId == null && !it.isVoice && !it.isDm }
                         val uncategorizedVoice =
@@ -540,7 +539,7 @@ fun HomeScreen(
                             }
                         }
 
-                        // Main Scrollable Content
+                        // main Scrollable Content
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -622,7 +621,7 @@ fun HomeScreen(
                                     }
                                 }
                             } else {
-                            // Server Banner
+                            // server Banner
                             item {
                                 val logoState =
                                     rememberExtendedImageState(SharkordClient.currentServerLogoUrl)
@@ -645,7 +644,7 @@ fun HomeScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (logoState.painter != null) {
-                                        // Foreground custom logo
+                                        // foreground custom logo
                                         Image(
                                             painter = logoState.painter,
                                             contentDescription = null,
@@ -653,7 +652,7 @@ fun HomeScreen(
                                             modifier = Modifier.fillMaxSize()
                                         )
                                     } else {
-                                        // Fallback logo
+                                        // fallback logo
                                         val fallbackPainter = painterResource(id = R.drawable.logo)
                                         Image(
                                             painter = fallbackPainter,
@@ -667,7 +666,7 @@ fun HomeScreen(
                                 }
                             }
 
-                            // Server Header
+                            // server Header
                             item {
                                 val totalUnreadDMs = dmChannels.sumOf { uiState.readStates[it.id] ?: 0 }
 
@@ -684,7 +683,7 @@ fun HomeScreen(
                                 )
                             }
 
-                            // Uncategorized Channels
+                            // uncategorized Channels
                             if (uncategorizedText.isNotEmpty()) {
                                 items(uncategorizedText) { channel ->
                                     Box(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -738,7 +737,7 @@ fun HomeScreen(
                                 }
                             }
 
-                            // Grouped Categories
+                            // grouped Categories
                             categoriesList.forEach { category ->
                                 val catChannels =
                                     data.channels.filter { it.categoryId == category.id && !it.isDm }
@@ -776,14 +775,14 @@ fun HomeScreen(
                             }
                             }
 
-                            // Bottom spacer
+                            // bottom spacer
                             item {
                                 Spacer(modifier = Modifier.height(96.dp))
                             }
                         }
                     }
 
-                    // Bottom Profile Bar
+                    // bottom Profile Bar
                     BottomProfileBar(
                         currentUser = currentUser,
                         userName = userName,
@@ -793,7 +792,7 @@ fun HomeScreen(
                     )
                 }
 
-                // Profile Bottom Sheet
+                // profile Bottom Sheet
                 if (uiState.showProfileSheet) {
                     ProfileBottomSheet(
                         currentUser = currentUser,
@@ -820,7 +819,7 @@ fun HomeScreen(
                     )
                 }
 
-                // Members Bottom Sheet
+                // members Bottom Sheet
                 if (uiState.showMembersSheet) {
                     val usersToShow = if (uiState.membersSheetFilterDms) {
                         val existingDmUserIds = data.channels.filter { it.isDm }.mapNotNull { ch ->
@@ -845,7 +844,7 @@ fun HomeScreen(
                     )
                 }
 
-                // Server Profile Bottom Sheet
+                // server Profile Bottom Sheet
                 var showUnderConstruction by remember { mutableStateOf(false) }
 
                 if (uiState.showServerSheet) {
@@ -884,7 +883,7 @@ fun HomeScreen(
 
                 }
                 
-                // Add Channel Dialog
+                // add Channel Dialog
                 if (uiState.showAddChannelDialog) {
                     AddChannelDialog(
                         onDismissRequest = { viewModel.dismissAddChannelDialog() },
@@ -896,7 +895,7 @@ fun HomeScreen(
                     )
                 }
 
-                // Add Category Dialog
+                // add Category Dialog
                 if (uiState.showAddCategoryDialog) {
                     AddCategoryDialog(
                         onDismissRequest = { viewModel.dismissAddCategoryDialog() },
@@ -908,7 +907,7 @@ fun HomeScreen(
                     )
                 }
 
-                // Delete Channel Dialog
+                // delete Channel Dialog
                 if (uiState.showDeleteChannelDialogForId != null) {
                     val channelId = uiState.showDeleteChannelDialogForId!!
                     val channelToDelete = data.channels.find { it.id == channelId }
@@ -934,7 +933,7 @@ fun HomeScreen(
                     }
                 }
 
-                // Search Panel
+                // search Panel
                 androidx.compose.animation.AnimatedVisibility(
                     visible = uiState.showSearchSheet,
                     enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { it },

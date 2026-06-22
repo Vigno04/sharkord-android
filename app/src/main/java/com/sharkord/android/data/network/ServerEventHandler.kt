@@ -11,158 +11,145 @@ import com.sharkord.android.data.model.PublicSettings
 import com.sharkord.android.data.model.Role
 import com.sharkord.android.data.model.User
 
-/**
- * Typed representation of every real-time server event pushed via tRPC subscriptions.
- *
- * Mirrors the web client's per-domain subscription modules
- * (channels/subscriptions.ts, users/subscriptions.ts, etc.) but expressed as a
- * sealed class hierarchy so the UI layer can exhaustively pattern-match.
- *
- * Payload shapes match the server's pubsub.ts `Events` type map.
- */
+// typed representation of every real-time server event pushed via tRPC subscriptions
+// mirrors the web client's per-domain subscription modules
+// (channels/subscriptions.ts, users/subscriptions.ts, etc.) but expressed as a
+// sealed class hierarchy so the UI layer can exhaustively pattern-match
+// payload shapes match the server's pubsub.ts `Events` type map
 sealed class ServerEvent {
 
-    // Channels
+    // channels
 
-    /** A new channel was created and is visible to the current user. */
+    // a new channel was created and is visible to the current user
     data class ChannelCreated(val channel: Channel) : ServerEvent()
 
-    /** A channel was permanently deleted. `channelId` is the deleted channel's id. */
+    // a channel was permanently deleted. `channelId` is the deleted channel's id
     data class ChannelDeleted(val channelId: Int) : ServerEvent()
 
-    /** A channel's metadata (name, description, position, etc.) was updated. */
+    // a channel's metadata (name, description, position, etc.) was updated
     data class ChannelUpdated(val channel: Channel) : ServerEvent()
 
-    /** A channel's read state count was set explicitly. */
+    // a channel's read state count was set explicitly
     data class ChannelReadStateUpdate(val channelId: Int, val count: Int) : ServerEvent()
 
-    /** A channel's read state count received an incremental delta. */
+    // a channel's read state count received an incremental delta
     data class ChannelReadStateDelta(val channelId: Int, val delta: Int) : ServerEvent()
 
-    // Categories
+    // categories
 
-    /** A new category was created. */
+    // a new category was created
     data class CategoryCreated(val category: Category) : ServerEvent()
 
-    /** A category was permanently deleted. `categoryId` is the deleted category's id. */
+    // a category was permanently deleted. `categoryId` is the deleted category's id
     data class CategoryDeleted(val categoryId: Int) : ServerEvent()
 
-    /** A category's metadata was updated. */
+    // a category's metadata was updated
     data class CategoryUpdated(val category: Category) : ServerEvent()
 
-    // Users
+    // users
 
-    /** A user connected to the server (status became online). */
+    // a user connected to the server (status became online)
     data class UserJoined(val user: User) : ServerEvent()
 
-    /** A user disconnected (status became offline). `userId` identifies who left. */
+    // a user disconnected (status became offline). `userId` identifies who left
     data class UserLeft(val userId: Int) : ServerEvent()
 
-    /** A new user account was created on the server. */
+    // a new user account was created on the server
     data class UserCreated(val user: User) : ServerEvent()
 
-    /** A user's profile (name, avatar, status, roles, etc.) was updated. */
+    // a user's profile (name, avatar, status, roles, etc.) was updated
     data class UserUpdated(val user: User) : ServerEvent()
 
-    /**
-     * A user account was deleted.
-     *
-     * @param isWipe  When true, the user's messages are deleted too (wipe).
-     *                When false, messages are reassigned to the [deletedUserId] placeholder.
-     * @param userId  The id of the account that was deleted.
-     * @param deletedUserId  The id of the server's "Deleted User" placeholder account.
-     */
+    // a user account was deleted
+    // @param isWipe  When true, the user's messages are deleted too (wipe)
+    // when false, messages are reassigned to the [deletedUserId] placeholder
+    // @param userId  The id of the account that was deleted
+    // @param deletedUserId  The id of the server's "Deleted User" placeholder account
     data class UserDeleted(
         val isWipe: Boolean,
         val userId: Int,
         val deletedUserId: Int
     ) : ServerEvent()
 
-    // Roles
+    // roles
 
-    /** A new role was created. */
+    // a new role was created
     data class RoleCreated(val role: Role) : ServerEvent()
 
-    /** A role was permanently deleted. `roleId` is the deleted role's id. */
+    // a role was permanently deleted. `roleId` is the deleted role's id
     data class RoleDeleted(val roleId: Int) : ServerEvent()
 
-    /** A role's properties (name, color, permissions, etc.) were updated. */
+    // a role's properties (name, color, permissions, etc.) were updated
     data class RoleUpdated(val role: Role) : ServerEvent()
 
-    // Emojis
+    // emojis
 
-    /** A new custom emoji was added. */
+    // a new custom emoji was added
     data class EmojiCreated(val emoji: Emoji) : ServerEvent()
 
-    /** A custom emoji was permanently deleted. `emojiId` is the deleted emoji's id. */
+    // a custom emoji was permanently deleted. `emojiId` is the deleted emoji's id
     data class EmojiDeleted(val emojiId: Int) : ServerEvent()
 
-    /** A custom emoji's metadata was updated. */
+    // a custom emoji's metadata was updated
     data class EmojiUpdated(val emoji: Emoji) : ServerEvent()
 
-    // Messages
+    // messages
 
-    /** A new message was sent in a channel the current user can access. */
+    // a new message was sent in a channel the current user can access
     data class MessageReceived(val message: Message) : ServerEvent()
 
-    /** A message was edited. */
+    // a message was edited
     data class MessageUpdated(val message: Message) : ServerEvent()
 
-    /** A message was deleted. */
+    // a message was deleted
     data class MessageDeleted(val messageId: Int, val channelId: Int) : ServerEvent()
 
-    /** A user started typing in a channel. */
+    // a user started typing in a channel
     data class UserTyping(val channelId: Int, val userId: Int, val parentMessageId: Int? = null) : ServerEvent()
 
-    // Voice
+    // voice
 
-    /** A user joined a voice channel. */
+    // a user joined a voice channel
     data class UserJoinedVoice(val channelId: Int, val userId: Int, val state: com.sharkord.android.data.model.VoiceUserState) : ServerEvent()
 
-    /** A user left a voice channel. */
+    // a user left a voice channel
     data class UserLeftVoice(val channelId: Int, val userId: Int) : ServerEvent()
 
-    /** A user's voice state (mute/deafen) was updated. */
+    // a user's voice state (mute/deafen) was updated
     data class UserVoiceStateUpdated(val channelId: Int, val userId: Int, val state: com.sharkord.android.data.model.VoiceUserState) : ServerEvent()
 
-    /** A new producer stream was added in the voice channel. */
+    // a new producer stream was added in the voice channel
     data class VoiceNewProducer(val channelId: Int, val remoteId: Int, val kind: com.sharkord.android.data.model.StreamKind) : ServerEvent()
 
-    /** A producer stream was closed in the voice channel. */
+    // a producer stream was closed in the voice channel
     data class VoiceProducerClosed(val channelId: Int, val remoteId: Int, val kind: com.sharkord.android.data.model.StreamKind) : ServerEvent()
 
-    // Server Settings
+    // server Settings
 
-    /** Public server settings (name, description, feature flags, etc.) were updated. */
+    // public server settings (name, description, feature flags, etc.) were updated
     data class ServerSettingsUpdated(val settings: PublicSettings) : ServerEvent()
 }
 
-/**
- * Parses raw [IncomingEvent] payloads from [WebSocketManager.incomingEvents] into
- * typed [ServerEvent] instances.
- *
- * Scalar-valued events (delete events that carry only an id) arrive wrapped in
- * `{"value": <id>}` by [TrpcProtocol.parseResponse], so we read them via
- * `data.get("value").asInt`.
- */
+// parses raw [IncomingEvent] payloads from [WebSocketManager.incomingEvents] into
+// typed [ServerEvent] instances
+// scalar-valued events (delete events that carry only an id) arrive wrapped in
+// `{"value": <id>}` by [TrpcProtocol.parseResponse], so we read them via
+// `data.get("value").asInt`
 object ServerEventHandler {
 
     private const val TAG = "ServerEventHandler"
 
     private val gson = Gson()
 
-    /**
-     * Converts an [IncomingEvent] into the matching [ServerEvent], or returns null
-     * if the path is unrecognized or the payload fails to parse.
-     *
-     * Callers should log or ignore null returns — they indicate either an event
-     * that this client doesn't handle yet, or a malformed server payload.
-     */
+    // converts an [IncomingEvent] into the matching [ServerEvent], or returns null
+    // if the path is unrecognized or the payload fails to parse
+    // callers should log or ignore null returns — they indicate either an event
+    // that this client doesn't handle yet, or a malformed server payload
     fun parse(event: IncomingEvent): ServerEvent? {
         return try {
             when (event.path) {
 
-                // Channels
+                // channels
                 "channels.onCreate" ->
                     ServerEvent.ChannelCreated(fromJson(event.data, Channel::class.java))
 
@@ -184,7 +171,7 @@ object ServerEventHandler {
                         delta = event.data.get("delta").asInt
                     )
 
-                // Categories
+                // categories
                 "categories.onCreate" ->
                     ServerEvent.CategoryCreated(fromJson(event.data, Category::class.java))
 
@@ -194,7 +181,7 @@ object ServerEventHandler {
                 "categories.onUpdate" ->
                     ServerEvent.CategoryUpdated(fromJson(event.data, Category::class.java))
 
-                // Users
+                // users
                 "users.onJoin" ->
                     ServerEvent.UserJoined(fromJson(event.data, User::class.java))
 
@@ -214,7 +201,7 @@ object ServerEventHandler {
                         deletedUserId = event.data.get("deletedUserId").asInt
                     )
 
-                // Roles
+                // roles
                 "roles.onCreate" ->
                     ServerEvent.RoleCreated(fromJson(event.data, Role::class.java))
 
@@ -224,7 +211,7 @@ object ServerEventHandler {
                 "roles.onUpdate" ->
                     ServerEvent.RoleUpdated(fromJson(event.data, Role::class.java))
 
-                // Emojis
+                // emojis
                 "emojis.onCreate" ->
                     ServerEvent.EmojiCreated(fromJson(event.data, Emoji::class.java))
 
@@ -234,7 +221,7 @@ object ServerEventHandler {
                 "emojis.onUpdate" ->
                     ServerEvent.EmojiUpdated(fromJson(event.data, Emoji::class.java))
 
-                // Messages
+                // messages
                 "messages.onNew" ->
                     ServerEvent.MessageReceived(fromJson(event.data, Message::class.java))
 
@@ -256,7 +243,7 @@ object ServerEventHandler {
                     )
                 }
 
-                // Voice
+                // voice
                 "voice.onJoin" ->
                     ServerEvent.UserJoinedVoice(
                         channelId = event.data.get("channelId").asInt,
@@ -291,7 +278,7 @@ object ServerEventHandler {
                         kind = com.sharkord.android.data.model.StreamKind.fromValue(event.data.get("kind").asString)
                     )
 
-                // Server Settings
+                // server Settings
                 "others.onServerSettingsUpdate" ->
                     ServerEvent.ServerSettingsUpdated(fromJson(event.data, PublicSettings::class.java))
 
@@ -306,7 +293,7 @@ object ServerEventHandler {
         }
     }
 
-    // Helpers
+    // helpers
 
     private fun <T> fromJson(data: JsonObject, clazz: Class<T>): T =
         gson.fromJson(data, clazz)

@@ -217,7 +217,7 @@ fun VoicePanel(
     }
 
     Column(modifier = modifier.background(colors.bgColor)) {
-        // Top Bar
+        // top Bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -247,7 +247,7 @@ fun VoicePanel(
                 modifier = Modifier.weight(1f)
             )
 
-            // Audio Output Mode Button
+            // audio Output Mode Button
             Box {
                 IconButton(onClick = { showOutputDropdown = true }) {
                     val currentDevice = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).find { it.id == selectedOutputDeviceId } ?: availableOutputs.find { it.id == selectedOutputDeviceId }
@@ -324,7 +324,7 @@ fun VoicePanel(
                 }
             }
 
-            // Audio Input Mode Button
+            // audio Input Mode Button
             if (availableInputs.size > 1) {
                 Box {
                 IconButton(onClick = { showInputDropdown = true }) {
@@ -398,7 +398,7 @@ fun VoicePanel(
             }
             }
 
-            // Chat Button
+            // chat Button
             IconButton(onClick = onOpenChatClick) {
                 Icon(
                     Icons.Default.ChatBubble,
@@ -410,7 +410,7 @@ fun VoicePanel(
 
         Divider(color = colors.cardColor, thickness = 1.dp)
 
-        // Main Content - Users Grid
+        // main Content - Users Grid
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             if (voiceUsers.isEmpty()) {
                 Text(
@@ -494,15 +494,15 @@ fun VoicePanel(
                             Box(
                                 modifier = Modifier
                                     .height(itemHeight)
-                                    // Use background with shape instead of .clip() to prevent
-                                    // Compose from propagating clip outlines to the AndroidView child,
-                                    // which causes the 0xffffffff resource crash.
+                                    // use background with shape instead of .clip() to prevent
+                                    // compose from propagating clip outlines to the AndroidView child,
+                                    // which causes the 0xffffffff resource crash
                                     .background(colors.cardColor, RoundedCornerShape(16.dp))
                                     .border(borderWidth, borderColor, RoundedCornerShape(16.dp))
                                     .clickable { isZoomedOut = !isZoomedOut },
                                 contentAlignment = Alignment.Center
                             ) {
-                                // Avatar placeholder or Image
+                                // avatar placeholder or Image
                                 val avatarUrl = voiceUser.user.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }
                                 val avatarPainter = rememberAsyncImagePainter(avatarUrl, fallbackResourceId = null)
 
@@ -563,7 +563,6 @@ fun VoicePanel(
                                     }
                                 }
 
-
                                 if (videoTrack != null) {
                                     WebRtcVideoRenderer(
                                         videoTrack = videoTrack,
@@ -573,7 +572,7 @@ fun VoicePanel(
                                     )
                                 }
                                 
-                                // User Name Tag
+                                // user Name Tag
                                 BoxWithConstraints(
                                     modifier = Modifier
                                         .align(Alignment.BottomStart)
@@ -633,7 +632,7 @@ fun VoicePanel(
             }
         }
 
-        // Bottom Controls
+        // bottom Controls
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -652,7 +651,7 @@ fun VoicePanel(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Mic Toggle
+                        // mic Toggle
                         FloatingActionButton(
                             onClick = { onToggleMicClick(!isMuted) },
                             containerColor = if (isMuted) colors.bgColor else colors.foregroundText,
@@ -666,7 +665,7 @@ fun VoicePanel(
                             )
                         }
 
-                        // Deafen Toggle
+                        // deafen Toggle
                         FloatingActionButton(
                             onClick = { onToggleDeafenClick(!isDeafened) },
                             containerColor = if (isDeafened) colors.bgColor else colors.foregroundText,
@@ -680,7 +679,7 @@ fun VoicePanel(
                             )
                         }
 
-                        // Camera Toggle
+                        // camera Toggle
                         FloatingActionButton(
                             onClick = onToggleCameraClick,
                             containerColor = if (!cameraEnabled) colors.bgColor else colors.foregroundText,
@@ -692,7 +691,7 @@ fun VoicePanel(
                         }
                     }
 
-                    // Disconnect
+                    // disconnect
                     FloatingActionButton(
                         onClick = onDisconnectClick,
                         containerColor = Color(0xFFED4245),
@@ -738,19 +737,16 @@ private fun lcm(a: Int, b: Int): Int {
     return if (a == 0 || b == 0) 0 else (a * b) / gcd(a, b)
 }
 
-/**
- * Self-contained WebRTC video renderer that manages the full lifecycle of the
- * SurfaceViewRenderer internally, avoiding compose state race conditions.
- *
- * Key design decisions:
- * - No setZOrderMediaOverlay: dynamically adding/removing overlay surfaces in a
- *   LazyVerticalGrid causes fatal surface-layer conflicts (resource ID 0xffffffff crash).
- * - Thread-safe stats: WebRTC's onFrame runs on its own thread; we use AtomicIntegers
- *   and poll them on the main thread via LaunchedEffect.
- * - Single AndroidView with onRelease: sink binding happens in factory/update, cleanup
- *   in onRelease. No separate DisposableEffect needed, eliminating race conditions
- *   between compose state updates and effect re-runs.
- */
+// self-contained WebRTC video renderer that manages the full lifecycle of the
+// surfaceViewRenderer internally, avoiding compose state race conditions
+// key design decisions:
+// - No setZOrderMediaOverlay: dynamically adding/removing overlay surfaces in a
+// lazyVerticalGrid causes fatal surface-layer conflicts (resource ID 0xffffffff crash)
+// - Thread-safe stats: WebRTC's onFrame runs on its own thread; we use AtomicIntegers
+// and poll them on the main thread via LaunchedEffect
+// - Single AndroidView with onRelease: sink binding happens in factory/update, cleanup
+// in onRelease. No separate DisposableEffect needed, eliminating race conditions
+// between compose state updates and effect re-runs
 @Composable
 fun WebRtcVideoRenderer(
     videoTrack: VideoTrack,
@@ -762,14 +758,14 @@ fun WebRtcVideoRenderer(
     var videoHeight by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var frameRate by remember { androidx.compose.runtime.mutableIntStateOf(0) }
 
-    // Thread-safe counters updated from WebRTC's rendering thread
+    // thread-safe counters updated from WebRTC's rendering thread
     val atomicWidth = remember { java.util.concurrent.atomic.AtomicInteger(0) }
     val atomicHeight = remember { java.util.concurrent.atomic.AtomicInteger(0) }
     val atomicFrames = remember { java.util.concurrent.atomic.AtomicInteger(0) }
     val atomicLastTime = remember { java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis()) }
     val atomicFps = remember { java.util.concurrent.atomic.AtomicInteger(0) }
 
-    // Poll stats from the atomic counters on the main thread
+    // poll stats from the atomic counters on the main thread
     LaunchedEffect(Unit) {
         while (true) {
             kotlinx.coroutines.delay(500)
@@ -802,15 +798,15 @@ fun WebRtcVideoRenderer(
         }
     }
 
-    // Stable holder so we can track what track is currently bound without
-    // triggering recomposition when the reference changes.
+    // stable holder so we can track what track is currently bound without
+    // triggering recomposition when the reference changes
     val currentTrackRef = remember { java.util.concurrent.atomic.AtomicReference<VideoTrack?>(null) }
-    // Tracks whether the SurfaceHolder's surface is currently available.
+    // tracks whether the SurfaceHolder's surface is currently available
     val surfaceReadyRef = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
 
-    // This flag instantly cuts off frames to the EGL renderer when the view is being released.
-    // It prevents WebRTC from pushing frames to a surface that is concurrently being
-    // destroyed by the Android WindowManager, avoiding deadlocks in the EGL render thread.
+    // this flag instantly cuts off frames to the EGL renderer when the view is being released
+    // it prevents WebRTC from pushing frames to a surface that is concurrently being
+    // destroyed by the Android WindowManager, avoiding deadlocks in the EGL render thread
     val isReceivingFrames = remember { java.util.concurrent.atomic.AtomicBoolean(true) }
     val viewRef = remember { java.util.concurrent.atomic.AtomicReference<SurfaceViewRenderer?>(null) }
     val proxySink = remember {
@@ -835,29 +831,29 @@ fun WebRtcVideoRenderer(
                     setScalingType(if (isZoomedOut) ScalingType.SCALE_ASPECT_FIT else ScalingType.SCALE_ASPECT_FILL)
                     
                     // MUST be true to prevent native crashes!
-                    // Hardware scaling works by calling SurfaceHolder.setFixedSize() to
+                    // hardware scaling works by calling SurfaceHolder.setFixedSize() to
                     // lock the buffer dimensions to the video resolution. When the View resizes
                     // (e.g. toggling zoom or grid reflowing), Android WindowManager scales the
-                    // fixed-size buffer instead of destroying and recreating the Surface.
-                    // If disabled, every resize destroys the EGL surface, causing fatal
-                    // BLASTBufferQueue rejections and libEGL "no current context" freezes!
+                    // fixed-size buffer instead of destroying and recreating the Surface
+                    // if disabled, every resize destroys the EGL surface, causing fatal
+                    // bLASTBufferQueue rejections and libEGL "no current context" freezes!
                     setEnableHardwareScaler(true)
 
                     // DO NOT USE clipToOutline OR outlineProvider on SurfaceView!
-                    // SurfaceView renders on a separate hardware window layer. Attempting to clip
+                    // surfaceView renders on a separate hardware window layer. Attempting to clip
                     // its outline natively causes the fatal "No package ID ff found for resource
                     // ID 0xffffffff" crash on many Android devices during reflows. The video
-                    // corners will be sharp, but it avoids the app crash.
+                    // corners will be sharp, but it avoids the app crash
 
-                    // Defer addSink until the Surface is actually created.
-                    // Calling addSink before surfaceCreated delivers frames to an
-                    // uninitialised surface which causes the same BLAST rejection.
+                    // defer addSink until the Surface is actually created
+                    // calling addSink before surfaceCreated delivers frames to an
+                    // uninitialised surface which causes the same BLAST rejection
                     holder.addCallback(object : android.view.SurfaceHolder.Callback {
                         override fun surfaceCreated(h: android.view.SurfaceHolder) {
                             surfaceReadyRef.set(true)
                             val track = currentTrackRef.get()
                             if (track != null) {
-                                // Delay binding to allow Compose layout and SurfaceView dimensions to stabilize
+                                // delay binding to allow Compose layout and SurfaceView dimensions to stabilize
                                 postDelayed({
                                     if (surfaceReadyRef.get() && currentTrackRef.get() == track) {
                                         try {
@@ -886,7 +882,7 @@ fun WebRtcVideoRenderer(
             update = { view ->
                 view.setScalingType(if (isZoomedOut) ScalingType.SCALE_ASPECT_FIT else ScalingType.SCALE_ASPECT_FILL)
                 view.requestLayout()
-                // If the video track changed, rebind (only if surface is ready)
+                // if the video track changed, rebind (only if surface is ready)
                 val prevTrack = currentTrackRef.get()
                 if (prevTrack !== videoTrack) {
                     if (surfaceReadyRef.get()) {
@@ -908,17 +904,17 @@ fun WebRtcVideoRenderer(
                 }
             },
             modifier = Modifier.layout { measurable, constraints ->
-                // WebRTC's VideoLayoutMeasure needs to calculate the exact aspect-ratio bounds
-                // (shrunken for FIT, or expanded beyond the container for FILL).
-                // To allow this, we relax the minimum constraints to 0 (AT_MOST).
+                // webRTC's VideoLayoutMeasure needs to calculate the exact aspect-ratio bounds
+                // (shrunken for FIT, or expanded beyond the container for FILL)
+                // to allow this, we relax the minimum constraints to 0 (AT_MOST)
                 val looseConstraints = constraints.copy(minWidth = 0, minHeight = 0)
                 val placeable = measurable.measure(looseConstraints)
-                // Compose normally clamps a child's size to the parent constraints.
-                // We bypass this by reporting the exact measured width/height back to Compose!
-                // If it expanded (FILL), Compose allows it to exceed the bounds, and
-                // our parent Box(contentAlignment = Center) perfectly centers it.
-                // Android WindowManager then natively clips the overflowing SurfaceView.
-                // If it shrank (FIT), the Box centers the smaller view, showing letterboxes.
+                // compose normally clamps a child's size to the parent constraints
+                // we bypass this by reporting the exact measured width/height back to Compose!
+                // if it expanded (FILL), Compose allows it to exceed the bounds, and
+                // our parent Box(contentAlignment = Center) perfectly centers it
+                // android WindowManager then natively clips the overflowing SurfaceView
+                // if it shrank (FIT), the Box centers the smaller view, showing letterboxes
                 layout(placeable.width, placeable.height) {
                     placeable.place(0, 0)
                 }
@@ -930,9 +926,9 @@ fun WebRtcVideoRenderer(
                     currentTrackRef.get()?.removeSink(statsSink)
                 } catch (_: Exception) {}
                 currentTrackRef.set(null)
-                // Since we now use a proxySink to instantly cut off frames,
-                // the EGL render thread will NOT deadlock during surface destruction.
-                // We must release synchronously on the main thread, otherwise releasing
+                // since we now use a proxySink to instantly cut off frames,
+                // the EGL render thread will NOT deadlock during surface destruction
+                // we must release synchronously on the main thread, otherwise releasing
                 // the EGL context on a background thread while surfaceDestroyed is called
                 // on the main thread causes a fatal ANR race condition!
                 try {

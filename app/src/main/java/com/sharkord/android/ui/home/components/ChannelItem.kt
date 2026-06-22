@@ -41,11 +41,9 @@ import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 
-/**
- * Isolated Component for a single channel item in the list.
- * Supports a long-press context menu for editing and deleting,
- * as well as drag-to-reorder.
- */
+// isolated Component for a single channel item in the list
+// supports a long-press context menu for editing and deleting,
+// as well as drag-to-reorder
 @Composable
 fun ChannelItem(
     channel: Channel,
@@ -224,7 +222,7 @@ fun ChannelItem(
                             modifier = Modifier.weight(1f)
                         )
                         
-                        // Icons for video, mute/deafen
+                        // icons for video, mute/deafen
                         if (voiceUser.state.webcamEnabled) {
                             Icon(
                                 Icons.Default.Videocam,

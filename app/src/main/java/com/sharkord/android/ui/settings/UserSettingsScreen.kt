@@ -67,7 +67,7 @@ fun UserSettingsScreen(
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val coroutineScope = rememberCoroutineScope()
 
-    // Show toast for success/error messages
+    // show toast for success/error messages
     LaunchedEffect(uiState.successMessage, uiState.error) {
         uiState.successMessage?.let {
             android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
@@ -164,7 +164,7 @@ fun UserSettingsScreen(
     }
 }
 
-// Helper for temporary file creation
+// helper for temporary file creation
 fun createImageFile(context: Context): File {
     val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
     val storageDir: File? = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)

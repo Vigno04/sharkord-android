@@ -229,14 +229,14 @@ fun PermissionsTabContent(
     val serverRoles = uiState.serverData?.roles ?: emptyList()
     val serverUsers = uiState.serverData?.users ?: emptyList()
 
-    // Represents the currently selected override entity (either a roleId or userId)
+    // represents the currently selected override entity (either a roleId or userId)
     var selectedRoleId by remember { mutableStateOf<Int?>(null) }
     var selectedUserId by remember { mutableStateOf<Int?>(null) }
     
     var showAddRoleDropdown by remember { mutableStateOf(false) }
     var showAddUserDropdown by remember { mutableStateOf(false) }
     
-    // Compute the current permission override map for the selected entity
+    // compute the current permission override map for the selected entity
     val currentPermissionsMap = remember(selectedRoleId, selectedUserId, uiState.rolePermissions, uiState.userPermissions) {
         val map = mutableMapOf<String, Boolean>()
         if (selectedRoleId != null) {
@@ -264,7 +264,7 @@ fun PermissionsTabContent(
         SettingsSection(title = "ROLE OVERRIDES", cardColor = cardColor, foregroundText = foregroundText) {
             val roleIdsWithOverrides = uiState.rolePermissions.map { it.roleId }.distinct()
             
-            // FlowRow for Roles
+            // flowRow for Roles
             @OptIn(ExperimentalLayoutApi::class)
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
@@ -312,7 +312,7 @@ fun PermissionsTabContent(
         SettingsSection(title = "USER OVERRIDES", cardColor = cardColor, foregroundText = foregroundText) {
             val userIdsWithOverrides = uiState.userPermissions.map { it.userId }.distinct()
             
-            // FlowRow for Users
+            // flowRow for Users
             @OptIn(ExperimentalLayoutApi::class)
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),

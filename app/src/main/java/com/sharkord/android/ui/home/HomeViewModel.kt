@@ -28,10 +28,8 @@ enum class HomePanel {
     SERVER, CHAT
 }
 
-/**
- * UI state for the home screen.
- * Replaces the ~10 inline `remember { mutableStateOf }` calls that were in HomeScreen.
- */
+// UI state for the home screen
+// replaces the ~10 inline `remember { mutableStateOf }` calls that were in HomeScreen
 data class HomeUiState(
     val isLoading: Boolean = true,
     val serverData: JoinServerData? = null,
@@ -57,7 +55,7 @@ data class HomeUiState(
     val membersSheetFilterDms: Boolean = false,
     val readStates: Map<Int, Int> = emptyMap(),
     
-    // Voice
+    // voice
     val activeVoiceChannelId: Int? = null,
     val isConnectingToVoice: Boolean = false,
     val activeSpeakers: Set<String> = emptySet(),
@@ -65,21 +63,17 @@ data class HomeUiState(
     val cameraEnabled: Boolean = false,
     val localVideoTrack: org.webrtc.VideoTrack? = null,
     val remoteVideoTracks: Map<String, org.webrtc.VideoTrack> = emptyMap(),
-    // Always available since EglBase is created at VoiceEngine init time
+    // always available since EglBase is created at VoiceEngine init time
     val eglBaseContext: org.webrtc.EglBase.Context = SharkordClient.voiceEngine.eglBaseContext
 )
 
-/**
- * ViewModel for the home/server screen.
- *
- * Extracts all business logic and state management from HomeScreen,
- * making it testable and keeping the Composable focused on rendering.
- *
- * After the initial joinServer connection succeeds, real-time tRPC subscription
- * events arrive via [ServerRepository.incomingEvents]. They are parsed by
- * [ServerEventHandler] and applied as incremental mutations to [serverData],
- * mirroring the web client's per-domain subscription handlers.
- */
+// viewModel for the home/server screen
+// extracts all business logic and state management from HomeScreen,
+// making it testable and keeping the Composable focused on rendering
+// after the initial joinServer connection succeeds, real-time tRPC subscription
+// events arrive via [ServerRepository.incomingEvents]. They are parsed by
+// [ServerEventHandler] and applied as incremental mutations to [serverData],
+// mirroring the web client's per-domain subscription handlers
 class HomeViewModel : ViewModel() {
 
     companion object {
@@ -91,17 +85,15 @@ class HomeViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    /**
-     * Debounce job for the reconnection banner.
-     * Brief reconnects (< 3s) are invisible to the user — only persistent
-     * disconnects show the "Connection lost. Reconnecting..." message.
-     */
+    // debounce job for the reconnection banner
+    // brief reconnects (< 3s) are invisible to the user — only persistent
+    // disconnects show the "Connection lost. Reconnecting..." message
     private var reconnectBannerJob: Job? = null
     
     private var typingJob: Job? = null
     private var preDeafenMicMuted: Boolean = false
 
-    /** Connection state directly from the WebSocket manager. */
+    // connection state directly from the WebSocket manager
     val connectionState: StateFlow<ConnectionState>
         get() = repository.connectionState
 
@@ -109,7 +101,7 @@ class HomeViewModel : ViewModel() {
         viewModelScope.launch {
             SharkordClient.voiceEngine.isConnected.collect { connected ->
                 if (!connected && _uiState.value.activeVoiceChannelId != null) {
-                    // VoiceEngine disconnected but UI is still active (e.g. from Notification)
+                    // voiceEngine disconnected but UI is still active (e.g. from Notification)
                     _uiState.update { 
                         it.copy(
                             activeVoiceChannelId = null, 
@@ -127,23 +119,21 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    // Lifecycle
+    // lifecycle
 
-    /**
-     * Called on first composition. Initiates the WebSocket connection and starts
-     * observing both connection state changes and real-time subscription events.
-     */
+    // called on first composition. Initiates the WebSocket connection and starts
+    // observing both connection state changes and real-time subscription events
     fun connect() {
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-        // Observe connection state changes
+        // observe connection state changes
         viewModelScope.launch {
             repository.connectionState.collect { state ->
                 handleConnectionStateChange(state)
             }
         }
 
-        // Observe real-time subscription events pushed by the server after joinServer
+        // observe real-time subscription events pushed by the server after joinServer
         viewModelScope.launch {
             repository.incomingEvents.collect { event ->
                 val parsed = ServerEventHandler.parse(event)
@@ -155,21 +145,21 @@ class HomeViewModel : ViewModel() {
             }
         }
 
-        // Fetch server details in background to ensure freshest server logo, name and description
+        // fetch server details in background to ensure freshest server logo, name and description
         viewModelScope.launch {
             SharkordClient.currentServerUrl?.let { url ->
                 repository.fetchServerInfo(url)
             }
         }
 
-        // Observe global jump events
+        // observe global jump events
         viewModelScope.launch {
             com.sharkord.android.ui.navigation.MessageNavigationManager.jumpEvents.collect { event ->
                 selectChannel(channelId = event.channelId, messageId = event.messageId, navigateToChat = true)
             }
         }
 
-        // Initiate the WebSocket connection
+        // initiate the WebSocket connection
         if (!repository.connectWebSocket()) {
             _uiState.update {
                 it.copy(isLoading = false, errorMessage = "Missing server URL or token")
@@ -177,9 +167,7 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Reconnects the WebSocket (e.g., after manual retry or background reconnect).
-     */
+    // reconnects the WebSocket (e.g., after manual retry or background reconnect)
     fun reconnect(showFullscreenLoading: Boolean = true) {
         _uiState.update {
             it.copy(
@@ -187,7 +175,7 @@ class HomeViewModel : ViewModel() {
                 errorMessage = null
             )
         }
-        // Fetch server details in background on reconnect as well
+        // fetch server details in background on reconnect as well
         viewModelScope.launch {
             SharkordClient.currentServerUrl?.let { url ->
                 repository.fetchServerInfo(url)
@@ -196,18 +184,18 @@ class HomeViewModel : ViewModel() {
         repository.connectWebSocket()
     }
 
-    // Connection State Handling
+    // connection State Handling
 
     private fun handleConnectionStateChange(state: ConnectionState) {
         when (state) {
             is ConnectionState.Connected -> {
-                // Cancel any pending reconnect banner — the connection recovered.
+                // cancel any pending reconnect banner — the connection recovered
                 reconnectBannerJob?.cancel()
                 reconnectBannerJob = null
 
                 val data = state.serverData
                 
-                // Parse string-keyed map into Int-keyed map for readStates
+                // parse string-keyed map into Int-keyed map for readStates
                 val initialReadStates = data.readStates?.mapNotNull { (key, value) ->
                     val id = key.toIntOrNull()
                     if (id != null) id to value else null
@@ -236,7 +224,7 @@ class HomeViewModel : ViewModel() {
                     it.copy(
                         isLoading = false,
                         reconnectAttempts = attempts,
-                        // Only show error to user after 3 failed attempts
+                        // only show error to user after 3 failed attempts
                         // (if data exists, show banner instead of fullscreen error)
                         errorMessage = if (attempts >= 3) state.message else it.errorMessage
                     )
@@ -244,8 +232,8 @@ class HomeViewModel : ViewModel() {
             }
 
             is ConnectionState.Reconnecting -> {
-                // Debounce the banner: only show it if the connection stays down
-                // for more than 3 seconds. Brief reconnects are invisible to the user.
+                // debounce the banner: only show it if the connection stays down
+                // for more than 3 seconds. Brief reconnects are invisible to the user
                 if (reconnectBannerJob == null) {
                     reconnectBannerJob = viewModelScope.launch {
                         delay(3000)
@@ -261,7 +249,7 @@ class HomeViewModel : ViewModel() {
             is ConnectionState.Connecting,
             is ConnectionState.Authenticating,
             is ConnectionState.HandshakePending -> {
-                // No UI changes needed for intermediate states
+                // no UI changes needed for intermediate states
             }
             
             is ConnectionState.Disconnected -> {
@@ -271,24 +259,21 @@ class HomeViewModel : ViewModel() {
             }
 
             is ConnectionState.JoinPending -> {
-                // No UI changes needed
+                // no UI changes needed
             }
         }
     }
 
-    // Real-Time Event Application
+    // real-Time Event Application
 
-    /**
-     * Applies a typed [ServerEvent] as an incremental mutation to [HomeUiState.serverData].
-     *
-     * Mirrors the web client's per-domain action handlers (channels/actions.ts,
-     * users/actions.ts, etc.) but expressed as direct state transformations.
-     */
+    // applies a typed [ServerEvent] as an incremental mutation to [HomeUiState.serverData]
+    // mirrors the web client's per-domain action handlers (channels/actions.ts,
+    // users/actions.ts, etc.) but expressed as direct state transformations
     private fun applyServerEvent(event: ServerEvent) {
-        // Handle side effects that MUST NOT run inside the state update lambda.
-        // Closing consumers/producers involves native WebRTC cleanup that invalidates
+        // handle side effects that MUST NOT run inside the state update lambda
+        // closing consumers/producers involves native WebRTC cleanup that invalidates
         // tracks. If we do this inside _uiState.update, the tracks are destroyed
-        // before Compose can remove the SurfaceViewRenderers, causing a native crash.
+        // before Compose can remove the SurfaceViewRenderers, causing a native crash
         when (event) {
             is ServerEvent.UserLeftVoice -> {
                 val activeChannelId = _uiState.value.activeVoiceChannelId
@@ -316,7 +301,7 @@ class HomeViewModel : ViewModel() {
 
             when (event) {
 
-                // Channels
+                // channels
 
                 is ServerEvent.ChannelCreated -> {
                     Log.d(TAG, "[EVENT] channels.onCreate: ${event.channel.name}")
@@ -332,7 +317,7 @@ class HomeViewModel : ViewModel() {
                     val newChannels = data.channels.filter { it.id != event.channelId }
                     state.copy(
                         serverData = data.copy(channels = newChannels),
-                        // If the active channel was deleted, fall back to the first available one
+                        // if the active channel was deleted, fall back to the first available one
                         selectedChannelId = if (state.selectedChannelId == event.channelId) {
                             newChannels.firstOrNull { !it.isVoice && !it.isDm }?.id
                         } else {
@@ -352,7 +337,7 @@ class HomeViewModel : ViewModel() {
                     )
                 }
 
-                // Categories
+                // categories
 
                 is ServerEvent.CategoryCreated -> {
                     Log.d(TAG, "[EVENT] categories.onCreate: ${event.category.name}")
@@ -369,7 +354,7 @@ class HomeViewModel : ViewModel() {
                         serverData = data.copy(
                             categories = data.categories?.filter { it.id != event.categoryId }
                         ),
-                        // Remove the category from the collapsed set if it was collapsed
+                        // remove the category from the collapsed set if it was collapsed
                         collapsedCategories = state.collapsedCategories - event.categoryId
                     )
                 }
@@ -385,11 +370,11 @@ class HomeViewModel : ViewModel() {
                     )
                 }
 
-                // Users
+                // users
 
                 is ServerEvent.UserJoined -> {
                     Log.d(TAG, "[EVENT] users.onJoin: ${event.user.name}")
-                    // Add or replace (in case the user was already in the list with offline status)
+                    // add or replace (in case the user was already in the list with offline status)
                     state.copy(
                         serverData = data.copy(
                             users = data.users
@@ -400,7 +385,7 @@ class HomeViewModel : ViewModel() {
 
                 is ServerEvent.UserLeft -> {
                     Log.d(TAG, "[EVENT] users.onLeave: id=${event.userId}")
-                    // Mark the user as offline rather than removing them from the list,
+                    // mark the user as offline rather than removing them from the list,
                     // matching the web client's updateUser(userId, { status: UserStatus.OFFLINE })
                     state.copy(
                         serverData = data.copy(
@@ -433,9 +418,9 @@ class HomeViewModel : ViewModel() {
 
                 is ServerEvent.UserDeleted -> {
                     Log.d(TAG, "[EVENT] users.onDelete: id=${event.userId}, isWipe=${event.isWipe}")
-                    // Remove the deleted user; messages are handled by the server side.
-                    // The web client either wipes or reassigns — for the sidebar user list,
-                    // removal is the correct behaviour in both cases.
+                    // remove the deleted user; messages are handled by the server side
+                    // the web client either wipes or reassigns — for the sidebar user list,
+                    // removal is the correct behaviour in both cases
                     state.copy(
                         serverData = data.copy(
                             users = data.users.filter { it.id != event.userId }
@@ -443,7 +428,7 @@ class HomeViewModel : ViewModel() {
                     )
                 }
 
-                // Roles
+                // roles
 
                 is ServerEvent.RoleCreated -> {
                     Log.d(TAG, "[EVENT] roles.onCreate: ${event.role.name}")
@@ -474,7 +459,7 @@ class HomeViewModel : ViewModel() {
                     )
                 }
 
-                // Emojis
+                // emojis
 
                 is ServerEvent.EmojiCreated -> {
                     Log.d(TAG, "[EVENT] emojis.onCreate: ${event.emoji.name}")
@@ -505,10 +490,10 @@ class HomeViewModel : ViewModel() {
                     )
                 }
 
-                // Messages
-                // Message state is managed by ChatViewModel, which observes incomingEvents
+                // messages
+                // message state is managed by ChatViewModel, which observes incomingEvents
                 // directly and applies per-channel mutations. HomeViewModel only sees these
-                // events here as a no-op to keep the exhaustive when() complete.
+                // events here as a no-op to keep the exhaustive when() complete
 
                 is ServerEvent.MessageReceived -> {
                     if (event.message.userId != data.ownUserId) {
@@ -520,7 +505,7 @@ class HomeViewModel : ViewModel() {
                 is ServerEvent.MessageDeleted -> state
                 is ServerEvent.UserTyping -> state
 
-                // Voice
+                // voice
                 is ServerEvent.UserJoinedVoice -> {
                     Log.d(TAG, "[EVENT] voice.onJoin: channelId=${event.channelId}, userId=${event.userId}")
                     if (state.activeVoiceChannelId == event.channelId && data.ownUserId != event.userId) {
@@ -538,7 +523,7 @@ class HomeViewModel : ViewModel() {
                     if (state.activeVoiceChannelId == event.channelId && data.ownUserId != event.userId) {
                         com.sharkord.android.audio.SoundEngine.playSound(com.sharkord.android.audio.SoundType.REMOTE_USER_LEFT_VOICE_CHANNEL)
                     }
-                    // Side effect (clearRemoteProducersForUser) handled above, outside update lambda
+                    // side effect (clearRemoteProducersForUser) handled above, outside update lambda
 
                     val newVoiceMap = data.voiceMap?.toMutableMap() ?: return@update state
                     val channelUsers = newVoiceMap[event.channelId.toString()]?.users?.toMutableMap() ?: return@update state
@@ -562,20 +547,20 @@ class HomeViewModel : ViewModel() {
 
                 is ServerEvent.VoiceNewProducer -> {
                     Log.d(TAG, "[EVENT] voice.onNewProducer: channelId=${event.channelId}, remoteId=${event.remoteId}")
-                    // Side effect (consumeRemoteProducer) handled above, outside update lambda
+                    // side effect (consumeRemoteProducer) handled above, outside update lambda
                     state
                 }
 
                 is ServerEvent.VoiceProducerClosed -> {
                     Log.d(TAG, "[EVENT] voice.onProducerClosed: channelId=${event.channelId}, remoteId=${event.remoteId}")
-                    // Side effect (removeRemoteProducer) handled above, outside update lambda
+                    // side effect (removeRemoteProducer) handled above, outside update lambda
                     state
                 }
 
-                // Read States
+                // read States
                 is ServerEvent.ChannelReadStateUpdate -> {
                     Log.d(TAG, "[EVENT] channels.onReadStateUpdate: channelId=${event.channelId}, count=${event.count}")
-                    // If the channel is actively viewed, ignore updates and instantly mark as read
+                    // if the channel is actively viewed, ignore updates and instantly mark as read
                     if (state.selectedChannelId == event.channelId && state.activePanel == HomePanel.CHAT) {
                         viewModelScope.launch { repository.markChannelAsRead(event.channelId) }
                         return@update state
@@ -598,13 +583,13 @@ class HomeViewModel : ViewModel() {
                     state.copy(readStates = newMap)
                 }
 
-                // Server Settings
+                // server Settings
 
                 is ServerEvent.ServerSettingsUpdated -> {
                     Log.d(TAG, "[EVENT] others.onServerSettingsUpdate: name=${event.settings.name}")
                     state.copy(
                         serverData = data.copy(
-                            // Update the display name shown in the server header
+                            // update the display name shown in the server header
                             serverName = event.settings.name ?: data.serverName,
                             publicSettings = event.settings
                         )
@@ -630,13 +615,13 @@ class HomeViewModel : ViewModel() {
             ) 
         }
         
-        // Notify the server that we have read the channel
+        // notify the server that we have read the channel
         viewModelScope.launch {
             repository.markChannelAsRead(channelId)
         }
     }
 
-    // Voice Actions
+    // voice Actions
 
     private var audioLevelsJob: kotlinx.coroutines.Job? = null
     private var localVideoJob: kotlinx.coroutines.Job? = null
@@ -646,12 +631,12 @@ class HomeViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.update { it.copy(isConnectingToVoice = true) }
             try {
-                // Disconnect from current voice channel first if switching
+                // disconnect from current voice channel first if switching
                 if (_uiState.value.activeVoiceChannelId != null && _uiState.value.activeVoiceChannelId != channelId) {
                     try {
                         SharkordClient.voiceEngine.leaveChannel()
                         SharkordClient.webSocket.sendMutationAwait("voice.leave", com.google.gson.JsonObject())
-                        // Stop the service before starting a new connection
+                        // stop the service before starting a new connection
                         val stopIntent = android.content.Intent(context, com.sharkord.android.data.network.VoiceService::class.java).apply {
                             action = com.sharkord.android.data.network.VoiceService.ACTION_STOP
                         }
@@ -689,8 +674,8 @@ class HomeViewModel : ViewModel() {
                 audioLevelsJob?.cancel()
                 audioLevelsJob = viewModelScope.launch {
                     SharkordClient.voiceEngine.audioLevels.collect { levels ->
-                        // The WebRTC audioLevel can be 0.0 to 1.0, or sometimes an integer scale. 
-                        // We check both > 0.02f and > 5.0f to be safe against different scaling.
+                        // the WebRTC audioLevel can be 0.0 to 1.0, or sometimes an integer scale
+                        // we check both > 0.02f and > 5.0f to be safe against different scaling
                         val speakers = levels.filter { it.value > 0.02f || it.value > 5f }.keys
                         _uiState.update { it.copy(activeSpeakers = speakers) }
                     }
@@ -710,15 +695,15 @@ class HomeViewModel : ViewModel() {
                     }
                 }
                 
-                // Start Foreground Service
+                // start Foreground Service
                 val startIntent = android.content.Intent(context, com.sharkord.android.data.network.VoiceService::class.java).apply {
                     action = com.sharkord.android.data.network.VoiceService.ACTION_START
                     putExtra("EXTRA_CHANNEL_NAME", channelName)
                 }
                 androidx.core.content.ContextCompat.startForegroundService(context, startIntent)
 
-                // The activeVoiceChannelId and isConnectingToVoice state updates are handled 
-                // in the 800ms delayed coroutine above to ensure smooth UX.
+                // the activeVoiceChannelId and isConnectingToVoice state updates are handled
+                // in the 800ms delayed coroutine above to ensure smooth UX
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to join voice channel", e)
                 _uiState.update { it.copy(errorMessage = "Failed to join voice channel", isConnectingToVoice = false) }
@@ -741,7 +726,7 @@ class HomeViewModel : ViewModel() {
 
     fun toggleMic(channelId: Int, currentMuted: Boolean, currentDeafened: Boolean) {
         val newMuted = !currentMuted
-        // If unmuting while deafened, auto undeafen
+        // if unmuting while deafened, auto undeafen
         val newDeafened = if (!newMuted && currentDeafened) false else currentDeafened
         
         preDeafenMicMuted = newMuted
@@ -753,11 +738,11 @@ class HomeViewModel : ViewModel() {
         val newMuted: Boolean
 
         if (newDeafened) {
-            // We are deafening. Save the current mic state and force mute.
+            // we are deafening. Save the current mic state and force mute
             preDeafenMicMuted = currentMuted
             newMuted = true
         } else {
-            // We are undeafening. Restore the previous mic state.
+            // we are undeafening. Restore the previous mic state
             newMuted = preDeafenMicMuted
         }
 
@@ -765,7 +750,7 @@ class HomeViewModel : ViewModel() {
     }
 
     fun updateVoiceState(channelId: Int, micMuted: Boolean, soundMuted: Boolean) {
-        // Optimistic UI update to ensure UI never lags or gets out of sync
+        // optimistic UI update to ensure UI never lags or gets out of sync
         _uiState.update { state ->
             val data = state.serverData ?: return@update state
             val newVoiceMap = data.voiceMap?.toMutableMap() ?: mutableMapOf()
@@ -819,7 +804,7 @@ class HomeViewModel : ViewModel() {
         SharkordClient.voiceEngine.setCameraEnabled(context, newState)
         
         _uiState.value.activeVoiceChannelId?.let { channelId ->
-            // Optimistic UI update
+            // optimistic UI update
             _uiState.update { state ->
                 val data = state.serverData ?: return@update state
                 val newVoiceMap = data.voiceMap?.toMutableMap() ?: mutableMapOf()
@@ -1026,7 +1011,7 @@ class HomeViewModel : ViewModel() {
     }
 
     fun reorderChannels(categoryId: Int, channelIds: List<Int>) {
-        // Optimistic update to prevent visual glitches while websocket events stream in
+        // optimistic update to prevent visual glitches while websocket events stream in
         _uiState.update { state ->
             val data = state.serverData ?: return@update state
             val currentChannels = data.channels.toMutableList()
@@ -1050,9 +1035,7 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Opens a direct message channel with the given user and navigates to it.
-     */
+    // opens a direct message channel with the given user and navigates to it
     fun openDirectMessage(userId: Int) {
         viewModelScope.launch {
             val result = repository.openDirectMessage(userId)
@@ -1065,9 +1048,7 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Performs logout: disconnects WebSocket, clears session, and navigates back.
-     */
+    // performs logout: disconnects WebSocket, clears session, and navigates back
     fun logout(context: Context) {
         repository.logout()
     }
@@ -1075,7 +1056,7 @@ class HomeViewModel : ViewModel() {
     override fun onCleared() {
         super.onCleared()
         reconnectBannerJob?.cancel()
-        // Don't disconnect here — the WebSocket should stay alive
-        // even during config changes. Only disconnect on explicit logout.
+        // don't disconnect here — the WebSocket should stay alive
+        // even during config changes. Only disconnect on explicit logout
     }
 }

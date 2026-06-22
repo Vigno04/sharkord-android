@@ -98,7 +98,7 @@ fun ChatInputBar(
     val keyboardController = LocalSoftwareKeyboardController.current
     val coroutineScope = rememberCoroutineScope()
 
-    // Voice Recorder State
+    // voice Recorder State
     var isRecording by remember { mutableStateOf(false) }
     var isHoldToRecordMode by remember { mutableStateOf(false) }
     var recordingTimer by remember { mutableIntStateOf(0) }
@@ -205,13 +205,13 @@ fun ChatInputBar(
         }
     }
 
-    // File Picker
+    // file Picker
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
             val contentResolver = context.contentResolver
-            // Get original filename
+            // get original filename
             var originalName = "file.bin"
             if (uri.scheme == "content") {
                 val cursor = context.contentResolver.query(uri, null, null, null, null)
@@ -254,7 +254,7 @@ fun ChatInputBar(
         modifier = finalModifier
             .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 10.dp)
     ) {
-        // Typing Indicator
+        // typing Indicator
         val typingUserIds = uiState.typingUsers
         if (typingUserIds.isNotEmpty()) {
             val typingNames = typingUserIds.map { id -> users.find { it.id == id }?.name ?: stringResource(id = R.string.chat_someoneTyping) }
@@ -277,7 +277,7 @@ fun ChatInputBar(
             }
         }
 
-        // Attachments
+        // attachments
         if (uiState.attachedFiles.isNotEmpty() || uiState.isUploadingAttachment) {
             Row(
                 modifier = Modifier
@@ -395,7 +395,7 @@ fun ChatInputBar(
             }
         }
 
-        // Reply Preview
+        // reply Preview
         AnimatedVisibility(
             visible = uiState.replyTarget != null,
             enter = fadeIn() + expandVertically(),
@@ -447,7 +447,7 @@ fun ChatInputBar(
             }
         }
 
-        // Edit Preview
+        // edit Preview
         AnimatedVisibility(
             visible = uiState.editingMessage != null,
             enter = fadeIn() + expandVertically(),
@@ -498,7 +498,7 @@ fun ChatInputBar(
             }
         }
 
-        // Input Field Row
+        // input Field Row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -548,7 +548,7 @@ fun ChatInputBar(
                     )
                 }
             } else {
-                // Left: Emoji Smiley button
+                // left: Emoji Smiley button
                 IconButton(onClick = {
                     onToggleEmojiPicker()
                     if (isEmojiPickerOpen) {
@@ -595,7 +595,7 @@ fun ChatInputBar(
                     }
                 )
 
-                // Right: Attach File button
+                // right: Attach File button
                 IconButton(onClick = { filePickerLauncher.launch("*/*") }) {
                     Icon(
                         imageVector = Icons.Default.Add,
@@ -605,7 +605,7 @@ fun ChatInputBar(
                 }
             }
 
-            // Rightmost: Send or Mic
+            // rightmost: Send or Mic
             val showSendButton = hasText || uiState.attachedFiles.isNotEmpty() || uiState.editingMessage != null || (isRecording && !isHoldToRecordMode)
             if (showSendButton) {
                 IconButton(
@@ -667,7 +667,7 @@ fun ChatInputBar(
                                                 stopAndSendRecording()
                                             }
                                         } else {
-                                            // Single Tap to Toggle record mode
+                                            // single Tap to Toggle record mode
                                             isHoldToRecordMode = false
                                             if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
                                                 startRecording() 

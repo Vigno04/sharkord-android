@@ -4,17 +4,15 @@ import com.google.gson.annotations.SerializedName
 
 // HTTP Login
 
-/** POST /login request body */
+// POST /login request body
 data class LoginRequest(
     val identity: String,
     val password: String
 )
 
-/**
- * POST /login response.
- * Server returns { success: true, token } on success,
- * or { errors: { field: message } } / { error: message } on failure.
- */
+// POST /login response
+// server returns { success: true, token } on success,
+// or { errors: { field: message } } / { error: message } on failure
 data class LoginResponse(
     val success: Boolean = false,
     val token: String? = null,
@@ -31,9 +29,7 @@ data class ServerLogo(
     @SerializedName("mimeType", alternate = ["mime_type"]) val mimeType: String? = null
 )
 
-/**
- * GET /info response, matching TServerInfo in shared/types.ts.
- */
+// GET /info response, matching TServerInfo in shared/types.ts
 data class ServerInfoResponse(
     val serverId: String,
     val version: String,
@@ -43,16 +39,13 @@ data class ServerInfoResponse(
     val allowNewUsers: Boolean = true
 )
 
-// File (shared)
+// file (shared)
 
-/**
- * File metadata, matching TFile in shared/tables.ts.
- * Used for avatars, banners, message attachments, emojis, and server logo.
- *
- * Note: the upload response (TTempFile) does NOT include a `name` field,
- * only `originalName`. Therefore `name` is nullable here. Use
- * `displayName` for UI to get a safe non-null display string.
- */
+// file metadata, matching TFile in shared/tables.ts
+// used for avatars, banners, message attachments, emojis, and server logo
+// note: the upload response (TTempFile) does NOT include a `name` field,
+// only `originalName`. Therefore `name` is nullable here. Use
+// `displayName` for UI to get a safe non-null display string
 data class FileInfo(
     val id: String,
     val name: String? = null,
@@ -63,7 +56,7 @@ data class FileInfo(
     @SerializedName("_accessTokenExpiresAt") val accessTokenExpiresAt: Long? = null,
     val localUri: String? = null
 ) {
-    /** Safe display name: prefer originalName, fall back to name, then id. */
+    // safe display name: prefer originalName, fall back to name, then id
     val displayName: String get() = originalName ?: name ?: id
 
     val isImage: Boolean
@@ -81,7 +74,7 @@ data class FileInfo(
         }
 }
 
-// Categories
+// categories
 
 data class Category(
     val id: Int,
@@ -89,9 +82,7 @@ data class Category(
     val position: Int
 )
 
-/**
- * Server invite
- */
+// server invite
 data class Invite(
     val id: Int,
     val code: String,
@@ -103,12 +94,10 @@ data class Invite(
     val roleId: Int?
 )
 
-// Channels
+// channels
 
-/**
- * Channel model matching the server's TChannel schema.
- * The server returns more fields than before; we capture the ones we need.
- */
+// channel model matching the server's TChannel schema
+// the server returns more fields than before; we capture the ones we need
 data class Channel(
     val id: Int,
     val name: String,
@@ -127,11 +116,9 @@ data class Channel(
         get() = type == ChannelType.TEXT.value || isDm
 }
 
-// Roles
+// roles
 
-/**
- * Role model matching TJoinedRole in shared/tables.ts.
- */
+// role model matching TJoinedRole in shared/tables.ts
 data class Role(
     val id: Int,
     val name: String,
@@ -140,12 +127,10 @@ data class Role(
     val permissions: List<String> = emptyList()
 )
 
-// Users
+// users
 
-/**
- * Public user model matching TJoinedPublicUser in shared/tables.ts.
- * The server returns these in the joinServer response.
- */
+// public user model matching TJoinedPublicUser in shared/tables.ts
+// the server returns these in the joinServer response
 data class User(
     val id: Int,
     val name: String,
@@ -169,22 +154,18 @@ data class User(
         get() = name == "__delete_user_" || name == "__deleted_user_"
 }
 
-// Emojis
+// emojis
 
-/**
- * Custom emoji, matching TJoinedEmoji in shared/tables.ts.
- */
+// custom emoji, matching TJoinedEmoji in shared/tables.ts
 data class Emoji(
     val id: Int,
     val name: String,
     val file: FileInfo? = null
 )
 
-// Messages
+// messages
 
-/**
- * Message file attachment.
- */
+// message file attachment
 data class MessageFile(
     val id: String,
     val name: String,
@@ -194,9 +175,7 @@ data class MessageFile(
     val localUri: String? = null
 )
 
-/**
- * Message reaction, matching TJoinedMessageReaction.
- */
+// message reaction, matching TJoinedMessageReaction
 data class MessageReaction(
     val id: Int,
     val messageId: Int,
@@ -206,9 +185,7 @@ data class MessageReaction(
     val file: FileInfo? = null
 )
 
-/**
- * Reply preview for inline replies.
- */
+// reply preview for inline replies
 data class MessageReplyPreview(
     val id: Int,
     val content: String?,
@@ -216,9 +193,7 @@ data class MessageReplyPreview(
     val pluginId: String? = null
 )
 
-/**
- * Full message model matching TJoinedMessage in shared/tables.ts.
- */
+// full message model matching TJoinedMessage in shared/tables.ts
 data class Message(
     val id: Int,
     val content: String,
@@ -237,19 +212,15 @@ data class Message(
     val replyTo: MessageReplyPreview? = null
 )
 
-/**
- * Paginated messages response from messages.get tRPC query.
- */
+// paginated messages response from messages.get tRPC query
 data class MessagesPage(
     val messages: List<Message>,
     val nextCursor: Long? = null
 )
 
-// Public Settings
+// public Settings
 
-/**
- * Public server settings, matching TPublicServerSettings in shared/types.ts.
- */
+// public server settings, matching TPublicServerSettings in shared/types.ts
 data class PublicSettings(
     val name: String? = null,
     val description: String? = null,
@@ -270,9 +241,7 @@ data class DiskMetrics(
     val sharkordUsedSpace: Long
 )
 
-/**
- * Full admin settings, matching the result of others.getSettings.
- */
+// full admin settings, matching the result of others.getSettings
 data class AdminSettings(
     val name: String,
     val description: String? = null,
@@ -300,7 +269,7 @@ data class AdminSettings(
     val logo: FileInfo? = null
 )
 
-// Plugins
+// plugins
 
 data class PluginInfo(
     val id: String,
@@ -376,7 +345,7 @@ data class PluginSettingsResponse(
     val values: Map<String, Any?>
 )
 
-// Updates
+// updates
 
 data class UpdateInfo(
     val hasUpdate: Boolean,
@@ -384,7 +353,7 @@ data class UpdateInfo(
     val currentVersion: String?,
     val canUpdate: Boolean
 )
-// Mod View
+// mod View
 
 data class Login(
     val id: Int,
@@ -411,47 +380,37 @@ data class ModViewData(
     val messages: List<Message>,
     val storage: StorageData
 )
-// Voice Map
+// voice Map
 
 data class ServerChannelVoiceState(
     val users: Map<String, VoiceUserState> = emptyMap()
 )
 
-/**
- * Represents users currently in voice channels.
- * voiceMap is channelId -> ServerChannelVoiceState
- */
+// represents users currently in voice channels
+// voiceMap is channelId -> ServerChannelVoiceState
 typealias VoiceMap = Map<String, ServerChannelVoiceState>
 
-// Read States
+// read States
 
-/**
- * Unread count per channel.
- * readStates is channelId -> unreadCount.
- */
+// unread count per channel
+// readStates is channelId -> unreadCount
 typealias ReadStateMap = Map<String, Int>
 
-// Channel Permissions
+// channel Permissions
 
-/**
- * Per-channel permission info for the current user.
- */
+// per-channel permission info for the current user
 data class ChannelPermissionInfo(
     val channelId: Int,
     val permissions: Map<String, Boolean>
 )
 
-/**
- * channelPermissions is channelId -> ChannelPermissionInfo.
- */
+// channelPermissions is channelId -> ChannelPermissionInfo
 typealias ChannelPermissionsMap = Map<String, ChannelPermissionInfo>
 
 // tRPC joinServer response
 
-/**
- * Full joinServer response matching the server's others.joinServer return type.
- * See: apps/server/src/routers/others/join.ts
- */
+// full joinServer response matching the server's others.joinServer return type
+// see: apps/server/src/routers/others/join.ts
 data class JoinServerData(
     val ownUserId: Int,
     val serverName: String,
@@ -468,21 +427,17 @@ data class JoinServerData(
     val showWelcomeDialog: Boolean = false
 )
 
-// Handshake response
+// handshake response
 
-/**
- * Response from others.handshake tRPC query.
- */
+// response from others.handshake tRPC query
 data class HandshakeResponse(
     val handshakeHash: String,
     val hasPassword: Boolean = false
 )
 
-// Search Results
+// search Results
 
-/**
- * Common interface for unified search results list.
- */
+// common interface for unified search results list
 sealed interface UnifiedSearchResult {
     val key: String
     val createdAt: Long
@@ -538,7 +493,7 @@ data class SearchResults(
     val files: List<SearchResultFile> = emptyList()
 )
 
-// Channel Permissions
+// channel Permissions
 
 enum class ChannelPermission(val value: String) {
     VIEW_CHANNEL("VIEW_CHANNEL"),

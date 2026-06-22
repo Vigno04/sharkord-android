@@ -2,10 +2,8 @@ package com.sharkord.android.ui.home.components
 
 import androidx.compose.ui.graphics.Color
 
-/**
- * Shared color system for the Sharkord Chat UI.
- * Avoids duplicate hardcoded color values and provides a single source of truth.
- */
+// shared color system for the Sharkord Chat UI
+// avoids duplicate hardcoded color values and provides a single source of truth
 object ChatColors {
     val BgColor = Color(0xFF151515)
     val HeaderColor = Color(0xFF1A1A1A)

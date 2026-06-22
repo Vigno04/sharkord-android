@@ -79,7 +79,7 @@ fun ServerSettingsScreen(
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val coroutineScope = rememberCoroutineScope()
 
-    // Show toast for success/error messages
+    // show toast for success/error messages
     LaunchedEffect(uiState.successMessage, uiState.error) {
         uiState.successMessage?.let {
             android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()

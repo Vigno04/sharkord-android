@@ -45,7 +45,7 @@ fun CategorySection(
     ownUserId: Int = -1,
     activeSpeakers: Set<String> = emptySet()
 ) {
-    // Local state for dragging
+    // local state for dragging
     var localChannels by remember(channels) { mutableStateOf(channels) }
     var draggedId by remember { mutableStateOf<Int?>(null) }
     var dragOffset by remember { mutableStateOf(0f) }
@@ -134,14 +134,14 @@ fun CategorySection(
                             val maxDown = (localChannels.size - 1 - dragStartIndex) * itemHeightPx
                             dragOffset = (dragOffset + delta).coerceIn(maxUp, maxDown)
 
-                            // Calculate if drag moved past the threshold of another item
+                            // calculate if drag moved past the threshold of another item
                             val newIndex = (dragStartIndex + (dragOffset / itemHeightPx).roundToInt())
                                 .coerceIn(0, localChannels.size - 1)
                             
                             val currentIndex = localChannels.indexOfFirst { it.id == channel.id }
                             
                             if (currentIndex != -1 && newIndex != currentIndex) {
-                                // Swap items visually
+                                // swap items visually
                                 val mutableList = localChannels.toMutableList()
                                 val item = mutableList.removeAt(currentIndex)
                                 mutableList.add(newIndex, item)
@@ -153,7 +153,7 @@ fun CategorySection(
                         onDragEnd = {
                             draggedId = null
                             dragOffset = 0f
-                            // Trigger callback to backend
+                            // trigger callback to backend
                             if (localChannels != channels) {
                                 onReorderChannels(localChannels.map { it.id })
                             }

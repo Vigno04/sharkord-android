@@ -12,7 +12,5 @@ data class VoiceUser(
     val state: VoiceUserState
 )
 
-/**
- * Maps channelId (String/Int) to a Map of userId (String/Int) to VoiceUserState
- */
+// maps channelId (String/Int) to a Map of userId (String/Int) to VoiceUserState
 typealias VoiceChannelMap = Map<String, Map<String, VoiceUserState>>

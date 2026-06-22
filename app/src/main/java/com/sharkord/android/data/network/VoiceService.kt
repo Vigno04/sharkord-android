@@ -118,7 +118,7 @@ class VoiceService : Service() {
         val newMuted = !SharkordClient.voiceEngine.isMicMuted
         val currentDeafened = SharkordClient.voiceEngine.isSoundMuted
         
-        // If unmuting while deafened, also undeafen (Discord behavior)
+        // if unmuting while deafened, also undeafen (Discord behavior)
         val newDeafened = if (!newMuted && currentDeafened) false else currentDeafened
 
         updateVoiceState(newMuted, newDeafened)
@@ -135,11 +135,11 @@ class VoiceService : Service() {
         SharkordClient.voiceEngine.setMicEnabled(!micMuted)
         SharkordClient.voiceEngine.setSoundEnabled(!soundMuted)
         
-        // Update notification
+        // update notification
         val manager = getSystemService(NotificationManager::class.java)
         manager?.notify(NOTIFICATION_ID, buildNotification())
 
-        // Notify server
+        // notify server
         scope.launch {
             try {
                 val input = JsonObject().apply {

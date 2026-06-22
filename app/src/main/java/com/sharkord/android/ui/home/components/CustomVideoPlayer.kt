@@ -116,7 +116,7 @@ fun CustomVideoPlayer(
             }
         }
         exoPlayer.addListener(listener)
-        // Initialize state
+        // initialize state
         isPlaying = exoPlayer.isPlaying
         isPrepared = exoPlayer.playbackState == Player.STATE_READY
         duration = exoPlayer.duration.coerceAtLeast(0)
@@ -201,7 +201,7 @@ fun CustomVideoPlayer(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Overlay Controls
+        // overlay Controls
         AnimatedVisibility(
             visible = showControls || !isPlaying,
             enter = fadeIn(),

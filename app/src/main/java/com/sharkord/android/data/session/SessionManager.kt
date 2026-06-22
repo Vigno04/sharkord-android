@@ -3,17 +3,15 @@ package com.sharkord.android.data.session
 import android.content.Context
 import android.content.SharedPreferences
 
-/**
- * Centralizes all SharedPreferences access for authentication and session state.
- * Replaces the scattered `context.getSharedPreferences("sharkord_prefs", ...)` calls
- * that were previously in LoginViewModel, HomeScreen, and SharkordClient.
- */
+// centralizes all SharedPreferences access for authentication and session state
+// replaces the scattered `context.getSharedPreferences("sharkord_prefs", ...)` calls
+// that were previously in LoginViewModel, HomeScreen, and SharkordClient
 class SessionManager(context: Context) {
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    // Read
+    // read
 
     val token: String?
         get() = prefs.getString(KEY_TOKEN, null)
@@ -27,12 +25,10 @@ class SessionManager(context: Context) {
     val autoLogin: Boolean
         get() = prefs.getBoolean(KEY_AUTO_LOGIN, false)
 
-    // Write
+    // write
 
-    /**
-     * Saves the current session after a successful login.
-     * If [autoLogin] is false, the token is NOT persisted (user must re-login next launch).
-     */
+    // saves the current session after a successful login
+    // if [autoLogin] is false, the token is NOT persisted (user must re-login next launch)
     fun saveSession(serverUrl: String, token: String, logoUrl: String?, autoLogin: Boolean) {
         prefs.edit().apply {
             putString(KEY_SERVER_URL, serverUrl)
@@ -47,23 +43,17 @@ class SessionManager(context: Context) {
         }
     }
 
-    /**
-     * Saves only the server URL (used when the user enters a URL but hasn't logged in yet).
-     */
+    // saves only the server URL (used when the user enters a URL but hasn't logged in yet)
     fun saveServerUrl(serverUrl: String) {
         prefs.edit().putString(KEY_SERVER_URL, serverUrl).apply()
     }
 
-    /**
-     * Saves only the server logo URL.
-     */
+    // saves only the server logo URL
     fun saveServerLogoUrl(logoUrl: String?) {
         prefs.edit().putString(KEY_SERVER_LOGO_URL, logoUrl).apply()
     }
 
-    /**
-     * Clears all session data. Used on logout.
-     */
+    // clears all session data. Used on logout
     fun clearSession() {
         prefs.edit().apply {
             remove(KEY_TOKEN)
@@ -73,9 +63,7 @@ class SessionManager(context: Context) {
         }
     }
 
-    /**
-     * Returns true if there is a saved token and server URL that can be used for auto-login.
-     */
+    // returns true if there is a saved token and server URL that can be used for auto-login
     fun hasValidSession(): Boolean {
         return autoLogin && !token.isNullOrBlank() && !serverUrl.isNullOrBlank()
     }
@@ -86,7 +74,7 @@ class SessionManager(context: Context) {
             prefs.edit().putInt(KEY_MAX_DISK_CACHE_MB, value).apply()
         }
 
-    // Devices Settings
+    // devices Settings
 
     var defaultAudioRoute: String
         get() = prefs.getString(KEY_DEFAULT_AUDIO_ROUTE, "None") ?: "None"
@@ -132,7 +120,7 @@ class SessionManager(context: Context) {
         private const val KEY_AUTO_LOGIN = "auto_login"
         private const val KEY_MAX_DISK_CACHE_MB = "max_disk_cache_mb"
 
-        // Device settings keys
+        // device settings keys
         private const val KEY_DEFAULT_AUDIO_ROUTE = "default_audio_route"
         private const val KEY_ECHO_CANCELLATION = "echo_cancellation"
         private const val KEY_NOISE_SUPPRESSION = "noise_suppression"

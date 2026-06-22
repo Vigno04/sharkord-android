@@ -103,7 +103,7 @@ fun MessageContextMenu(
                     .padding(16.dp)
                     .navigationBarsPadding()
             ) {
-                // Quick Reactions Selection Row
+                // quick Reactions Selection Row
                 Text(
                     text = stringResource(id = R.string.common_addReaction),
                     color = textSecondary,
@@ -136,7 +136,7 @@ fun MessageContextMenu(
                     }
                 }
 
-                // Custom Emojis Grid
+                // custom Emojis Grid
                 if (customEmojis.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
@@ -173,7 +173,7 @@ fun MessageContextMenu(
 
                 HorizontalDivider(color = Color.White.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 12.dp))
 
-                // Reply
+                // reply
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -190,7 +190,7 @@ fun MessageContextMenu(
                     Text(text = stringResource(id = R.string.common_replyToMessage), color = textPrimary, fontSize = 15.sp)
                 }
 
-                // Pin
+                // pin
                 if (canPin) {
                     Row(
                         modifier = Modifier
@@ -213,7 +213,7 @@ fun MessageContextMenu(
                     }
                 }
 
-                // Edit
+                // edit
                 if (canManage && message.editable) {
                     Row(
                         modifier = Modifier
@@ -232,7 +232,7 @@ fun MessageContextMenu(
                     }
                 }
 
-                // Delete
+                // delete
                 if (canManage) {
                     Row(
                         modifier = Modifier
@@ -250,7 +250,7 @@ fun MessageContextMenu(
                     }
                 }
 
-                // Download Files
+                // download Files
                 if (message.files.isNotEmpty()) {
                     message.files.forEach { file ->
                         Row(

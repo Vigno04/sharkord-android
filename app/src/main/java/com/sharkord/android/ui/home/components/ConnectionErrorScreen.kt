@@ -36,7 +36,7 @@ fun ConnectionErrorScreen(
             .background(bgColor)
             .statusBarsPadding()
     ) {
-        // Top navigation bar containing the back button
+        // top navigation bar containing the back button
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -57,7 +57,7 @@ fun ConnectionErrorScreen(
             }
         }
 
-        // Center card/column with rich visual assets and aligned text elements
+        // center card/column with rich visual assets and aligned text elements
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -65,7 +65,7 @@ fun ConnectionErrorScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Soft-glowing connection status icon container
+            // soft-glowing connection status icon container
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -82,7 +82,7 @@ fun ConnectionErrorScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Bold Connection Lost title
+            // bold Connection Lost title
             Text(
                 text = stringResource(id = R.string.disconnected_connectionLost),
                 color = Color.White,
@@ -93,7 +93,7 @@ fun ConnectionErrorScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Readable secondary error/description text
+            // readable secondary error/description text
             Text(
                 text = errorMessage ?: stringResource(id = R.string.disconnected_lostConnectionMessage),
                 color = Color.Gray,
@@ -104,7 +104,7 @@ fun ConnectionErrorScreen(
 
             Spacer(modifier = Modifier.height(36.dp))
 
-            // Premium pill-shaped call-to-action button
+            // premium pill-shaped call-to-action button
             Button(
                 onClick = onRetryClick,
                 colors = ButtonDefaults.buttonColors(containerColor = primaryText),
