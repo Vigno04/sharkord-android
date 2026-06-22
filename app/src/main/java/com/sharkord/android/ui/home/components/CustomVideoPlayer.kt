@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -277,8 +278,8 @@ fun CustomVideoPlayer(
                                 modifier = Modifier.size(24.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Fullscreen,
-                                    contentDescription = "Fullscreen",
+                                    imageVector = if (isOverlayActive) Icons.Default.Close else Icons.Default.Fullscreen,
+                                    contentDescription = if (isOverlayActive) "Exit Fullscreen" else "Fullscreen",
                                     tint = Color.White
                                 )
                             }

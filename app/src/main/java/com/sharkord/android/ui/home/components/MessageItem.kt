@@ -652,73 +652,80 @@ fun MessageItem(
 // custom voice note / audio playback card interface
 @Composable
 fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
-    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var exoPlayer by remember { mutableStateOf<androidx.media3.exoplayer.ExoPlayer?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
-    var duration by remember { mutableIntStateOf(0) }
-    var currentPosition by remember { mutableIntStateOf(0) }
+    var duration by remember { mutableLongStateOf(0L) }
+    var currentPosition by remember { mutableLongStateOf(0L) }
     var isPrepared by remember { mutableStateOf(false) }
 
     DisposableEffect(audioUrl) {
-        val player = MediaPlayer().apply {
-            try {
-                setAudioAttributes(
-                    android.media.AudioAttributes.Builder()
-                        .setUsage(android.media.AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build()
-                )
-                setDataSource(audioUrl)
-                setOnPreparedListener {
-                    duration = it.duration
-                    isPrepared = true
+        val player = androidx.media3.exoplayer.ExoPlayer.Builder(context).build().apply {
+            val attributes = androidx.media3.common.AudioAttributes.Builder()
+                .setUsage(androidx.media3.common.C.USAGE_VOICE_COMMUNICATION)
+                .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_SPEECH)
+                .build()
+            setAudioAttributes(attributes, false)
+            setMediaItem(androidx.media3.common.MediaItem.fromUri(android.net.Uri.parse(audioUrl)))
+            
+            addListener(object : androidx.media3.common.Player.Listener {
+                override fun onPlaybackStateChanged(state: Int) {
+                    if (state == androidx.media3.common.Player.STATE_READY) {
+                        duration = this@apply.duration.coerceAtLeast(0L)
+                        isPrepared = true
+                    } else if (state == androidx.media3.common.Player.STATE_ENDED) {
+                        isPlaying = false
+                        currentPosition = 0L
+                        seekTo(0)
+                        playWhenReady = false
+                    }
                 }
-                setOnCompletionListener {
+                override fun onIsPlayingChanged(isPlayingState: Boolean) {
+                    isPlaying = isPlayingState
+                }
+                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    Log.e("AudioPlayer", "ExoPlayer error", error)
                     isPlaying = false
-                    currentPosition = 0
                 }
-                prepareAsync()
-            } catch (e: Exception) {
-                Log.e("AudioPlayer", "Error preparing player", e)
-            }
+            })
+            prepare()
         }
-        mediaPlayer = player
+        exoPlayer = player
 
         onDispose {
             player.release()
-            mediaPlayer = null
+            exoPlayer = null
         }
     }
 
     // playback progress loop
     LaunchedEffect(isPlaying) {
         if (isPlaying) {
-            while (isPlaying && mediaPlayer != null) {
-                currentPosition = mediaPlayer?.currentPosition ?: 0
+            while (isPlaying && exoPlayer != null) {
+                currentPosition = exoPlayer?.currentPosition ?: 0L
                 delay(200)
             }
         }
     }
 
     val playPauseAction = {
-        val player = mediaPlayer
+        val player = exoPlayer
         if (player != null && isPrepared) {
             if (isPlaying) {
                 player.pause()
-                isPlaying = false
             } else {
-                player.start()
-                isPlaying = true
+                player.play()
             }
         }
     }
 
-    val formatTime = { ms: Int ->
-        val seconds = (ms / 1000) % 60
-        val minutes = (ms / (1000 * 60)) % 60
+    val formatTime = { ms: Long ->
+        val totalSeconds = ms / 1000
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
         String.format("%d:%02d", minutes, seconds)
     }
 
-    val context = androidx.compose.ui.platform.LocalContext.current
     val sensorManager = remember { context.getSystemService(android.content.Context.SENSOR_SERVICE) as android.hardware.SensorManager }
     val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager }
     val powerManager = remember { context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager }
@@ -735,10 +742,9 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
     var isNear by remember { mutableStateOf(false) }
 
     val onPausePlayback = rememberUpdatedState {
-        val player = mediaPlayer
+        val player = exoPlayer
         if (player != null && isPrepared && isPlaying) {
             player.pause()
-            isPlaying = false
         }
     }
 
@@ -847,9 +853,9 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
             Slider(
                 value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
                 onValueChange = { ratio ->
-                    val player = mediaPlayer
+                    val player = exoPlayer
                     if (player != null && isPrepared) {
-                        val newPos = (ratio * duration).toInt()
+                        val newPos = (ratio * duration).toLong()
                         player.seekTo(newPos)
                         currentPosition = newPos
                     }

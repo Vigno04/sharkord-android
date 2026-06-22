@@ -38,6 +38,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import org.webrtc.SurfaceViewRenderer
@@ -67,12 +69,15 @@ fun VoicePanel(
     onToggleMicClick: (Boolean) -> Unit = {},
     onToggleDeafenClick: (Boolean) -> Unit = {},
     onToggleCameraClick: () -> Unit = {},
+    onSwitchCameraClick: () -> Unit = {},
     onOpenChatClick: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val colors = LocalSharkordColors.current
+val colors = LocalSharkordColors.current
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     var showOutputDropdown by remember { mutableStateOf(false) }
     var showInputDropdown by remember { mutableStateOf(false) }
@@ -216,7 +221,523 @@ fun VoicePanel(
         }
     }
 
-    Column(modifier = modifier.background(colors.bgColor)) {
+    if (isLandscape) {
+        Row(modifier = modifier.fillMaxSize().background(colors.bgColor)) {
+        // top Bar
+        Column(
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(72.dp)
+                .padding(vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    Icons.Default.Menu,
+                    contentDescription = "Back",
+                    tint = colors.foregroundText
+                )
+            }
+            
+            Icon(
+                Icons.Default.VolumeUp,
+                contentDescription = null,
+                tint = colors.foregroundText,
+                modifier = Modifier.size(20.dp)
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // audio Output Mode Button
+            Box {
+                IconButton(onClick = { showOutputDropdown = true }) {
+                    val currentDevice = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).find { it.id == selectedOutputDeviceId } ?: availableOutputs.find { it.id == selectedOutputDeviceId }
+                    val isBluetooth = currentDevice?.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || 
+                                      currentDevice?.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || 
+                                      (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && (currentDevice?.type == 26 || currentDevice?.type == 27)) ||
+                                      currentDevice?.type == 23 // TYPE_HEARING_AID
+                                      
+                    if (selectedOutputDeviceId == null) {
+                        Text(
+                            text = "A",
+                            color = colors.foregroundText,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else if (isBluetooth) {
+                        Icon(Icons.Default.Bluetooth, contentDescription = "Bluetooth", tint = colors.foregroundText)
+                    } else if (currentDevice?.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE) {
+                        Icon(Icons.Default.Hearing, contentDescription = "Earpiece", tint = colors.foregroundText)
+                    } else {
+                        Icon(Icons.Default.VolumeUp, contentDescription = "Speaker", tint = colors.foregroundText)
+                    }
+                }
+                DropdownMenu(
+                    expanded = showOutputDropdown,
+                    onDismissRequest = { showOutputDropdown = false },
+                    modifier = Modifier.background(colors.cardColor)
+                ) {
+                    DropdownMenuItem(
+                        leadingIcon = {
+                            Text(
+                                text = "A",
+                                color = colors.foregroundText,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        },
+                        text = { Text("Auto", color = colors.foregroundText) },
+                        onClick = {
+                            selectedOutputDeviceId = null
+                            showOutputDropdown = false
+                        }
+                    )
+                    availableOutputs.forEach { device ->
+                        DropdownMenuItem(
+                            leadingIcon = {
+                                val isBluetooth = device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || 
+                                                  device.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || 
+                                                  (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && (device.type == 26 || device.type == 27)) ||
+                                                  device.type == 23
+                                if (isBluetooth) {
+                                    Icon(Icons.Default.Bluetooth, contentDescription = null, tint = colors.foregroundText)
+                                } else if (device.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE) {
+                                    Icon(Icons.Default.Hearing, contentDescription = null, tint = colors.foregroundText)
+                                } else {
+                                    Icon(Icons.Default.VolumeUp, contentDescription = null, tint = colors.foregroundText)
+                                }
+                            },
+                            text = { 
+                                val name = when (device.type) {
+                                    AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "Earpiece"
+                                    AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "Stereo"
+                                    else -> device.productName?.toString()?.takeIf { it.isNotBlank() } ?: "Device ${device.id}"
+                                }
+                                Text(name, color = colors.foregroundText) 
+                            },
+                            onClick = {
+                                selectedOutputDeviceId = device.id
+                                showOutputDropdown = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            // audio Input Mode Button
+            if (availableInputs.size > 1) {
+                Box {
+                IconButton(onClick = { showInputDropdown = true }) {
+                    val currentMic = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS).find { it.id == selectedInputDeviceId } ?: availableInputs.find { it.id == selectedInputDeviceId }
+                    val isBluetoothMic = currentMic?.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || 
+                                         currentMic?.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || 
+                                         (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && (currentMic?.type == 26 || currentMic?.type == 27)) ||
+                                         currentMic?.type == 23
+                                         
+                    if (selectedInputDeviceId == null) {
+                        Text(
+                            text = "A",
+                            color = colors.foregroundText,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else if (isBluetoothMic) {
+                        Icon(Icons.Default.Bluetooth, contentDescription = "Bluetooth Mic", tint = colors.foregroundText)
+                    } else {
+                        Icon(Icons.Default.Mic, contentDescription = "Select Audio Input", tint = colors.foregroundText)
+                    }
+                }
+                DropdownMenu(
+                    expanded = showInputDropdown,
+                    onDismissRequest = { showInputDropdown = false },
+                    modifier = Modifier.background(colors.cardColor)
+                ) {
+                    DropdownMenuItem(
+                        leadingIcon = {
+                            Text(
+                                text = "A",
+                                color = colors.foregroundText,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        },
+                        text = { Text("Auto", color = colors.foregroundText) },
+                        onClick = {
+                            selectedInputDeviceId = null
+                            showInputDropdown = false
+                        }
+                    )
+                    availableInputs.forEach { device ->
+                        DropdownMenuItem(
+                            leadingIcon = {
+                                val isBluetoothMic = device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || 
+                                                     device.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || 
+                                                     (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && (device.type == 26 || device.type == 27)) ||
+                                                     device.type == 23
+                                if (isBluetoothMic) {
+                                    Icon(Icons.Default.Bluetooth, contentDescription = null, tint = colors.foregroundText)
+                                } else {
+                                    Icon(Icons.Default.Mic, contentDescription = null, tint = colors.foregroundText)
+                                }
+                            },
+                            text = { 
+                                val name = when (device.type) {
+                                    AudioDeviceInfo.TYPE_BUILTIN_MIC -> "Phone Mic"
+                                    else -> device.productName?.toString()?.takeIf { it.isNotBlank() } ?: "Mic ${device.id}"
+                                }
+                                Text(name, color = colors.foregroundText) 
+                            },
+                            onClick = {
+                                selectedInputDeviceId = device.id
+                                showInputDropdown = false
+                            }
+                        )
+                    }
+                }
+            }
+            }
+
+            if (cameraEnabled) {
+                IconButton(onClick = onSwitchCameraClick) {
+                    Icon(
+                        Icons.Default.FlipCameraAndroid,
+                        contentDescription = "Switch Camera",
+                        tint = colors.foregroundText
+                    )
+                }
+            }
+
+            // chat Button
+            IconButton(onClick = onOpenChatClick) {
+                Icon(
+                    Icons.Default.ChatBubble,
+                    contentDescription = "Open Chat",
+                    tint = colors.foregroundText
+                )
+            }
+        }
+
+
+            VerticalDivider(color = colors.cardColor, modifier = Modifier.fillMaxHeight(), thickness = 1.dp)
+
+        // main Content - Users Grid
+        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+            if (voiceUsers.isEmpty()) {
+                Text(
+                    text = "No one is here right now.",
+                    color = colors.primaryText,
+                    fontSize = 16.sp,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            } else {
+                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    val availableWidth = maxWidth - 32.dp // padding left + right
+                    val availableHeight = maxHeight - 32.dp // padding top + bottom
+                    
+                    val minBoxWidthDp = 140f //controls minimum box width per user
+                    val minBoxHeightDp = 120f //controls minimum box height per user
+                    
+                    val maxPossibleCols = maxOf(1, (availableWidth.value / minBoxWidthDp).toInt())
+                    val maxPossibleRows = maxOf(1, (availableHeight.value / minBoxHeightDp).toInt())
+                    var bestCols = 1
+                    var bestDiff = Float.MAX_VALUE
+                    
+                    for (c in 1..maxPossibleCols) {
+                        if (c > voiceUsers.size && voiceUsers.isNotEmpty()) break
+                        
+                        val r = kotlin.math.ceil(voiceUsers.size.toFloat() / c).toInt()
+                        val visibleR = r.coerceAtMost(maxPossibleRows)
+                        
+                        val totalWSpacing = 16f * (c - 1)
+                        val totalHSpacing = 16f * (visibleR - 1)
+                        
+                        val w = maxOf(1f, (availableWidth.value - totalWSpacing) / c)
+                        val h = maxOf(minBoxHeightDp, (availableHeight.value - totalHSpacing) / maxOf(1, visibleR))
+                        
+                        val ratio = w / h
+                        val diff = kotlin.math.abs(ratio - 1f) + kotlin.math.abs(1f / ratio - 1f)
+                        
+                        if (diff < bestDiff) {
+                            bestDiff = diff
+                            bestCols = c
+                        }
+                    }
+                    
+                    val cols = bestCols
+                    val rows = kotlin.math.ceil(voiceUsers.size.toFloat() / cols).toInt()
+                    val visibleRows = rows.coerceAtMost(maxPossibleRows)
+                    
+                    val totalSpacing = 16.dp * (visibleRows - 1)
+                    val itemHeight = if (visibleRows > 0) {
+                        ((availableHeight - totalSpacing) / visibleRows).coerceAtLeast(minBoxHeightDp.dp)
+                    } else {
+                        availableHeight.coerceAtLeast(minBoxHeightDp.dp)
+                    }
+
+                    val itemsInLastRow = if (voiceUsers.size % cols == 0) cols else voiceUsers.size % cols
+                    val gridCols = if (voiceUsers.isNotEmpty()) lcm(cols, itemsInLastRow) else 1
+                    val normalSpan = if (gridCols > 0) gridCols / cols else 1
+                    val lastRowSpan = if (gridCols > 0) gridCols / itemsInLastRow else 1
+
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(gridCols),
+                        contentPadding = PaddingValues(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(
+                            count = voiceUsers.size,
+                            key = { index -> voiceUsers[index].user.id },
+                            span = { index ->
+                                val isLastRow = index >= voiceUsers.size - itemsInLastRow
+                                androidx.compose.foundation.lazy.grid.GridItemSpan(if (isLastRow) lastRowSpan else normalSpan)
+                            }
+                        ) { index ->
+                            val voiceUser = voiceUsers[index]
+                            
+                            var isZoomedOut by remember { mutableStateOf(false) }
+                            
+                            val borderWidth by animateDpAsState(targetValue = if (voiceUser.isSpeaking) 3.dp else 0.dp)
+                            val borderColor = if (voiceUser.isSpeaking) Color.Green else Color.Transparent
+                            
+                            Box(
+                                modifier = Modifier
+                                    .height(itemHeight)
+                                    // use background with shape instead of .clip() to prevent
+                                    // compose from propagating clip outlines to the AndroidView child,
+                                    // which causes the 0xffffffff resource crash
+                                    .background(colors.cardColor, RoundedCornerShape(16.dp))
+                                    .border(borderWidth, borderColor, RoundedCornerShape(16.dp))
+                                    .clickable { isZoomedOut = !isZoomedOut },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                // avatar placeholder or Image
+                                val avatarUrl = voiceUser.user.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }
+                                val avatarPainter = rememberAsyncImagePainter(avatarUrl, fallbackResourceId = null)
+
+                                val hasVideo = voiceUser.state.webcamEnabled
+                                val videoTrack = if (ownUserId != null && voiceUser.user.id == ownUserId) {
+                                    localVideoTrack
+                                } else {
+                                    remoteVideoTracks[voiceUser.user.id.toString()]
+                                }
+
+                                if (hasVideo && videoTrack == null) {
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        if (avatarPainter != null) {
+                                            Image(
+                                                painter = avatarPainter,
+                                                contentDescription = null,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.fillMaxSize().blur(16.dp)
+                                            )
+                                        } else {
+                                            Box(modifier = Modifier.fillMaxSize().background(Color.DarkGray))
+                                        }
+                                        
+                                        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)))
+                                        
+                                        Text(
+                                            text = "Enter channel to\nsee user's camera",
+                                            color = Color.White,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.align(Alignment.Center).padding(horizontal = 8.dp)
+                                        )
+                                    }
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(64.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.DarkGray),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (avatarPainter != null) {
+                                            Image(
+                                                painter = avatarPainter,
+                                                contentDescription = "User Avatar",
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        } else {
+                                            Text(
+                                                text = voiceUser.user.name.take(1).uppercase(),
+                                                color = Color.White,
+                                                fontSize = 28.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (videoTrack != null) {
+                                    WebRtcVideoRenderer(
+                                        videoTrack = videoTrack,
+                                        eglBaseContext = eglBaseContext,
+                                        isZoomedOut = isZoomedOut,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                                
+                                // user Name Tag
+                                BoxWithConstraints(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .padding(8.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color.Black.copy(alpha = 0.6f))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    val canFitBoth = maxWidth > 100.dp
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = voiceUser.user.name,
+                                            color = Color.White,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f, fill = false)
+                                        )
+                                        
+                                        val isDeafened = voiceUser.state.soundMuted
+                                        val isMuted = voiceUser.state.micMuted
+                                        
+                                        if (hasVideo) {
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Icon(
+                                                Icons.Default.Videocam,
+                                                contentDescription = "Camera Active",
+                                                tint = Color(0xFF5865F2),
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                        if (isDeafened) {
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Icon(
+                                                Icons.Default.HeadsetOff,
+                                                contentDescription = "Deafened",
+                                                tint = Color.Red,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                        if (isMuted && (!isDeafened || canFitBoth)) {
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Icon(
+                                                Icons.Default.MicOff,
+                                                contentDescription = "Muted",
+                                                tint = Color.Red,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+
+            VerticalDivider(color = colors.cardColor, modifier = Modifier.fillMaxHeight(), thickness = 1.dp)
+
+        // bottom Controls
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(88.dp)
+                .clip(RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp))
+                .background(colors.cardColor)
+                .padding(vertical = 16.dp, horizontal = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isConnected) {
+                Column(
+                    modifier = Modifier.fillMaxHeight(),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // mic Toggle
+                        FloatingActionButton(
+                            onClick = { onToggleMicClick(!isMuted) },
+                            containerColor = if (isMuted) colors.bgColor else colors.foregroundText,
+                            contentColor = if (isMuted) colors.foregroundText else colors.bgColor,
+                            shape = CircleShape,
+                            modifier = Modifier.size(56.dp)
+                        ) {
+                            Icon(
+                                if (isMuted) Icons.Default.MicOff else Icons.Default.Mic, 
+                                contentDescription = if (isMuted) "Unmute" else "Mute"
+                            )
+                        }
+
+                        // deafen Toggle
+                        FloatingActionButton(
+                            onClick = { onToggleDeafenClick(!isDeafened) },
+                            containerColor = if (isDeafened) colors.bgColor else colors.foregroundText,
+                            contentColor = if (isDeafened) colors.foregroundText else colors.bgColor,
+                            shape = CircleShape,
+                            modifier = Modifier.size(56.dp)
+                        ) {
+                            Icon(
+                                if (isDeafened) Icons.Default.HeadsetOff else Icons.Default.Headset, 
+                                contentDescription = if (isDeafened) "Undeafen" else "Deafen"
+                            )
+                        }
+
+                        // camera Toggle
+                        FloatingActionButton(
+                            onClick = onToggleCameraClick,
+                            containerColor = if (!cameraEnabled) colors.bgColor else colors.foregroundText,
+                            contentColor = if (!cameraEnabled) colors.foregroundText else colors.bgColor,
+                            shape = CircleShape,
+                            modifier = Modifier.size(56.dp)
+                        ) {
+                            Icon(if (!cameraEnabled) Icons.Default.VideocamOff else Icons.Default.Videocam, contentDescription = if (!cameraEnabled) "Enable Camera" else "Disable Camera")
+                        }
+                    }
+
+                    // disconnect
+                    FloatingActionButton(
+                        onClick = onDisconnectClick,
+                        containerColor = Color(0xFFED4245),
+                        contentColor = Color.White,
+                        shape = CircleShape,
+                        modifier = Modifier.size(64.dp)
+                    ) {
+                        Icon(Icons.Default.CallEnd, contentDescription = "Disconnect", modifier = Modifier.size(32.dp))
+                    }
+                }
+            } else {
+                Button(
+                    onClick = { if (!isConnectingToVoice) onConnectClick() },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    contentPadding = PaddingValues(0.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF23A559))
+                ) {
+                    if (isConnectingToVoice) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Default.Phone, contentDescription = "Join Voice", tint = Color.White)
+                    }
+                }
+            }
+        }
+        }
+    } else {
+        Column(modifier = modifier.fillMaxSize().background(colors.bgColor)) {
         // top Bar
         Row(
             modifier = Modifier
@@ -236,7 +757,7 @@ fun VoicePanel(
                 Icons.Default.VolumeUp,
                 contentDescription = null,
                 tint = colors.foregroundText,
-                modifier = Modifier.padding(end = 8.dp).size(20.dp)
+                modifier = Modifier.padding(end = if (isLandscape) 0.dp else 8.dp).size(20.dp)
             )
 
             Text(
@@ -398,6 +919,16 @@ fun VoicePanel(
             }
             }
 
+            if (cameraEnabled) {
+                IconButton(onClick = onSwitchCameraClick) {
+                    Icon(
+                        Icons.Default.FlipCameraAndroid,
+                        contentDescription = "Switch Camera",
+                        tint = colors.foregroundText
+                    )
+                }
+            }
+
             // chat Button
             IconButton(onClick = onOpenChatClick) {
                 Icon(
@@ -408,7 +939,8 @@ fun VoicePanel(
             }
         }
 
-        Divider(color = colors.cardColor, thickness = 1.dp)
+
+        HorizontalDivider(color = colors.cardColor, thickness = 1.dp)
 
         // main Content - Users Grid
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -632,6 +1164,7 @@ fun VoicePanel(
             }
         }
 
+
         // bottom Controls
         Box(
             modifier = Modifier
@@ -719,7 +1252,9 @@ fun VoicePanel(
                 }
             }
         }
+        }
     }
+
 }
 
 private fun gcd(a: Int, b: Int): Int {

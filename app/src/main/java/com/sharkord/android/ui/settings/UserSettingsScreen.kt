@@ -427,52 +427,59 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
     val autoGainControl by viewModel.autoGainControl.collectAsState()
 
     val defaultCamera by viewModel.defaultCamera.collectAsState()
-    val videoResolution by viewModel.videoResolution.collectAsState()
-    val videoFps by viewModel.videoFps.collectAsState()
+    val frontVideoResolution by viewModel.frontVideoResolution.collectAsState()
+    val frontVideoFps by viewModel.frontVideoFps.collectAsState()
+    val backVideoResolution by viewModel.backVideoResolution.collectAsState()
+    val backVideoFps by viewModel.backVideoFps.collectAsState()
     val mirrorFrontCamera by viewModel.mirrorFrontCamera.collectAsState()
 
     val screenShareOptimizeFor by viewModel.screenShareOptimizeFor.collectAsState()
 
     var expandedAudioRoute by remember { mutableStateOf(false) }
     var expandedCamera by remember { mutableStateOf(false) }
-    var expandedVideoResolution by remember { mutableStateOf(false) }
-    var expandedVideoFps by remember { mutableStateOf(false) }
+    var expandedFrontVideoResolution by remember { mutableStateOf(false) }
+    var expandedFrontVideoFps by remember { mutableStateOf(false) }
+    var expandedBackVideoResolution by remember { mutableStateOf(false) }
+    var expandedBackVideoFps by remember { mutableStateOf(false) }
     var expandedOptimizeFor by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
-    var availableResolutions by remember { mutableStateOf<List<String>>(emptyList()) }
-    var availableFpsList by remember { mutableStateOf<List<Int>>(emptyList()) }
+    var availableFrontResolutions by remember { mutableStateOf<List<String>>(emptyList()) }
+    var availableFrontFpsList by remember { mutableStateOf<List<Int>>(emptyList()) }
+    var availableBackResolutions by remember { mutableStateOf<List<String>>(emptyList()) }
+    var availableBackFpsList by remember { mutableStateOf<List<Int>>(emptyList()) }
 
-    LaunchedEffect(defaultCamera) {
+    LaunchedEffect(Unit) {
         val enumerator: CameraEnumerator = if (Camera2Enumerator.isSupported(context)) {
             Camera2Enumerator(context)
         } else {
             Camera1Enumerator(true)
         }
-        val deviceNames = enumerator.deviceNames
-        var targetDevice: String? = null
-        for (name in deviceNames) {
-            val isFront = enumerator.isFrontFacing(name)
-            if ((defaultCamera == "Front" && isFront) || (defaultCamera == "Back" && !isFront)) {
-                targetDevice = name
-                break
-            }
-        }
-        if (targetDevice == null) {
-            targetDevice = deviceNames.firstOrNull()
-        }
-        
-        if (targetDevice != null) {
-            val formats = enumerator.getSupportedFormats(targetDevice)
-            availableResolutions = formats.map { "${it.width}x${it.height}" }
+        for (name in enumerator.deviceNames) {
+            val formats = enumerator.getSupportedFormats(name)
+            val resList = formats.map { "${it.width}x${it.height}" }
                 .distinct()
                 .sortedByDescending { it.split("x")[0].toInt() * it.split("x")[1].toInt() }
-            availableFpsList = formats.map { it.framerate.max / 1000 }
+            val fpsList = formats.map { it.framerate.max / 1000 }
                 .distinct()
                 .sortedDescending()
-        } else {
-            availableResolutions = listOf("1280x720")
-            availableFpsList = listOf(30)
+                
+            if (enumerator.isFrontFacing(name) && availableFrontResolutions.isEmpty()) {
+                availableFrontResolutions = resList
+                availableFrontFpsList = fpsList
+            } else if (!enumerator.isFrontFacing(name) && availableBackResolutions.isEmpty()) {
+                availableBackResolutions = resList
+                availableBackFpsList = fpsList
+            }
+        }
+        
+        if (availableFrontResolutions.isEmpty()) {
+            availableFrontResolutions = listOf("1280x720")
+            availableFrontFpsList = listOf(30)
+        }
+        if (availableBackResolutions.isEmpty()) {
+            availableBackResolutions = listOf("1280x720")
+            availableBackFpsList = listOf(30)
         }
     }
 
@@ -546,28 +553,30 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
             }
         }
         
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Front Camera Settings", color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
         
         ExposedDropdownMenuBox(
-            expanded = expandedVideoResolution,
-            onExpandedChange = { expandedVideoResolution = !expandedVideoResolution },
+            expanded = expandedFrontVideoResolution,
+            onExpandedChange = { expandedFrontVideoResolution = !expandedFrontVideoResolution },
             modifier = Modifier.fillMaxWidth()
         ) {
             OutlinedTextField(
-                value = videoResolution,
+                value = frontVideoResolution,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Video Resolution") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedVideoResolution) },
+                label = { Text("Resolution") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFrontVideoResolution) },
                 modifier = Modifier.menuAnchor().fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                     focusedTextColor = foregroundText, unfocusedTextColor = primaryText
                 )
             )
-            ExposedDropdownMenu(expanded = expandedVideoResolution, onDismissRequest = { expandedVideoResolution = false }) {
-                availableResolutions.forEach { res ->
-                    DropdownMenuItem(text = { Text(res) }, onClick = { viewModel.saveVideoResolution(res); expandedVideoResolution = false })
+            ExposedDropdownMenu(expanded = expandedFrontVideoResolution, onDismissRequest = { expandedFrontVideoResolution = false }) {
+                availableFrontResolutions.forEach { res ->
+                    DropdownMenuItem(text = { Text(res) }, onClick = { viewModel.saveFrontVideoResolution(res); expandedFrontVideoResolution = false })
                 }
             }
         }
@@ -575,25 +584,79 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
         Spacer(modifier = Modifier.height(12.dp))
 
         ExposedDropdownMenuBox(
-            expanded = expandedVideoFps,
-            onExpandedChange = { expandedVideoFps = !expandedVideoFps },
+            expanded = expandedFrontVideoFps,
+            onExpandedChange = { expandedFrontVideoFps = !expandedFrontVideoFps },
             modifier = Modifier.fillMaxWidth()
         ) {
             OutlinedTextField(
-                value = "$videoFps fps",
+                value = "$frontVideoFps fps",
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Video Framerate") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedVideoFps) },
+                label = { Text("Framerate") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFrontVideoFps) },
                 modifier = Modifier.menuAnchor().fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                     focusedTextColor = foregroundText, unfocusedTextColor = primaryText
                 )
             )
-            ExposedDropdownMenu(expanded = expandedVideoFps, onDismissRequest = { expandedVideoFps = false }) {
-                availableFpsList.forEach { fps ->
-                    DropdownMenuItem(text = { Text("$fps fps") }, onClick = { viewModel.saveVideoFps(fps); expandedVideoFps = false })
+            ExposedDropdownMenu(expanded = expandedFrontVideoFps, onDismissRequest = { expandedFrontVideoFps = false }) {
+                availableFrontFpsList.forEach { fps ->
+                    DropdownMenuItem(text = { Text("$fps fps") }, onClick = { viewModel.saveFrontVideoFps(fps); expandedFrontVideoFps = false })
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Back Camera Settings", color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        ExposedDropdownMenuBox(
+            expanded = expandedBackVideoResolution,
+            onExpandedChange = { expandedBackVideoResolution = !expandedBackVideoResolution },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = backVideoResolution,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Resolution") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedBackVideoResolution) },
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                    focusedTextColor = foregroundText, unfocusedTextColor = primaryText
+                )
+            )
+            ExposedDropdownMenu(expanded = expandedBackVideoResolution, onDismissRequest = { expandedBackVideoResolution = false }) {
+                availableBackResolutions.forEach { res ->
+                    DropdownMenuItem(text = { Text(res) }, onClick = { viewModel.saveBackVideoResolution(res); expandedBackVideoResolution = false })
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(12.dp))
+
+        ExposedDropdownMenuBox(
+            expanded = expandedBackVideoFps,
+            onExpandedChange = { expandedBackVideoFps = !expandedBackVideoFps },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = "$backVideoFps fps",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Framerate") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedBackVideoFps) },
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                    focusedTextColor = foregroundText, unfocusedTextColor = primaryText
+                )
+            )
+            ExposedDropdownMenu(expanded = expandedBackVideoFps, onDismissRequest = { expandedBackVideoFps = false }) {
+                availableBackFpsList.forEach { fps ->
+                    DropdownMenuItem(text = { Text("$fps fps") }, onClick = { viewModel.saveBackVideoFps(fps); expandedBackVideoFps = false })
                 }
             }
         }

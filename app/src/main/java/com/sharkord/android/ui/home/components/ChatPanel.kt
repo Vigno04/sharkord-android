@@ -194,10 +194,50 @@ fun ChatPanel(
         if (isAtBottom) unreadNewCount = 0
     }
 
-    // paginate old messages
+    // paginate old messages & retain scroll position
     val firstVisibleIndex by remember { derivedStateOf { listState.firstVisibleItemIndex } }
+    
+    var previousMessagesSize by remember(channelId) { mutableIntStateOf(0) }
+    var previousFirstVisibleId by remember(channelId) { mutableStateOf<Int?>(null) }
+    var previousFirstVisibleOffset by remember(channelId) { mutableIntStateOf(0) }
+    var previousFirstVisibleIndex by remember(channelId) { mutableIntStateOf(0) }
+
+    LaunchedEffect(firstVisibleIndex, listState.firstVisibleItemScrollOffset) {
+        val headerOffset = if (uiState.isLoadingOlder || (uiState.hasReachedTop && uiState.messages.isNotEmpty())) 1 else 0
+        if (uiState.messages.isNotEmpty()) {
+            if (firstVisibleIndex >= headerOffset && firstVisibleIndex - headerOffset < uiState.messages.size) {
+                previousFirstVisibleId = uiState.messages[firstVisibleIndex - headerOffset].id
+                previousFirstVisibleOffset = listState.firstVisibleItemScrollOffset
+                previousFirstVisibleIndex = firstVisibleIndex - headerOffset
+            } else if (firstVisibleIndex < headerOffset) {
+                previousFirstVisibleId = uiState.messages[0].id
+                previousFirstVisibleOffset = listState.firstVisibleItemScrollOffset
+                previousFirstVisibleIndex = 0
+            }
+        }
+    }
+
+    LaunchedEffect(uiState.messages.size) {
+        val newSize = uiState.messages.size
+        val oldSize = previousMessagesSize
+        previousMessagesSize = newSize
+
+        if (oldSize > 0 && newSize > oldSize) {
+            val prevFirstId = previousFirstVisibleId
+            if (prevFirstId != null) {
+                val newIndex = uiState.messages.indexOfFirst { it.id == prevFirstId }
+                // Only adjust scroll if items were prepended (pushing the old first item down)
+                if (newIndex > previousFirstVisibleIndex) {
+                    val headerOffset = if (uiState.isLoadingOlder || (uiState.hasReachedTop && uiState.messages.isNotEmpty())) 1 else 0
+                    listState.scrollToItem(newIndex + headerOffset, previousFirstVisibleOffset)
+                    previousFirstVisibleIndex = newIndex
+                }
+            }
+        }
+    }
+
     LaunchedEffect(firstVisibleIndex) {
-        if (firstVisibleIndex == 0 && !uiState.isLoadingHistory && !uiState.isLoadingOlder && !uiState.hasReachedTop) {
+        if (firstVisibleIndex <= 5 && !uiState.isLoadingHistory && !uiState.isLoadingOlder && !uiState.hasReachedTop) {
             viewModel.loadOlderMessages()
         }
     }

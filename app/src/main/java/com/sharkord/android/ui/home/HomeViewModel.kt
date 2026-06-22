@@ -634,8 +634,10 @@ class HomeViewModel : ViewModel() {
                 // disconnect from current voice channel first if switching
                 if (_uiState.value.activeVoiceChannelId != null && _uiState.value.activeVoiceChannelId != channelId) {
                     try {
-                        SharkordClient.voiceEngine.leaveChannel()
-                        SharkordClient.webSocket.sendMutationAwait("voice.leave", com.google.gson.JsonObject())
+                        if (SharkordClient.voiceEngine.isConnected.value) {
+                            SharkordClient.voiceEngine.leaveChannel()
+                            SharkordClient.webSocket.sendMutationAwait("voice.leave", com.google.gson.JsonObject())
+                        }
                         // stop the service before starting a new connection
                         val stopIntent = android.content.Intent(context, com.sharkord.android.data.network.VoiceService::class.java).apply {
                             action = com.sharkord.android.data.network.VoiceService.ACTION_STOP
@@ -831,10 +833,14 @@ class HomeViewModel : ViewModel() {
                     }
                     SharkordClient.webSocket.sendMutationAwait("voice.updateState", input)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to update camera state on server", e)
+                    Log.e(TAG, "Failed to update voice state", e)
                 }
             }
         }
+    }
+
+    fun switchCamera(context: Context) {
+        SharkordClient.voiceEngine.switchCamera(context)
     }
 
     fun setPanel(panel: HomePanel) {

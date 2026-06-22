@@ -454,6 +454,7 @@ class WebSocketManager(
 
     private fun scheduleReconnect() {
         if (!shouldReconnect) return
+        if (reconnectJob?.isActive == true) return
 
         reconnectJob?.cancel()
         reconnectJob = scope.launch {

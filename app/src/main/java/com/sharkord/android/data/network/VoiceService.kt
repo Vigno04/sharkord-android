@@ -156,9 +156,11 @@ class VoiceService : Service() {
     private fun stopForegroundService() {
         scope.launch {
             try {
-                SharkordClient.voiceEngine.leaveChannel()
-                SharkordClient.webSocket.sendMutationAwait("voice.leave", com.google.gson.JsonObject())
-                com.sharkord.android.audio.SoundEngine.playSound(com.sharkord.android.audio.SoundType.OWN_USER_LEFT_VOICE_CHANNEL)
+                if (SharkordClient.voiceEngine.isConnected.value) {
+                    SharkordClient.voiceEngine.leaveChannel()
+                    SharkordClient.webSocket.sendMutationAwait("voice.leave", com.google.gson.JsonObject())
+                    com.sharkord.android.audio.SoundEngine.playSound(com.sharkord.android.audio.SoundType.OWN_USER_LEFT_VOICE_CHANNEL)
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -176,8 +178,10 @@ class VoiceService : Service() {
         super.onDestroy()
         scope.launch {
             try {
-                SharkordClient.voiceEngine.leaveChannel()
-                SharkordClient.webSocket.sendMutationAwait("voice.leave", com.google.gson.JsonObject())
+                if (SharkordClient.voiceEngine.isConnected.value) {
+                    SharkordClient.voiceEngine.leaveChannel()
+                    SharkordClient.webSocket.sendMutationAwait("voice.leave", com.google.gson.JsonObject())
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }

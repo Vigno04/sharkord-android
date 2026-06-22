@@ -96,13 +96,21 @@ class SessionManager(context: Context) {
         get() = prefs.getString(KEY_DEFAULT_CAMERA, "Front") ?: "Front"
         set(value) = prefs.edit().putString(KEY_DEFAULT_CAMERA, value).apply()
 
-    var videoResolution: String
-        get() = prefs.getString(KEY_VIDEO_RESOLUTION, "1280x720") ?: "1280x720"
-        set(value) = prefs.edit().putString(KEY_VIDEO_RESOLUTION, value).apply()
+    var frontVideoResolution: String
+        get() = prefs.getString(KEY_FRONT_VIDEO_RESOLUTION, "1280x720") ?: "1280x720"
+        set(value) = prefs.edit().putString(KEY_FRONT_VIDEO_RESOLUTION, value).apply()
 
-    var videoFps: Int
-        get() = prefs.getInt(KEY_VIDEO_FPS, 30)
-        set(value) = prefs.edit().putInt(KEY_VIDEO_FPS, value).apply()
+    var frontVideoFps: Int
+        get() = prefs.getInt(KEY_FRONT_VIDEO_FPS, 30)
+        set(value) = prefs.edit().putInt(KEY_FRONT_VIDEO_FPS, value).apply()
+
+    var backVideoResolution: String
+        get() = prefs.getString(KEY_BACK_VIDEO_RESOLUTION, "1280x720") ?: "1280x720"
+        set(value) = prefs.edit().putString(KEY_BACK_VIDEO_RESOLUTION, value).apply()
+
+    var backVideoFps: Int
+        get() = prefs.getInt(KEY_BACK_VIDEO_FPS, 30)
+        set(value) = prefs.edit().putInt(KEY_BACK_VIDEO_FPS, value).apply()
 
     var mirrorFrontCamera: Boolean
         get() = prefs.getBoolean(KEY_MIRROR_FRONT_CAMERA, true)
@@ -126,8 +134,10 @@ class SessionManager(context: Context) {
         private const val KEY_NOISE_SUPPRESSION = "noise_suppression"
         private const val KEY_AUTO_GAIN_CONTROL = "auto_gain_control"
         private const val KEY_DEFAULT_CAMERA = "default_camera"
-        private const val KEY_VIDEO_RESOLUTION = "video_resolution"
-        private const val KEY_VIDEO_FPS = "video_fps"
+        private const val KEY_FRONT_VIDEO_RESOLUTION = "front_video_resolution"
+        private const val KEY_FRONT_VIDEO_FPS = "front_video_fps"
+        private const val KEY_BACK_VIDEO_RESOLUTION = "back_video_resolution"
+        private const val KEY_BACK_VIDEO_FPS = "back_video_fps"
         private const val KEY_MIRROR_FRONT_CAMERA = "mirror_front_camera"
         private const val KEY_SCREEN_SHARE_OPTIMIZE_FOR = "screen_share_optimize_for"
     }

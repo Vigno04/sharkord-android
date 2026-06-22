@@ -45,8 +45,10 @@ class UserSettingsViewModel : ViewModel() {
     var noiseSuppression = MutableStateFlow(true)
     var autoGainControl = MutableStateFlow(true)
     var defaultCamera = MutableStateFlow("Front")
-    var videoResolution = MutableStateFlow("1280x720")
-    var videoFps = MutableStateFlow(30)
+    var frontVideoResolution = MutableStateFlow("1280x720")
+    var frontVideoFps = MutableStateFlow(30)
+    var backVideoResolution = MutableStateFlow("1280x720")
+    var backVideoFps = MutableStateFlow(30)
     var mirrorFrontCamera = MutableStateFlow(true)
     var screenShareOptimizeFor = MutableStateFlow("Quality")
 
@@ -57,8 +59,10 @@ class UserSettingsViewModel : ViewModel() {
         noiseSuppression.value = SharkordClient.session.noiseSuppression
         autoGainControl.value = SharkordClient.session.autoGainControl
         defaultCamera.value = SharkordClient.session.defaultCamera
-        videoResolution.value = SharkordClient.session.videoResolution
-        videoFps.value = SharkordClient.session.videoFps
+        frontVideoResolution.value = SharkordClient.session.frontVideoResolution
+        frontVideoFps.value = SharkordClient.session.frontVideoFps
+        backVideoResolution.value = SharkordClient.session.backVideoResolution
+        backVideoFps.value = SharkordClient.session.backVideoFps
         mirrorFrontCamera.value = SharkordClient.session.mirrorFrontCamera
         screenShareOptimizeFor.value = SharkordClient.session.screenShareOptimizeFor
         loadUser()
@@ -157,14 +161,24 @@ class UserSettingsViewModel : ViewModel() {
         SharkordClient.session.defaultCamera = value
     }
 
-    fun saveVideoResolution(value: String) {
-        videoResolution.value = value
-        SharkordClient.session.videoResolution = value
+    fun saveFrontVideoResolution(value: String) {
+        frontVideoResolution.value = value
+        SharkordClient.session.frontVideoResolution = value
     }
 
-    fun saveVideoFps(value: Int) {
-        videoFps.value = value
-        SharkordClient.session.videoFps = value
+    fun saveFrontVideoFps(value: Int) {
+        frontVideoFps.value = value
+        SharkordClient.session.frontVideoFps = value
+    }
+
+    fun saveBackVideoResolution(value: String) {
+        backVideoResolution.value = value
+        SharkordClient.session.backVideoResolution = value
+    }
+
+    fun saveBackVideoFps(value: Int) {
+        backVideoFps.value = value
+        SharkordClient.session.backVideoFps = value
     }
 
     fun saveMirrorFrontCamera(value: Boolean) {

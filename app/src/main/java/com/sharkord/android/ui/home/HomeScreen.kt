@@ -152,6 +152,21 @@ fun HomeScreen(
                     }
                 }
 
+                // handle screen orientation/width changes
+                LaunchedEffect(screenWidthPx) {
+                    if (uiState.activePanel == HomePanel.SERVER) {
+                        swipeOffset.snapTo(0f)
+                    } else {
+                        swipeOffset.snapTo(-screenWidthPx)
+                    }
+                    
+                    if (uiState.isViewingVoiceChat) {
+                        voiceSwipeOffset.snapTo(-screenWidthPx)
+                    } else {
+                        voiceSwipeOffset.snapTo(0f)
+                    }
+                }
+
                 // close DM list when pressing back button
                 BackHandler(enabled = uiState.activePanel == HomePanel.SERVER && uiState.isDmsListOpen) {
                     viewModel.closeDmsList()
@@ -301,6 +316,9 @@ fun HomeScreen(
                                         } else {
                                             cameraPermissionLauncher.launch(toRequest.toTypedArray())
                                         }
+                                    },
+                                    onSwitchCameraClick = {
+                                        viewModel.switchCamera(context)
                                     },
                                     onOpenChatClick = {
                                         viewModel.setViewingVoiceChat(true)

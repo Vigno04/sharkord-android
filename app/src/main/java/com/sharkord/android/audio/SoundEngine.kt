@@ -572,15 +572,9 @@ object SoundEngine {
                 val context = com.sharkord.android.data.network.SharkordClient.applicationContext
                 val audioManager = context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
                 
-                val usageAttribute = if (audioManager.mode == android.media.AudioManager.MODE_IN_COMMUNICATION || type == SoundType.OWN_USER_LEFT_VOICE_CHANNEL) {
-                    AudioAttributes.USAGE_VOICE_COMMUNICATION
-                } else {
-                    AudioAttributes.USAGE_ASSISTANCE_SONIFICATION
-                }
-
                 val track = AudioTrack.Builder()
                     .setAudioAttributes(AudioAttributes.Builder()
-                        .setUsage(usageAttribute)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build())
                     .setAudioFormat(AudioFormat.Builder()

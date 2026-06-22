@@ -626,6 +626,10 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         videoEngine.setCameraEnabled(context, enabled, peerConnectionFactory, sendTransport)
     }
 
+    fun switchCamera(context: Context) {
+        videoEngine.switchCamera(context, peerConnectionFactory, sendTransport)
+    }
+
     private fun startAudioLevelPolling() {
         statsJob?.cancel()
         statsJob = scope.launch {

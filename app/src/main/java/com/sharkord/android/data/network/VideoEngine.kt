@@ -130,10 +130,16 @@ class VideoEngine(
         surfaceTextureHelper = SurfaceTextureHelper.create("CaptureThread", eglBaseContext)
         localVideoSource = factory.createVideoSource(videoCapturer!!.isScreencast)
         videoCapturer?.initialize(surfaceTextureHelper, activeContext, localVideoSource?.capturerObserver)
-        val resParts = SharkordClient.session.videoResolution.split("x")
+        
+        val isFront = enumerator.isFrontFacing(selectedDeviceName)
+        val resParts = if (isFront) {
+            SharkordClient.session.frontVideoResolution.split("x")
+        } else {
+            SharkordClient.session.backVideoResolution.split("x")
+        }
         val targetWidth = resParts.getOrNull(0)?.toIntOrNull() ?: 1280
         val targetHeight = resParts.getOrNull(1)?.toIntOrNull() ?: 720
-        val targetFps = SharkordClient.session.videoFps
+        val targetFps = if (isFront) SharkordClient.session.frontVideoFps else SharkordClient.session.backVideoFps
 
         var finalWidth = targetWidth
         var finalHeight = targetHeight
@@ -204,6 +210,39 @@ class VideoEngine(
         cameraEnabled = false
         cameraMutex.withLock {
             stopLocalVideoSuspend()
+        }
+    }
+
+    fun switchCamera(
+        activeContext: Context,
+        factory: PeerConnectionFactory?,
+        sendTransport: SendTransport?
+    ) {
+        scope.launch {
+            cameraMutex.withLock {
+                if (!cameraEnabled || localVideoTrack == null || videoCapturer !is org.webrtc.CameraVideoCapturer) return@withLock
+                val current = SharkordClient.session.defaultCamera
+                SharkordClient.session.defaultCamera = if (current == "Front") "Back" else "Front"
+                
+                val isFront = SharkordClient.session.defaultCamera == "Front"
+                val resParts = if (isFront) {
+                    SharkordClient.session.frontVideoResolution.split("x")
+                } else {
+                    SharkordClient.session.backVideoResolution.split("x")
+                }
+                val targetWidth = resParts.getOrNull(0)?.toIntOrNull() ?: 1280
+                val targetHeight = resParts.getOrNull(1)?.toIntOrNull() ?: 720
+                val targetFps = if (isFront) SharkordClient.session.frontVideoFps else SharkordClient.session.backVideoFps
+
+                (videoCapturer as org.webrtc.CameraVideoCapturer).switchCamera(object : org.webrtc.CameraVideoCapturer.CameraSwitchHandler {
+                    override fun onCameraSwitchDone(isFrontFacing: Boolean) {
+                        videoCapturer?.changeCaptureFormat(targetWidth, targetHeight, targetFps)
+                    }
+                    override fun onCameraSwitchError(errorDescription: String?) {
+                        Log.e(TAG, "Camera switch error: $errorDescription")
+                    }
+                })
+            }
         }
     }
 
