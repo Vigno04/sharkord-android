@@ -86,6 +86,44 @@ class SessionManager(context: Context) {
             prefs.edit().putInt(KEY_MAX_DISK_CACHE_MB, value).apply()
         }
 
+    // Devices Settings
+
+    var defaultAudioRoute: String
+        get() = prefs.getString(KEY_DEFAULT_AUDIO_ROUTE, "None") ?: "None"
+        set(value) = prefs.edit().putString(KEY_DEFAULT_AUDIO_ROUTE, value).apply()
+
+    var echoCancellation: Boolean
+        get() = prefs.getBoolean(KEY_ECHO_CANCELLATION, true)
+        set(value) = prefs.edit().putBoolean(KEY_ECHO_CANCELLATION, value).apply()
+
+    var noiseSuppression: Boolean
+        get() = prefs.getBoolean(KEY_NOISE_SUPPRESSION, true)
+        set(value) = prefs.edit().putBoolean(KEY_NOISE_SUPPRESSION, value).apply()
+
+    var autoGainControl: Boolean
+        get() = prefs.getBoolean(KEY_AUTO_GAIN_CONTROL, true)
+        set(value) = prefs.edit().putBoolean(KEY_AUTO_GAIN_CONTROL, value).apply()
+
+    var defaultCamera: String
+        get() = prefs.getString(KEY_DEFAULT_CAMERA, "Front") ?: "Front"
+        set(value) = prefs.edit().putString(KEY_DEFAULT_CAMERA, value).apply()
+
+    var videoResolution: String
+        get() = prefs.getString(KEY_VIDEO_RESOLUTION, "1280x720") ?: "1280x720"
+        set(value) = prefs.edit().putString(KEY_VIDEO_RESOLUTION, value).apply()
+
+    var videoFps: Int
+        get() = prefs.getInt(KEY_VIDEO_FPS, 30)
+        set(value) = prefs.edit().putInt(KEY_VIDEO_FPS, value).apply()
+
+    var mirrorFrontCamera: Boolean
+        get() = prefs.getBoolean(KEY_MIRROR_FRONT_CAMERA, true)
+        set(value) = prefs.edit().putBoolean(KEY_MIRROR_FRONT_CAMERA, value).apply()
+
+    var screenShareOptimizeFor: String
+        get() = prefs.getString(KEY_SCREEN_SHARE_OPTIMIZE_FOR, "Quality") ?: "Quality"
+        set(value) = prefs.edit().putString(KEY_SCREEN_SHARE_OPTIMIZE_FOR, value).apply()
+
     companion object {
         private const val PREFS_NAME = "sharkord_prefs"
         private const val KEY_TOKEN = "login_token"
@@ -93,6 +131,16 @@ class SessionManager(context: Context) {
         private const val KEY_SERVER_LOGO_URL = "server_logo_url"
         private const val KEY_AUTO_LOGIN = "auto_login"
         private const val KEY_MAX_DISK_CACHE_MB = "max_disk_cache_mb"
+
+        // Device settings keys
+        private const val KEY_DEFAULT_AUDIO_ROUTE = "default_audio_route"
+        private const val KEY_ECHO_CANCELLATION = "echo_cancellation"
+        private const val KEY_NOISE_SUPPRESSION = "noise_suppression"
+        private const val KEY_AUTO_GAIN_CONTROL = "auto_gain_control"
+        private const val KEY_DEFAULT_CAMERA = "default_camera"
+        private const val KEY_VIDEO_RESOLUTION = "video_resolution"
+        private const val KEY_VIDEO_FPS = "video_fps"
+        private const val KEY_MIRROR_FRONT_CAMERA = "mirror_front_camera"
+        private const val KEY_SCREEN_SHARE_OPTIMIZE_FOR = "screen_share_optimize_for"
     }
 }
-

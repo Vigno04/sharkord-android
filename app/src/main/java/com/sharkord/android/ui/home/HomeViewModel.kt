@@ -60,7 +60,12 @@ data class HomeUiState(
     // Voice
     val activeVoiceChannelId: Int? = null,
     val activeSpeakers: Set<String> = emptySet(),
-    val isViewingVoiceChat: Boolean = false
+    val isViewingVoiceChat: Boolean = false,
+    val cameraEnabled: Boolean = false,
+    val localVideoTrack: org.webrtc.VideoTrack? = null,
+    val remoteVideoTracks: Map<String, org.webrtc.VideoTrack> = emptyMap(),
+    // Always available since EglBase is created at VoiceEngine init time
+    val eglBaseContext: org.webrtc.EglBase.Context = SharkordClient.voiceEngine.eglBaseContext
 )
 
 /**
@@ -252,6 +257,32 @@ class HomeViewModel : ViewModel() {
      * users/actions.ts, etc.) but expressed as direct state transformations.
      */
     private fun applyServerEvent(event: ServerEvent) {
+        // Handle side effects that MUST NOT run inside the state update lambda.
+        // Closing consumers/producers involves native WebRTC cleanup that invalidates
+        // tracks. If we do this inside _uiState.update, the tracks are destroyed
+        // before Compose can remove the SurfaceViewRenderers, causing a native crash.
+        when (event) {
+            is ServerEvent.UserLeftVoice -> {
+                val activeChannelId = _uiState.value.activeVoiceChannelId
+                if (event.channelId == activeChannelId) {
+                    SharkordClient.voiceEngine.clearRemoteProducersForUser(event.userId)
+                }
+            }
+            is ServerEvent.VoiceProducerClosed -> {
+                val activeChannelId = _uiState.value.activeVoiceChannelId
+                if (event.channelId == activeChannelId) {
+                    SharkordClient.voiceEngine.removeRemoteProducer(event.remoteId, event.kind)
+                }
+            }
+            is ServerEvent.VoiceNewProducer -> {
+                val activeChannelId = _uiState.value.activeVoiceChannelId
+                if (event.channelId == activeChannelId) {
+                    SharkordClient.voiceEngine.consumeRemoteProducer(event.remoteId, event.kind)
+                }
+            }
+            else -> { /* No side effects needed */ }
+        }
+
         _uiState.update { state ->
             val data = state.serverData ?: return@update state
 
@@ -468,10 +499,7 @@ class HomeViewModel : ViewModel() {
 
                 is ServerEvent.UserLeftVoice -> {
                     Log.d(TAG, "[EVENT] voice.onLeave: channelId=${event.channelId}, userId=${event.userId}")
-                    
-                    if (event.channelId == state.activeVoiceChannelId) {
-                        SharkordClient.voiceEngine.clearRemoteProducersForUser(event.userId)
-                    }
+                    // Side effect (clearRemoteProducersForUser) handled above, outside update lambda
 
                     val newVoiceMap = data.voiceMap?.toMutableMap() ?: return@update state
                     val channelUsers = newVoiceMap[event.channelId.toString()]?.users?.toMutableMap() ?: return@update state
@@ -495,17 +523,13 @@ class HomeViewModel : ViewModel() {
 
                 is ServerEvent.VoiceNewProducer -> {
                     Log.d(TAG, "[EVENT] voice.onNewProducer: channelId=${event.channelId}, remoteId=${event.remoteId}")
-                    if (event.channelId == state.activeVoiceChannelId) {
-                        SharkordClient.voiceEngine.consumeRemoteProducer(event.remoteId, event.kind)
-                    }
+                    // Side effect (consumeRemoteProducer) handled above, outside update lambda
                     state
                 }
 
                 is ServerEvent.VoiceProducerClosed -> {
                     Log.d(TAG, "[EVENT] voice.onProducerClosed: channelId=${event.channelId}, remoteId=${event.remoteId}")
-                    if (event.channelId == state.activeVoiceChannelId) {
-                        SharkordClient.voiceEngine.removeRemoteProducer(event.remoteId, event.kind)
-                    }
+                    // Side effect (removeRemoteProducer) handled above, outside update lambda
                     state
                 }
 
@@ -576,6 +600,8 @@ class HomeViewModel : ViewModel() {
     // Voice Actions
 
     private var audioLevelsJob: kotlinx.coroutines.Job? = null
+    private var localVideoJob: kotlinx.coroutines.Job? = null
+    private var remoteVideoJob: kotlinx.coroutines.Job? = null
 
     fun joinVoiceChannel(channelId: Int, context: Context, channelName: String) {
         viewModelScope.launch {
@@ -617,6 +643,20 @@ class HomeViewModel : ViewModel() {
                     }
                 }
                 
+                localVideoJob?.cancel()
+                localVideoJob = viewModelScope.launch {
+                    SharkordClient.voiceEngine.videoEngine.localVideoTrackFlow.collect { track ->
+                        _uiState.update { it.copy(localVideoTrack = track) }
+                    }
+                }
+                
+                remoteVideoJob?.cancel()
+                remoteVideoJob = viewModelScope.launch {
+                    SharkordClient.voiceEngine.videoEngine.remoteVideoTracks.collect { tracks ->
+                        _uiState.update { it.copy(remoteVideoTracks = tracks) }
+                    }
+                }
+                
                 // Start Foreground Service
                 val startIntent = android.content.Intent(context, com.sharkord.android.data.network.VoiceService::class.java).apply {
                     action = com.sharkord.android.data.network.VoiceService.ACTION_START
@@ -624,7 +664,12 @@ class HomeViewModel : ViewModel() {
                 }
                 androidx.core.content.ContextCompat.startForegroundService(context, startIntent)
 
-                _uiState.update { it.copy(activeVoiceChannelId = channelId) }
+                _uiState.update { 
+                    it.copy(
+                        activeVoiceChannelId = channelId,
+                        eglBaseContext = SharkordClient.voiceEngine.eglBaseContext
+                    ) 
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to join voice channel", e)
                 _uiState.update { it.copy(errorMessage = "Failed to join voice channel") }
@@ -637,7 +682,11 @@ class HomeViewModel : ViewModel() {
             try {
                 audioLevelsJob?.cancel()
                 audioLevelsJob = null
-                _uiState.update { it.copy(activeSpeakers = emptySet()) }
+                localVideoJob?.cancel()
+                localVideoJob = null
+                remoteVideoJob?.cancel()
+                remoteVideoJob = null
+                _uiState.update { it.copy(activeSpeakers = emptySet(), cameraEnabled = false, localVideoTrack = null, remoteVideoTracks = emptyMap()) }
 
                 SharkordClient.voiceEngine.leaveChannel()
                 SharkordClient.webSocket.sendMutationAwait("voice.leave", com.google.gson.JsonObject())
@@ -707,6 +756,46 @@ class HomeViewModel : ViewModel() {
                 SharkordClient.webSocket.sendMutationAwait("voice.updateState", input)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to update voice state", e)
+            }
+        }
+    }
+
+    fun toggleCamera(context: Context) {
+        val newState = !_uiState.value.cameraEnabled
+        _uiState.update { it.copy(cameraEnabled = newState) }
+        
+        SharkordClient.voiceEngine.setCameraEnabled(context, newState)
+        
+        _uiState.value.activeVoiceChannelId?.let { channelId ->
+            // Optimistic UI update
+            _uiState.update { state ->
+                val data = state.serverData ?: return@update state
+                val newVoiceMap = data.voiceMap?.toMutableMap() ?: mutableMapOf()
+                val channelUsers = newVoiceMap[channelId.toString()]?.users?.toMutableMap() ?: mutableMapOf()
+                
+                val currentState = channelUsers[data.ownUserId.toString()] ?: com.sharkord.android.data.model.VoiceUserState()
+                channelUsers[data.ownUserId.toString()] = currentState.copy(webcamEnabled = newState)
+                
+                newVoiceMap[channelId.toString()] = com.sharkord.android.data.model.ServerChannelVoiceState(users = channelUsers)
+                state.copy(serverData = data.copy(voiceMap = newVoiceMap))
+            }
+
+            viewModelScope.launch {
+                try {
+                    if (!newState) {
+                        val closeInput = JsonObject().apply {
+                            addProperty("kind", "video")
+                        }
+                        SharkordClient.webSocket.sendMutationAwait("voice.closeProducer", closeInput)
+                    }
+
+                    val input = JsonObject().apply {
+                        addProperty("webcamEnabled", newState)
+                    }
+                    SharkordClient.webSocket.sendMutationAwait("voice.updateState", input)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to update camera state on server", e)
+                }
             }
         }
     }

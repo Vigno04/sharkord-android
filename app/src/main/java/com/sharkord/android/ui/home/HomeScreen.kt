@@ -186,6 +186,14 @@ fun HomeScreen(
                                     viewModel.joinVoiceChannel(uiState.selectedChannelId!!, context, displayName)
                                 }
                             }
+                            
+                            val cameraPermissionLauncher = rememberLauncherForActivityResult(
+                                ActivityResultContracts.RequestMultiplePermissions()
+                            ) { results ->
+                                if (results[Manifest.permission.CAMERA] == true) {
+                                    viewModel.toggleCamera(context)
+                                }
+                            }
 
                             Box(modifier = Modifier.fillMaxSize()) {
                                 // Chat Panel (underneath)
@@ -257,6 +265,11 @@ fun HomeScreen(
                                     isConnected = uiState.activeVoiceChannelId == uiState.selectedChannelId,
                                     isMuted = isMuted,
                                     isDeafened = isDeafened,
+                                    cameraEnabled = uiState.cameraEnabled,
+                                    localVideoTrack = uiState.localVideoTrack,
+                                    remoteVideoTracks = uiState.remoteVideoTracks,
+                                    eglBaseContext = uiState.eglBaseContext,
+                                    ownUserId = data.ownUserId,
                                     onDisconnectClick = { viewModel.leaveVoiceChannel(context) },
                                     onConnectClick = { 
                                         val neededPermissions = mutableListOf(Manifest.permission.RECORD_AUDIO)
@@ -276,6 +289,16 @@ fun HomeScreen(
                                     },
                                     onToggleDeafenClick = { _ ->
                                         viewModel.toggleDeafen(uiState.selectedChannelId!!, isMuted, isDeafened)
+                                    },
+                                    onToggleCameraClick = {
+                                        val neededPermissions = mutableListOf(Manifest.permission.CAMERA)
+                                        val toRequest = neededPermissions.filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
+                                        
+                                        if (toRequest.isEmpty()) {
+                                            viewModel.toggleCamera(context)
+                                        } else {
+                                            cameraPermissionLauncher.launch(toRequest.toTypedArray())
+                                        }
                                     },
                                     onOpenChatClick = {
                                         viewModel.setViewingVoiceChat(true)

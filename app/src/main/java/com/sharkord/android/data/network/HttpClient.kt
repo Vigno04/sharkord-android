@@ -78,6 +78,8 @@ class SharkordHttpClient(private val client: OkHttpClient) {
                     ?: "Login failed"
                 Result.failure(SharkordApiException(errorMsg))
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: IOException) {
             Log.e(TAG, "Login network error: ${e.message}")
             Result.failure(SharkordApiException("Network error: ${e.message}", cause = e))
@@ -112,6 +114,8 @@ class SharkordHttpClient(private val client: OkHttpClient) {
             val serverInfo = gson.fromJson(body, ServerInfoResponse::class.java)
             Log.d(TAG, "Server info fetched: name=${serverInfo.name}, logo=${serverInfo.logo}")
             Result.success(serverInfo)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: IOException) {
             Log.e(TAG, "Server info network error: ${e.message}")
             Result.failure(SharkordApiException("Network error: ${e.message}", cause = e))
@@ -156,6 +160,8 @@ class SharkordHttpClient(private val client: OkHttpClient) {
             val fileInfo = gson.fromJson(body, com.sharkord.android.data.model.FileInfo::class.java)
             Log.d(TAG, "File uploaded successfully: id=${fileInfo.id}, name=${fileInfo.name}")
             Result.success(fileInfo)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: IOException) {
             Log.e(TAG, "File upload network error: ${e.message}")
             Result.failure(SharkordApiException("Network error: ${e.message}", cause = e))

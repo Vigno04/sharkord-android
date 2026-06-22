@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
@@ -27,14 +29,21 @@ import org.mediasoup.droid.Transport
 import org.webrtc.AudioTrack
 import org.webrtc.PeerConnectionFactory
 import org.webrtc.MediaConstraints
-import org.webrtc.MediaStreamTrack
 import org.webrtc.AudioSource
 import org.webrtc.EglBase
 import android.media.AudioManager
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import org.webrtc.audio.JavaAudioDeviceModule
-import org.webrtc.audio.AudioDeviceModule
+import org.webrtc.VideoTrack
+import org.webrtc.VideoSource
+import org.webrtc.VideoCapturer
+import org.webrtc.SurfaceTextureHelper
+import org.webrtc.Camera2Enumerator
+import org.webrtc.Camera1Enumerator
+import org.webrtc.CameraEnumerator
+import org.webrtc.DefaultVideoDecoderFactory
+import org.webrtc.DefaultVideoEncoderFactory
 
 enum class VoiceConnectionState {
     DISCONNECTED,
@@ -46,6 +55,7 @@ enum class VoiceConnectionState {
 class VoiceEngine(private val context: Context, private val webSocketManager: WebSocketManager) {
     companion object {
         private const val TAG = "VoiceEngine"
+        private var peerConnectionFactoryInitialized = false
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -59,7 +69,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
 
     private val _audioLevels = MutableStateFlow<Map<String, Float>>(emptyMap())
     val audioLevels: StateFlow<Map<String, Float>> = _audioLevels.asStateFlow()
-    
+
     private var statsJob: Job? = null
 
     private var device: Device? = null
@@ -67,41 +77,60 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
     private var recvTransport: RecvTransport? = null
     private var micProducer: Producer? = null
     // Map key is "$remoteId:${kind.value}"
-    private val consumers = mutableMapOf<String, Consumer>()
+    private val consumers = java.util.concurrent.ConcurrentHashMap<String, Consumer>()
 
     private var peerConnectionFactory: PeerConnectionFactory? = null
     private var localAudioTrack: AudioTrack? = null
     private var localAudioSource: AudioSource? = null
-    private var eglBase: EglBase? = null
+    private val eglBase: EglBase = EglBase.create()
+    val eglBaseContext: EglBase.Context get() = eglBase.eglBaseContext
+    val videoEngine = VideoEngine(context, eglBaseContext)
 
     var currentChannelId: Int? = null
         private set
-    
-    // Voice State Flags
+
     var isMicMuted = false
         private set
     var isSoundMuted = false
         private set
+    val cameraEnabled: Boolean get() = videoEngine.cameraEnabled
 
     // Subscription IDs
     private var onNewProducerSubId: Int? = null
     private var onProducerClosedSubId: Int? = null
     private var eventCollectionJob: Job? = null
 
+    // Prevent duplicate transport connect calls — mediasoup-droid may call onConnect
+    // for every new consumer/producer on the same transport, but the server only
+    // accepts the first connectTransport call.
+    private var producerTransportConnected = false
+    private var consumerTransportConnected = false
+
+    // Mutex to serialize all consume operations. Consuming audio and video concurrently
+    // causes an SDP m-line ordering conflict in WebRTC ("order of m-lines doesn't match").
+    private val consumeMutex = Mutex()
+
     private var audioFocusRequest: AudioFocusRequest? = null
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { }
 
     init {
         MediasoupClient.initialize(context)
-        eglBase = EglBase.create()
-        initializePeerConnectionFactory()
+        org.webrtc.Logging.enableLogToDebugOutput(org.webrtc.Logging.Severity.LS_NONE)
     }
 
-    private fun initializePeerConnectionFactory() {
-        val options = PeerConnectionFactory.InitializationOptions.builder(context)
-            .setEnableInternalTracer(true)
-            .createInitializationOptions()
-        PeerConnectionFactory.initialize(options)
+    /**
+     * Creates a fresh PeerConnectionFactory with both audio and video codecs.
+     * Must be called fresh for each voice session because the audio device module
+     * captures a reference to the session state.
+     */
+    private fun buildPeerConnectionFactory(): PeerConnectionFactory {
+        if (!peerConnectionFactoryInitialized) {
+            val options = PeerConnectionFactory.InitializationOptions.builder(context)
+                .setEnableInternalTracer(true)
+                .createInitializationOptions()
+            PeerConnectionFactory.initialize(options)
+            peerConnectionFactoryInitialized = true
+        }
 
         val audioAttributes = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
@@ -110,25 +139,38 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
 
         val audioDeviceModule = JavaAudioDeviceModule.builder(context)
             .setAudioAttributes(audioAttributes)
-            .setSampleRate(48000)
             .setUseHardwareAcousticEchoCanceler(false)
             .setUseHardwareNoiseSuppressor(false)
             .createAudioDeviceModule()
 
-        val builder = PeerConnectionFactory.builder()
-        builder.setOptions(PeerConnectionFactory.Options())
-        builder.setAudioDeviceModule(audioDeviceModule)
-        
-        peerConnectionFactory = builder.createPeerConnectionFactory()
+        val videoEncoderFactory = DefaultVideoEncoderFactory(
+            eglBase.eglBaseContext,
+            /* enableIntelVp8Encoder= */ true,
+            /* enableH264HighProfile= */ true
+        )
+        val videoDecoderFactory = DefaultVideoDecoderFactory(eglBase.eglBaseContext)
+
+        return PeerConnectionFactory.builder()
+            .setOptions(PeerConnectionFactory.Options())
+            .setAudioDeviceModule(audioDeviceModule)
+            .setVideoEncoderFactory(videoEncoderFactory)
+            .setVideoDecoderFactory(videoDecoderFactory)
+            .createPeerConnectionFactory()
     }
 
     fun joinChannel(channelId: Int, routerRtpCapabilities: JsonObject) {
-        if (_connectionState.value == VoiceConnectionState.CONNECTING || _connectionState.value == VoiceConnectionState.CONNECTED) {
+        if (_connectionState.value == VoiceConnectionState.CONNECTING ||
+            _connectionState.value == VoiceConnectionState.CONNECTED
+        ) {
             leaveChannel()
         }
-        
+
         currentChannelId = channelId
         _connectionState.value = VoiceConnectionState.CONNECTING
+
+        // Build a fresh factory for each session
+        peerConnectionFactory?.dispose()
+        peerConnectionFactory = buildPeerConnectionFactory()
 
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -146,27 +188,43 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
             @Suppress("DEPRECATION")
             audioManager.requestAudioFocus(audioFocusChangeListener, AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN)
         }
-        
+
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
 
         scope.launch {
             try {
                 // 1. Initialize Device
                 device = Device()
-                
+
                 val pcOptions = org.mediasoup.droid.PeerConnection.Options()
                 pcOptions.setFactory(peerConnectionFactory)
-                
+
                 // Extract the actual RTP capabilities if it's wrapped in an outer object
-                var rtpCapsStr = routerRtpCapabilities.toString()
+                var actualCaps: JsonObject = routerRtpCapabilities
                 if (routerRtpCapabilities.has("rtpCapabilities")) {
-                    rtpCapsStr = routerRtpCapabilities.getAsJsonObject("rtpCapabilities").toString()
+                    actualCaps = routerRtpCapabilities.getAsJsonObject("rtpCapabilities")
                 } else if (routerRtpCapabilities.has("routerRtpCapabilities")) {
-                    rtpCapsStr = routerRtpCapabilities.getAsJsonObject("routerRtpCapabilities").toString()
+                    actualCaps = routerRtpCapabilities.getAsJsonObject("routerRtpCapabilities")
                 } else if (routerRtpCapabilities.has("routerCapabilities")) {
-                    rtpCapsStr = routerRtpCapabilities.getAsJsonObject("routerCapabilities").toString()
+                    actualCaps = routerRtpCapabilities.getAsJsonObject("routerCapabilities")
                 }
-                
+
+                // Force physical rotation by stripping video-orientation header extension
+                if (actualCaps.has("headerExtensions")) {
+                    val exts = actualCaps.getAsJsonArray("headerExtensions")
+                    val filteredExts = com.google.gson.JsonArray()
+                    for (i in 0 until exts.size()) {
+                        val ext = exts.get(i).asJsonObject
+                        val uri = ext.get("uri")?.asString
+                        if (uri != "urn:3gpp:video-orientation") {
+                            filteredExts.add(ext)
+                        }
+                    }
+                    actualCaps.add("headerExtensions", filteredExts)
+                }
+
+                val rtpCapsStr = actualCaps.toString()
+
                 Log.d(TAG, "Device loading with rtpCaps: $rtpCapsStr")
                 device?.load(rtpCapsStr, pcOptions)
                 Log.d(TAG, "Device loaded successfully")
@@ -184,24 +242,28 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                 // 5. Subscribe to events
                 onNewProducerSubId = webSocketManager.subscribe("voice.onNewProducer")
                 onProducerClosedSubId = webSocketManager.subscribe("voice.onProducerClosed")
-                
+
                 eventCollectionJob = scope.launch {
                     webSocketManager.incomingEvents.collect { event ->
                         when (event.path) {
                             "voice.onNewProducer" -> {
                                 val data = event.data
-                                val remoteId = data.get("producerId")?.asInt ?: return@collect
+                                val remoteId = data.get("remoteId")?.asInt ?: data.get("producerId")?.asInt ?: return@collect
                                 val kindStr = data.get("kind")?.asString ?: return@collect
                                 if (kindStr == "audio") {
                                     consumeRemoteProducer(remoteId, StreamKind.AUDIO)
+                                } else if (kindStr == "video") {
+                                    consumeRemoteProducer(remoteId, StreamKind.VIDEO)
                                 }
                             }
                             "voice.onProducerClosed" -> {
                                 val data = event.data
-                                val remoteId = data.get("producerId")?.asInt ?: return@collect
+                                val remoteId = data.get("remoteId")?.asInt ?: data.get("producerId")?.asInt ?: return@collect
                                 val kindStr = data.get("kind")?.asString ?: return@collect
                                 if (kindStr == "audio") {
                                     removeRemoteProducer(remoteId, StreamKind.AUDIO)
+                                } else if (kindStr == "video") {
+                                    removeRemoteProducer(remoteId, StreamKind.VIDEO)
                                 }
                             }
                         }
@@ -226,7 +288,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         try {
             val response = webSocketManager.sendMutationAwait("voice.createProducerTransport", JsonObject())
             val params = gson.fromJson(response, JsonObject::class.java)
-            
+
             val id = params.get("id").asString
             val iceParameters = params.get("iceParameters").toString()
             val iceCandidates = params.get("iceCandidates").toString()
@@ -234,6 +296,11 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
 
             val listener = object : SendTransport.Listener {
                 override fun onConnect(transport: Transport, dtlsParameters: String) {
+                    if (producerTransportConnected) {
+                        Log.d(TAG, "SendTransport onConnect: already connected, skipping")
+                        return
+                    }
+                    producerTransportConnected = true
                     Log.d(TAG, "SendTransport onConnect")
                     runBlocking {
                         try {
@@ -243,6 +310,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                             webSocketManager.sendMutationAwait("voice.connectProducerTransport", input)
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to connect producer transport", e)
+                            producerTransportConnected = false
                         }
                     }
                 }
@@ -254,18 +322,19 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                 override fun onProduce(transport: Transport, kind: String, rtpParameters: String, appData: String): String {
                     Log.d(TAG, "SendTransport onProduce: kind=$kind")
                     return runBlocking {
-                        try {
-                            val input = JsonObject().apply {
-                                addProperty("transportId", id)
-                                addProperty("kind", kind)
-                                add("rtpParameters", gson.fromJson(rtpParameters, JsonObject::class.java))
-                            }
-                            val produceResponse = webSocketManager.sendMutationAwait("voice.produce", input)
-                            produceResponse.get("value").asString
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to produce", e)
-                            ""
+                        val input = JsonObject().apply {
+                            addProperty("transportId", id)
+                            addProperty("kind", kind)
+                            add("rtpParameters", gson.fromJson(rtpParameters, JsonObject::class.java))
                         }
+                        val produceResponse = webSocketManager.sendMutationAwait("voice.produce", input)
+                        // Server returns producer.id directly (a plain string), wrapped in {"value": "<id>"}
+                        val producerId = produceResponse.get("value")?.asString
+                        if (producerId.isNullOrEmpty()) {
+                            throw RuntimeException("Server returned empty producer ID for kind=$kind")
+                        }
+                        Log.d(TAG, "onProduce got producerId=$producerId for kind=$kind")
+                        producerId
                     }
                 }
 
@@ -286,7 +355,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         try {
             val response = webSocketManager.sendMutationAwait("voice.createConsumerTransport", JsonObject())
             val params = gson.fromJson(response, JsonObject::class.java)
-            
+
             val id = params.get("id").asString
             val iceParameters = params.get("iceParameters").toString()
             val iceCandidates = params.get("iceCandidates").toString()
@@ -294,6 +363,11 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
 
             val listener = object : RecvTransport.Listener {
                 override fun onConnect(transport: Transport, dtlsParameters: String) {
+                    if (consumerTransportConnected) {
+                        Log.d(TAG, "RecvTransport onConnect: already connected, skipping")
+                        return
+                    }
+                    consumerTransportConnected = true
                     Log.d(TAG, "RecvTransport onConnect")
                     runBlocking {
                         try {
@@ -303,6 +377,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                             webSocketManager.sendMutationAwait("voice.connectConsumerTransport", input)
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to connect consumer transport", e)
+                            consumerTransportConnected = false
                         }
                     }
                 }
@@ -321,18 +396,18 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
 
     private fun startLocalAudio() {
         if (localAudioTrack != null) return
-
-        if (peerConnectionFactory == null || sendTransport == null) return
+        val factory = peerConnectionFactory ?: return
+        if (sendTransport == null) return
 
         val audioConstraints = MediaConstraints().apply {
-            mandatory.add(MediaConstraints.KeyValuePair("googEchoCancellation", "false"))
+            mandatory.add(MediaConstraints.KeyValuePair("googEchoCancellation", "true"))
             mandatory.add(MediaConstraints.KeyValuePair("googAutoGainControl", "true"))
-            mandatory.add(MediaConstraints.KeyValuePair("googNoiseSuppression", "false"))
-            mandatory.add(MediaConstraints.KeyValuePair("googHighpassFilter", "false"))
+            mandatory.add(MediaConstraints.KeyValuePair("googNoiseSuppression", "true"))
+            mandatory.add(MediaConstraints.KeyValuePair("googHighpassFilter", "true"))
         }
 
-        localAudioSource = peerConnectionFactory?.createAudioSource(audioConstraints)
-        localAudioTrack = peerConnectionFactory?.createAudioTrack("ARDAMSa0", localAudioSource)
+        localAudioSource = factory.createAudioSource(audioConstraints)
+        localAudioTrack = factory.createAudioTrack("ARDAMSa0", localAudioSource)
         localAudioTrack?.setEnabled(!isMicMuted)
 
         val producerListener = object : Producer.Listener {
@@ -342,19 +417,21 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         }
 
         val codecOptions = """{"opusStereo":false,"opusFec":true,"opusDtx":false,"opusMaxPlaybackRate":48000,"opusMaxAverageBitrate":128000}"""
-        
+
         try {
             micProducer = sendTransport?.produce(
                 producerListener,
                 localAudioTrack,
                 null,
                 codecOptions,
+                null,
                 """{"kind":"audio"}"""
             )
-            
+
             if (isMicMuted) {
                 micProducer?.pause()
             }
+            Log.d(TAG, "Microphone producer created: ${micProducer?.id}")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to produce local audio", e)
         }
@@ -364,44 +441,78 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         try {
             val response = webSocketManager.sendQueryAwait("voice.getProducers", JsonObject())
             val data = gson.fromJson(response, JsonObject::class.java)
-            
+
+            // IMPORTANT: consume sequentially — concurrent consumption causes SDP m-line
+            // ordering conflicts in WebRTC ("order of m-lines in answer doesn't match offer").
             val remoteAudioIds = data.getAsJsonArray("remoteAudioIds")
             remoteAudioIds?.forEach {
                 val remoteId = it.asInt
-                consumeRemoteProducer(remoteId, StreamKind.AUDIO)
+                consumeRemoteProducerSuspend(remoteId, StreamKind.AUDIO)
             }
-            
-            // Assuming we aren't supporting video/screen right now, but we could loop remoteVideoIds too.
+
+            val remoteVideoIds = data.getAsJsonArray("remoteVideoIds")
+            remoteVideoIds?.forEach {
+                val remoteId = it.asInt
+                consumeRemoteProducerSuspend(remoteId, StreamKind.VIDEO)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to fetch existing producers", e)
         }
     }
 
+    /**
+     * Fire-and-forget wrapper: schedules a sequential consume via the mutex.
+     * Used by real-time events (onNewProducer).
+     */
     fun consumeRemoteProducer(remoteId: Int, kind: StreamKind) {
         scope.launch {
+            consumeRemoteProducerSuspend(remoteId, kind)
+        }
+    }
+
+    /**
+     * Suspend version that holds [consumeMutex] to ensure consume operations are
+     * strictly sequential. Concurrent consumption causes an SDP m-line ordering
+     * conflict in WebRTC: "order of m-lines in answer doesn't match order in offer".
+     */
+    private suspend fun consumeRemoteProducerSuspend(remoteId: Int, kind: StreamKind) {
+        consumeMutex.withLock {
             try {
-                if (device == null || recvTransport == null) return@launch
-                
+                if (device == null || recvTransport == null) return
+
                 val rtpCaps = device?.rtpCapabilities
-                Log.d(TAG, "Consuming remote $remoteId with rtpCaps: $rtpCaps")
+                Log.d(TAG, "Consuming remote $remoteId ($kind) with rtpCaps length: ${rtpCaps?.length}")
+
                 val input = JsonObject().apply {
                     addProperty("kind", kind.value)
                     addProperty("remoteId", remoteId)
                     add("rtpCapabilities", gson.fromJson(rtpCaps, JsonObject::class.java))
                 }
-                
+
                 val response = webSocketManager.sendMutationAwait("voice.consume", input)
                 val data = gson.fromJson(response, JsonObject::class.java)
-                
+
+                // Server returns: { producerId, consumerId, consumerKind, consumerRtpParameters, consumerType, qualityLayers }
                 val consumerId = data.get("consumerId").asString
                 val producerId = data.get("producerId").asString
+                val consumerKind = data.get("consumerKind")?.asString ?: kind.value
                 val rtpParameters = data.get("consumerRtpParameters").toString()
-                
-                val consumerKey = "$remoteId:${kind.value}"
+
+                val consumerKey = "$remoteId:$consumerKind"
+
+                // Close any existing consumer for this key
+                consumers[consumerKey]?.let {
+                    if (!it.isClosed) it.close()
+                    consumers.remove(consumerKey)
+                }
+
                 val consumerListener = object : Consumer.Listener {
                     override fun onTransportClose(consumer: Consumer) {
                         Log.d(TAG, "Consumer transport closed: ${consumer.id}")
                         consumers.remove(consumerKey)
+                        if (consumerKind == "video") {
+                            videoEngine.removeRemoteVideoTrack(remoteId.toString())
+                        }
                     }
                 }
 
@@ -409,44 +520,91 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                     consumerListener,
                     consumerId,
                     producerId,
-                    kind.value,
+                    consumerKind,
                     rtpParameters,
                     null
                 )
-                
+
                 if (consumer != null) {
                     consumers[consumerKey] = consumer
-                    
+
                     val track = consumer.track
                     if (track is AudioTrack) {
                         track.setEnabled(true)
                         if (isSoundMuted) {
                             consumer.pause()
                         }
+                        Log.d(TAG, "Remote audio consumer ready for $remoteId")
+                    } else if (track is VideoTrack) {
+                        track.setEnabled(true)
+                        videoEngine.addRemoteVideoTrack(remoteId.toString(), track)
+                        Log.d(TAG, "Remote video consumer ready for $remoteId")
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to consume remote producer $remoteId", e)
+                Log.e(TAG, "Failed to consume remote producer $remoteId ($kind)", e)
             }
         }
     }
 
     fun removeRemoteProducer(remoteId: Int, kind: StreamKind) {
-        val key = "$remoteId:${kind.value}"
-        consumers[key]?.let { consumer ->
-            consumer.close()
-            consumers.remove(key)
+        scope.launch {
+            consumeMutex.withLock {
+                val key = "$remoteId:${kind.value}"
+                // Remove video track from UI FIRST — this triggers Compose to remove
+                // the SurfaceViewRenderer before we invalidate native resources.
+                if (kind == StreamKind.VIDEO) {
+                    videoEngine.removeRemoteVideoTrack(remoteId.toString())
+                    val consumerToClose = consumers.remove(key) ?: return@withLock
+                    scope.launch {
+                        delay(500)
+                        try {
+                            val track = consumerToClose.track
+                            track?.setEnabled(false)
+                        } catch (_: Exception) {}
+                        if (!consumerToClose.isClosed) consumerToClose.close()
+                    }
+                } else {
+                    consumers.remove(key)?.let { consumer ->
+                        // Disable the track to stop frame delivery to any remaining sinks
+                        try {
+                            val track = consumer.track
+                            track?.setEnabled(false)
+                        } catch (_: Exception) {}
+                        if (!consumer.isClosed) consumer.close()
+                    }
+                }
+            }
         }
     }
 
     fun clearRemoteProducersForUser(userId: Int) {
-        val keysToRemove = consumers.keys.filter { it.startsWith("$userId:") }
-        keysToRemove.forEach { key ->
-            consumers[key]?.close()
-            consumers.remove(key)
+        scope.launch {
+            consumeMutex.withLock {
+                // Remove video track from UI FIRST
+                videoEngine.removeRemoteVideoTrack(userId.toString())
+                val keysToRemove = consumers.keys.filter { it.startsWith("$userId:") }
+                keysToRemove.forEach { key ->
+                    val consumerToClose = consumers.remove(key) ?: return@forEach
+                    if (key.endsWith(":video")) {
+                        scope.launch {
+                            delay(500)
+                            try {
+                                consumerToClose.track?.setEnabled(false)
+                            } catch (_: Exception) {}
+                            if (!consumerToClose.isClosed) consumerToClose.close()
+                        }
+                    } else {
+                        try {
+                            consumerToClose.track?.setEnabled(false)
+                        } catch (_: Exception) {}
+                        if (!consumerToClose.isClosed) consumerToClose.close()
+                    }
+                }
+            }
         }
     }
-    
+
     fun setMicEnabled(enabled: Boolean) {
         isMicMuted = !enabled
         localAudioTrack?.setEnabled(enabled)
@@ -470,13 +628,17 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         }
     }
 
+    fun setCameraEnabled(context: Context, enabled: Boolean) {
+        videoEngine.setCameraEnabled(context, enabled, peerConnectionFactory, sendTransport)
+    }
+
     private fun startAudioLevelPolling() {
         statsJob?.cancel()
         statsJob = scope.launch {
             while (true) {
                 if (_isConnected.value) {
                     val newLevels = mutableMapOf<String, Float>()
-                    
+
                     // Local mic
                     if (micProducer != null && !isMicMuted) {
                         try {
@@ -524,7 +686,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                     }
                     _audioLevels.value = newLevels
                 }
-                kotlinx.coroutines.delay(200)
+                delay(200)
             }
         }
     }
@@ -536,7 +698,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
 
         eventCollectionJob?.cancel()
         eventCollectionJob = null
-        
+
         onNewProducerSubId?.let { webSocketManager.unsubscribe(it) }
         onNewProducerSubId = null
         onProducerClosedSubId?.let { webSocketManager.unsubscribe(it) }
@@ -546,27 +708,69 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         _isConnected.value = false
         currentChannelId = null
 
-        micProducer?.close()
+        // Reset transport-connected guards so next join can call connectTransport again
+        producerTransportConnected = false
+        consumerTransportConnected = false
+
+        // Detach from UI immediately
+        videoEngine.clearRemoteVideoTracks()
+
+        val oldMicProducer = micProducer
         micProducer = null
 
-        consumers.values.forEach { it.close() }
+        val consumersToClose = consumers.values.toList()
         consumers.clear()
 
-        sendTransport?.close()
+        val oldSendTransport = sendTransport
         sendTransport = null
 
-        recvTransport?.close()
+        val oldRecvTransport = recvTransport
         recvTransport = null
 
-        device?.dispose()
+        val oldDevice = device
         device = null
 
-        localAudioTrack?.dispose()
+        val oldLocalAudioTrack = localAudioTrack
         localAudioTrack = null
 
-        localAudioSource?.dispose()
+        val oldLocalAudioSource = localAudioSource
         localAudioSource = null
-        
+
+        val oldPeerConnectionFactory = peerConnectionFactory
+        peerConnectionFactory = null
+
+        scope.launch {
+            videoEngine.dispose()
+
+            delay(800) // Ensure UI unmounts AND VideoEngine finishes its 500ms cleanup
+            
+            // Close producers
+            oldMicProducer?.let { if (!it.isClosed) it.close() }
+
+            // Close all consumers
+            consumersToClose.forEach { consumer ->
+                try {
+                    consumer.track?.setEnabled(false)
+                } catch (_: Exception) {}
+                if (!consumer.isClosed) consumer.close()
+            }
+
+            // Close transports BEFORE disposing device
+            oldSendTransport?.let { if (!it.isClosed) it.close() }
+            oldRecvTransport?.let { if (!it.isClosed) it.close() }
+
+            // Dispose device
+            oldDevice?.dispose()
+
+            // Dispose audio resources
+            oldLocalAudioTrack?.dispose()
+            oldLocalAudioSource?.dispose()
+
+            // Dispose factory - will be rebuilt fresh on next join
+            oldPeerConnectionFactory?.dispose()
+        }
+
+        // Release audio focus
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
@@ -575,9 +779,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
             @Suppress("DEPRECATION")
             audioManager.abandonAudioFocus(audioFocusChangeListener)
         }
-        
+
         audioManager.mode = AudioManager.MODE_NORMAL
-        
-        // Let peer connection factory stay active, as well as eglBase.
     }
 }

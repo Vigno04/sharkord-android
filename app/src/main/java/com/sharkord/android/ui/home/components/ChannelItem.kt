@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -223,7 +224,15 @@ fun ChannelItem(
                             modifier = Modifier.weight(1f)
                         )
                         
-                        // Icons for mute/deafen
+                        // Icons for video, mute/deafen
+                        if (voiceUser.state.webcamEnabled) {
+                            Icon(
+                                Icons.Default.Videocam,
+                                contentDescription = "Camera Active",
+                                tint = Color(0xFF5865F2),
+                                modifier = Modifier.size(16.dp).padding(end = 4.dp)
+                            )
+                        }
                         if (voiceUser.state.micMuted) {
                             Icon(
                                 Icons.Default.MicOff,

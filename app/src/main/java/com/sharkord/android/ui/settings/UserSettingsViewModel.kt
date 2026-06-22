@@ -39,8 +39,28 @@ class UserSettingsViewModel : ViewModel() {
     // App Settings
     var maxDiskCacheMb = MutableStateFlow(250)
 
+    // Devices Settings
+    var defaultAudioRoute = MutableStateFlow("None")
+    var echoCancellation = MutableStateFlow(true)
+    var noiseSuppression = MutableStateFlow(true)
+    var autoGainControl = MutableStateFlow(true)
+    var defaultCamera = MutableStateFlow("Front")
+    var videoResolution = MutableStateFlow("1280x720")
+    var videoFps = MutableStateFlow(30)
+    var mirrorFrontCamera = MutableStateFlow(true)
+    var screenShareOptimizeFor = MutableStateFlow("Quality")
+
     init {
         maxDiskCacheMb.value = SharkordClient.session.maxDiskCacheMb
+        defaultAudioRoute.value = SharkordClient.session.defaultAudioRoute
+        echoCancellation.value = SharkordClient.session.echoCancellation
+        noiseSuppression.value = SharkordClient.session.noiseSuppression
+        autoGainControl.value = SharkordClient.session.autoGainControl
+        defaultCamera.value = SharkordClient.session.defaultCamera
+        videoResolution.value = SharkordClient.session.videoResolution
+        videoFps.value = SharkordClient.session.videoFps
+        mirrorFrontCamera.value = SharkordClient.session.mirrorFrontCamera
+        screenShareOptimizeFor.value = SharkordClient.session.screenShareOptimizeFor
         loadUser()
     }
 
@@ -110,6 +130,51 @@ class UserSettingsViewModel : ViewModel() {
     fun saveMaxDiskCacheMb(value: Int) {
         maxDiskCacheMb.value = value
         SharkordClient.session.maxDiskCacheMb = value
+    }
+
+    fun saveDefaultAudioRoute(value: String) {
+        defaultAudioRoute.value = value
+        SharkordClient.session.defaultAudioRoute = value
+    }
+
+    fun saveEchoCancellation(value: Boolean) {
+        echoCancellation.value = value
+        SharkordClient.session.echoCancellation = value
+    }
+
+    fun saveNoiseSuppression(value: Boolean) {
+        noiseSuppression.value = value
+        SharkordClient.session.noiseSuppression = value
+    }
+
+    fun saveAutoGainControl(value: Boolean) {
+        autoGainControl.value = value
+        SharkordClient.session.autoGainControl = value
+    }
+
+    fun saveDefaultCamera(value: String) {
+        defaultCamera.value = value
+        SharkordClient.session.defaultCamera = value
+    }
+
+    fun saveVideoResolution(value: String) {
+        videoResolution.value = value
+        SharkordClient.session.videoResolution = value
+    }
+
+    fun saveVideoFps(value: Int) {
+        videoFps.value = value
+        SharkordClient.session.videoFps = value
+    }
+
+    fun saveMirrorFrontCamera(value: Boolean) {
+        mirrorFrontCamera.value = value
+        SharkordClient.session.mirrorFrontCamera = value
+    }
+
+    fun saveScreenShareOptimizeFor(value: String) {
+        screenShareOptimizeFor.value = value
+        SharkordClient.session.screenShareOptimizeFor = value
     }
 
     fun uploadAvatar(context: Context, uri: Uri) {
