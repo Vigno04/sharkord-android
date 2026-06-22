@@ -54,6 +54,7 @@ fun VoicePanel(
     channelName: String,
     voiceUsers: List<VoiceUserDisplay>,
     isConnected: Boolean,
+    isConnectingToVoice: Boolean = false,
     isMuted: Boolean = true,
     isDeafened: Boolean = true,
     cameraEnabled: Boolean = false,
@@ -78,6 +79,29 @@ fun VoicePanel(
     var selectedOutputDeviceId by remember { mutableStateOf<Int?>(null) }
     var selectedInputDeviceId by remember { mutableStateOf<Int?>(null) }
     var deviceListTrigger by remember { mutableStateOf(0) }
+    var isNear by remember { mutableStateOf(false) }
+
+    DisposableEffect(isConnected) {
+        if (!isConnected) return@DisposableEffect onDispose {}
+
+        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as android.hardware.SensorManager
+        val proximitySensor = sensorManager.getDefaultSensor(android.hardware.Sensor.TYPE_PROXIMITY)
+
+        if (proximitySensor == null) {
+            return@DisposableEffect onDispose {}
+        }
+
+        val listener = object : android.hardware.SensorEventListener {
+            override fun onSensorChanged(event: android.hardware.SensorEvent) {
+                isNear = event.values[0] < proximitySensor.maximumRange && event.values[0] < 3f
+            }
+            override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
+        }
+        sensorManager.registerListener(listener, proximitySensor, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
+        onDispose {
+            sensorManager.unregisterListener(listener)
+        }
+    }
 
     var availableOutputs by remember { mutableStateOf<List<AudioDeviceInfo>>(emptyList()) }
     var availableInputs by remember { mutableStateOf<List<AudioDeviceInfo>>(emptyList()) }
@@ -149,7 +173,7 @@ fun VoicePanel(
         }
     }
 
-    LaunchedEffect(selectedOutputDeviceId, selectedInputDeviceId, isConnected) {
+    LaunchedEffect(selectedOutputDeviceId, selectedInputDeviceId, isConnected, isNear) {
         if (!isConnected) return@LaunchedEffect
         
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
@@ -174,12 +198,21 @@ fun VoicePanel(
                     audioManager.clearCommunicationDevice()
                 }
             } else {
-                audioManager.clearCommunicationDevice()
+                if (isNear) {
+                    audioManager.clearCommunicationDevice()
+                } else {
+                    val speaker = audioManager.availableCommunicationDevices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+                    if (speaker != null) {
+                        audioManager.setCommunicationDevice(speaker)
+                    } else {
+                        audioManager.clearCommunicationDevice()
+                    }
+                }
             }
         } else {
             val isSpeaker = availableOutputs.find { it.id == selectedOutputDeviceId }?.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
             @Suppress("DEPRECATION")
-            audioManager.isSpeakerphoneOn = isSpeaker == true
+            audioManager.isSpeakerphoneOn = if (selectedOutputDeviceId == null) !isNear else isSpeaker == true
         }
     }
 
@@ -672,12 +705,18 @@ fun VoicePanel(
                 }
             } else {
                 Button(
-                    onClick = onConnectClick,
+                    onClick = { if (!isConnectingToVoice) onConnectClick() },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(28.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF23A559)) // Green connect button
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF23A559))
                 ) {
-                    Text("Join Voice", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    if (isConnectingToVoice) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Connecting...", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    } else {
+                        Text("Join Voice", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }

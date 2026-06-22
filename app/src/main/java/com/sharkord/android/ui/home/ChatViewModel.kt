@@ -261,6 +261,7 @@ class ChatViewModel : ViewModel() {
             _uiState.update { it.copy(isSending = true, errorMessage = null) }
             repository.sendMessage(channelId, htmlContent, replyToMessageId = replyToId, files = fileIds).fold(
                 onSuccess = {
+                    com.sharkord.android.audio.SoundEngine.playSound(com.sharkord.android.audio.SoundType.MESSAGE_SENT)
                     _uiState.update { it.copy(
                         isSending = false,
                         replyTarget = null,

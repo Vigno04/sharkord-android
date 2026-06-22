@@ -133,10 +133,12 @@ fun HomeScreen(
                 val swipeOffset = remember { Animatable(if (uiState.activePanel == HomePanel.SERVER) 0f else -screenWidthPx) }
                 val voiceSwipeOffset = remember { Animatable(if (uiState.isViewingVoiceChat) -screenWidthPx else 0f) }
                 val coroutineScope = rememberCoroutineScope()
+                val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
 
                 // Programmatic panel transitions
                 LaunchedEffect(uiState.activePanel) {
                     if (uiState.activePanel == HomePanel.SERVER) {
+                        keyboardController?.hide()
                         swipeOffset.animateTo(0f)
                     } else {
                         swipeOffset.animateTo(-screenWidthPx)
@@ -263,6 +265,7 @@ fun HomeScreen(
                                         }
                                     } else emptyList(),
                                     isConnected = uiState.activeVoiceChannelId == uiState.selectedChannelId,
+                                    isConnectingToVoice = uiState.isConnectingToVoice,
                                     isMuted = isMuted,
                                     isDeafened = isDeafened,
                                     cameraEnabled = uiState.cameraEnabled,

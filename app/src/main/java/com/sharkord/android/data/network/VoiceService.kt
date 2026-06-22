@@ -154,26 +154,33 @@ class VoiceService : Service() {
     }
 
     private fun stopForegroundService() {
-        try {
-            SharkordClient.voiceEngine.leaveChannel()
-        } catch (e: Exception) {
-            e.printStackTrace()
+        scope.launch {
+            try {
+                SharkordClient.voiceEngine.leaveChannel()
+                SharkordClient.webSocket.sendMutationAwait("voice.leave", com.google.gson.JsonObject())
+                com.sharkord.android.audio.SoundEngine.playSound(com.sharkord.android.audio.SoundType.OWN_USER_LEFT_VOICE_CHANNEL)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+            stopSelf()
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-        } else {
-            @Suppress("DEPRECATION")
-            stopForeground(true)
-        }
-        stopSelf()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        try {
-            SharkordClient.voiceEngine.leaveChannel()
-        } catch (e: Exception) {
-            e.printStackTrace()
+        scope.launch {
+            try {
+                SharkordClient.voiceEngine.leaveChannel()
+                SharkordClient.webSocket.sendMutationAwait("voice.leave", com.google.gson.JsonObject())
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 

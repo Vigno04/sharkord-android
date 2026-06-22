@@ -59,6 +59,7 @@ data class HomeUiState(
     
     // Voice
     val activeVoiceChannelId: Int? = null,
+    val isConnectingToVoice: Boolean = false,
     val activeSpeakers: Set<String> = emptySet(),
     val isViewingVoiceChat: Boolean = false,
     val cameraEnabled: Boolean = false,
@@ -103,6 +104,28 @@ class HomeViewModel : ViewModel() {
     /** Connection state directly from the WebSocket manager. */
     val connectionState: StateFlow<ConnectionState>
         get() = repository.connectionState
+
+    init {
+        viewModelScope.launch {
+            SharkordClient.voiceEngine.isConnected.collect { connected ->
+                if (!connected && _uiState.value.activeVoiceChannelId != null) {
+                    // VoiceEngine disconnected but UI is still active (e.g. from Notification)
+                    _uiState.update { 
+                        it.copy(
+                            activeVoiceChannelId = null, 
+                            activeSpeakers = emptySet(), 
+                            cameraEnabled = false, 
+                            localVideoTrack = null, 
+                            remoteVideoTracks = emptyMap()
+                        ) 
+                    }
+                    audioLevelsJob?.cancel()
+                    localVideoJob?.cancel()
+                    remoteVideoJob?.cancel()
+                }
+            }
+        }
+    }
 
     // Lifecycle
 
@@ -237,9 +260,14 @@ class HomeViewModel : ViewModel() {
 
             is ConnectionState.Connecting,
             is ConnectionState.Authenticating,
-            is ConnectionState.HandshakePending,
-            is ConnectionState.Disconnected -> {
+            is ConnectionState.HandshakePending -> {
                 // No UI changes needed for intermediate states
+            }
+            
+            is ConnectionState.Disconnected -> {
+                if (_uiState.value.serverData != null) {
+                    com.sharkord.android.audio.SoundEngine.playSound(com.sharkord.android.audio.SoundType.SERVER_DISCONNECTED)
+                }
             }
 
             is ConnectionState.JoinPending -> {
@@ -482,7 +510,12 @@ class HomeViewModel : ViewModel() {
                 // directly and applies per-channel mutations. HomeViewModel only sees these
                 // events here as a no-op to keep the exhaustive when() complete.
 
-                is ServerEvent.MessageReceived -> state
+                is ServerEvent.MessageReceived -> {
+                    if (event.message.userId != data.ownUserId) {
+                        com.sharkord.android.audio.SoundEngine.playSound(com.sharkord.android.audio.SoundType.MESSAGE_RECEIVED)
+                    }
+                    state
+                }
                 is ServerEvent.MessageUpdated -> state
                 is ServerEvent.MessageDeleted -> state
                 is ServerEvent.UserTyping -> state
@@ -490,6 +523,9 @@ class HomeViewModel : ViewModel() {
                 // Voice
                 is ServerEvent.UserJoinedVoice -> {
                     Log.d(TAG, "[EVENT] voice.onJoin: channelId=${event.channelId}, userId=${event.userId}")
+                    if (state.activeVoiceChannelId == event.channelId && data.ownUserId != event.userId) {
+                        com.sharkord.android.audio.SoundEngine.playSound(com.sharkord.android.audio.SoundType.REMOTE_USER_JOINED_VOICE_CHANNEL)
+                    }
                     val newVoiceMap = data.voiceMap?.toMutableMap() ?: mutableMapOf()
                     val channelUsers = newVoiceMap[event.channelId.toString()]?.users?.toMutableMap() ?: mutableMapOf()
                     channelUsers[event.userId.toString()] = event.state
@@ -499,6 +535,9 @@ class HomeViewModel : ViewModel() {
 
                 is ServerEvent.UserLeftVoice -> {
                     Log.d(TAG, "[EVENT] voice.onLeave: channelId=${event.channelId}, userId=${event.userId}")
+                    if (state.activeVoiceChannelId == event.channelId && data.ownUserId != event.userId) {
+                        com.sharkord.android.audio.SoundEngine.playSound(com.sharkord.android.audio.SoundType.REMOTE_USER_LEFT_VOICE_CHANNEL)
+                    }
                     // Side effect (clearRemoteProducersForUser) handled above, outside update lambda
 
                     val newVoiceMap = data.voiceMap?.toMutableMap() ?: return@update state
@@ -605,6 +644,7 @@ class HomeViewModel : ViewModel() {
 
     fun joinVoiceChannel(channelId: Int, context: Context, channelName: String) {
         viewModelScope.launch {
+            _uiState.update { it.copy(isConnectingToVoice = true) }
             try {
                 // Disconnect from current voice channel first if switching
                 if (_uiState.value.activeVoiceChannelId != null && _uiState.value.activeVoiceChannelId != channelId) {
@@ -632,6 +672,19 @@ class HomeViewModel : ViewModel() {
                 SharkordClient.voiceEngine.joinChannel(channelId, routerCapabilities)
                 SharkordClient.voiceEngine.setMicEnabled(true)
                 SharkordClient.voiceEngine.setSoundEnabled(true)
+                
+                viewModelScope.launch {
+                    kotlinx.coroutines.delay(800) // Wait for hardware audio routing to settle into MODE_IN_COMMUNICATION
+                    com.sharkord.android.audio.SoundEngine.playSound(com.sharkord.android.audio.SoundType.OWN_USER_JOINED_VOICE_CHANNEL)
+                    
+                    _uiState.update { 
+                        it.copy(
+                            activeVoiceChannelId = channelId,
+                            isConnectingToVoice = false,
+                            eglBaseContext = SharkordClient.voiceEngine.eglBaseContext
+                        ) 
+                    }
+                }
                 
                 audioLevelsJob?.cancel()
                 audioLevelsJob = viewModelScope.launch {
@@ -664,15 +717,11 @@ class HomeViewModel : ViewModel() {
                 }
                 androidx.core.content.ContextCompat.startForegroundService(context, startIntent)
 
-                _uiState.update { 
-                    it.copy(
-                        activeVoiceChannelId = channelId,
-                        eglBaseContext = SharkordClient.voiceEngine.eglBaseContext
-                    ) 
-                }
+                // The activeVoiceChannelId and isConnectingToVoice state updates are handled 
+                // in the 800ms delayed coroutine above to ensure smooth UX.
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to join voice channel", e)
-                _uiState.update { it.copy(errorMessage = "Failed to join voice channel") }
+                _uiState.update { it.copy(errorMessage = "Failed to join voice channel", isConnectingToVoice = false) }
             }
         }
     }
@@ -680,27 +729,12 @@ class HomeViewModel : ViewModel() {
     fun leaveVoiceChannel(context: Context) {
         viewModelScope.launch {
             try {
-                audioLevelsJob?.cancel()
-                audioLevelsJob = null
-                localVideoJob?.cancel()
-                localVideoJob = null
-                remoteVideoJob?.cancel()
-                remoteVideoJob = null
-                _uiState.update { it.copy(activeSpeakers = emptySet(), cameraEnabled = false, localVideoTrack = null, remoteVideoTracks = emptyMap()) }
-
-                SharkordClient.voiceEngine.leaveChannel()
-                SharkordClient.webSocket.sendMutationAwait("voice.leave", com.google.gson.JsonObject())
-                
-                // Stop Foreground Service
                 val stopIntent = android.content.Intent(context, com.sharkord.android.data.network.VoiceService::class.java).apply {
                     action = com.sharkord.android.data.network.VoiceService.ACTION_STOP
                 }
                 context.startService(stopIntent)
-                
-                _uiState.update { it.copy(activeVoiceChannelId = null) }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to leave voice channel", e)
-                _uiState.update { it.copy(errorMessage = "Failed to leave voice channel") }
+                Log.e(TAG, "Failed to send stop intent to voice service", e)
             }
         }
     }
@@ -747,6 +781,20 @@ class HomeViewModel : ViewModel() {
         SharkordClient.voiceEngine.setMicEnabled(!micMuted)
         SharkordClient.voiceEngine.setSoundEnabled(!soundMuted)
 
+        val oldState = _uiState.value.serverData?.voiceMap?.get(channelId.toString())?.users?.get(_uiState.value.serverData?.ownUserId.toString())
+        if (oldState != null) {
+            if (oldState.micMuted != micMuted) {
+                com.sharkord.android.audio.SoundEngine.playSound(
+                    if (micMuted) com.sharkord.android.audio.SoundType.OWN_USER_MUTED_MIC else com.sharkord.android.audio.SoundType.OWN_USER_UNMUTED_MIC
+                )
+            }
+            if (oldState.soundMuted != soundMuted) {
+                com.sharkord.android.audio.SoundEngine.playSound(
+                    if (soundMuted) com.sharkord.android.audio.SoundType.OWN_USER_MUTED_SOUND else com.sharkord.android.audio.SoundType.OWN_USER_UNMUTED_SOUND
+                )
+            }
+        }
+
         viewModelScope.launch {
             try {
                 val input = JsonObject().apply {
@@ -763,6 +811,10 @@ class HomeViewModel : ViewModel() {
     fun toggleCamera(context: Context) {
         val newState = !_uiState.value.cameraEnabled
         _uiState.update { it.copy(cameraEnabled = newState) }
+        
+        com.sharkord.android.audio.SoundEngine.playSound(
+            if (newState) com.sharkord.android.audio.SoundType.OWN_USER_STARTED_WEBCAM else com.sharkord.android.audio.SoundType.OWN_USER_STOPPED_WEBCAM
+        )
         
         SharkordClient.voiceEngine.setCameraEnabled(context, newState)
         
