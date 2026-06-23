@@ -252,6 +252,10 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                                     consumeRemoteProducer(remoteId, StreamKind.AUDIO)
                                 } else if (kindStr == "video") {
                                     consumeRemoteProducer(remoteId, StreamKind.VIDEO)
+                                } else if (kindStr == "screen") {
+                                    consumeRemoteProducer(remoteId, StreamKind.SCREEN)
+                                } else if (kindStr == "screen_audio") {
+                                    consumeRemoteProducer(remoteId, StreamKind.SCREEN_AUDIO)
                                 }
                             }
                             "voice.onProducerClosed" -> {
@@ -262,6 +266,10 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                                     removeRemoteProducer(remoteId, StreamKind.AUDIO)
                                 } else if (kindStr == "video") {
                                     removeRemoteProducer(remoteId, StreamKind.VIDEO)
+                                } else if (kindStr == "screen") {
+                                    removeRemoteProducer(remoteId, StreamKind.SCREEN)
+                                } else if (kindStr == "screen_audio") {
+                                    removeRemoteProducer(remoteId, StreamKind.SCREEN_AUDIO)
                                 }
                             }
                         }
@@ -453,6 +461,18 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                 val remoteId = it.asInt
                 consumeRemoteProducerSuspend(remoteId, StreamKind.VIDEO)
             }
+
+            val remoteScreenIds = data.getAsJsonArray("remoteScreenIds")
+            remoteScreenIds?.forEach {
+                val remoteId = it.asInt
+                consumeRemoteProducerSuspend(remoteId, StreamKind.SCREEN)
+            }
+
+            val remoteScreenAudioIds = data.getAsJsonArray("remoteScreenAudioIds")
+            remoteScreenAudioIds?.forEach {
+                val remoteId = it.asInt
+                consumeRemoteProducerSuspend(remoteId, StreamKind.SCREEN_AUDIO)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to fetch existing producers", e)
         }
@@ -493,6 +513,12 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                 val rtpParameters = data.get("consumerRtpParameters").toString()
 
                 val consumerKey = "$remoteId:$consumerKind"
+                
+                val webrtcKind = when (kind) {
+                    StreamKind.SCREEN, StreamKind.VIDEO -> "video"
+                    StreamKind.SCREEN_AUDIO, StreamKind.AUDIO -> "audio"
+                    else -> if (consumerKind.contains("video")) "video" else "audio"
+                }
 
                 // close any existing consumer for this key
                 consumers[consumerKey]?.let {
@@ -504,8 +530,8 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                     override fun onTransportClose(consumer: Consumer) {
                         Log.d(TAG, "Consumer transport closed: ${consumer.id}")
                         consumers.remove(consumerKey)
-                        if (consumerKind == "video") {
-                            videoEngine.removeRemoteVideoTrack(remoteId.toString())
+                        if (webrtcKind == "video") {
+                            videoEngine.removeRemoteVideoTrack(consumerKey)
                         }
                     }
                 }
@@ -514,7 +540,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                     consumerListener,
                     consumerId,
                     producerId,
-                    consumerKind,
+                    webrtcKind,
                     rtpParameters,
                     null
                 )
@@ -531,7 +557,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                         Log.d(TAG, "Remote audio consumer ready for $remoteId")
                     } else if (track is VideoTrack) {
                         track.setEnabled(true)
-                        videoEngine.addRemoteVideoTrack(remoteId.toString(), track)
+                        videoEngine.addRemoteVideoTrack(consumerKey, track)
                         Log.d(TAG, "Remote video consumer ready for $remoteId")
                     }
                 }
@@ -547,8 +573,8 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                 val key = "$remoteId:${kind.value}"
                 // remove video track from UI FIRST — this triggers Compose to remove
                 // the SurfaceViewRenderer before we invalidate native resources
-                if (kind == StreamKind.VIDEO) {
-                    videoEngine.removeRemoteVideoTrack(remoteId.toString())
+                if (kind == StreamKind.VIDEO || kind == StreamKind.SCREEN || kind == StreamKind.EXTERNAL_VIDEO) {
+                    videoEngine.removeRemoteVideoTrack(key)
                     val consumerToClose = consumers.remove(key) ?: return@withLock
                     scope.launch {
                         delay(500)
@@ -576,7 +602,9 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         scope.launch {
             consumeMutex.withLock {
                 // remove video track from UI FIRST
-                videoEngine.removeRemoteVideoTrack(userId.toString())
+                videoEngine.removeRemoteVideoTrack("$userId:video")
+                videoEngine.removeRemoteVideoTrack("$userId:screen")
+                videoEngine.removeRemoteVideoTrack("$userId:external_video")
                 val keysToRemove = consumers.keys.filter { it.startsWith("$userId:") }
                 keysToRemove.forEach { key ->
                     val consumerToClose = consumers.remove(key) ?: return@forEach

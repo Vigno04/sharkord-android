@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.automirrored.filled.ScreenShare
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -223,6 +224,14 @@ fun ChannelItem(
                         )
                         
                         // icons for video, mute/deafen
+                        if (voiceUser.state.sharingScreen) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ScreenShare,
+                                contentDescription = "Screen Share Active",
+                                tint = Color(0xFF5865F2),
+                                modifier = Modifier.size(16.dp).padding(end = 4.dp)
+                            )
+                        }
                         if (voiceUser.state.webcamEnabled) {
                             Icon(
                                 Icons.Default.Videocam,
