@@ -74,37 +74,7 @@ object ImageCacheManager {
         return java.io.File(cacheDir, fileName)
     }
 
-    private fun trimDiskCache() {
-        scope.launch {
-            try {
-                val cacheDir = java.io.File(SharkordClient.applicationContext.cacheDir, "images")
-                if (!cacheDir.exists()) return@launch
 
-                val files = cacheDir.listFiles() ?: return@launch
-                var totalSize = files.sumOf { it.length() }
-                
-                // read from session manager settings
-                val maxMb = SharkordClient.session.maxDiskCacheMb
-                val maxDiskCacheSize = maxMb * 1024 * 1024L
-
-                if (totalSize > maxDiskCacheSize) {
-                    // sort by last modified, oldest first
-                    val sortedFiles = files.sortedBy { it.lastModified() }
-                    for (file in sortedFiles) {
-                        totalSize -= file.length()
-                        file.delete()
-                        if (totalSize <= maxDiskCacheSize / 2) {
-                            // trim down to half the max size to avoid constantly trimming on every small addition
-                            break
-                        }
-                    }
-                    Log.d(TAG, "Trimmed disk cache down to ${totalSize / (1024 * 1024)} MB")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error trimming disk cache", e)
-            }
-        }
-    }
 
     // loads an image from the network or returns a cached one if it was loaded recently
     suspend fun loadImage(url: String): ImageCacheEntry? {
@@ -112,7 +82,7 @@ object ImageCacheManager {
 
         if (!hasTrimmedDiskCache) {
             hasTrimmedDiskCache = true
-            trimDiskCache()
+            com.sharkord.android.utils.DiskCacheManager.trim(SharkordClient.applicationContext)
         }
 
         val cached = cache.get(url)
@@ -131,7 +101,7 @@ object ImageCacheManager {
                         
                         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                         BitmapFactory.decodeFile(diskFile.absolutePath, options)
-                        options.inSampleSize = calculateInSampleSize(options, 800, 800)
+                        options.inSampleSize = calculateInSampleSize(options, 400, 400)
                         options.inJustDecodeBounds = false
                         val bmp = BitmapFactory.decodeFile(diskFile.absolutePath, options)
                         if (bmp != null) {
@@ -163,7 +133,7 @@ object ImageCacheManager {
                                 }
                                 BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
                                 
-                                options.inSampleSize = calculateInSampleSize(options, 800, 800)
+                                options.inSampleSize = calculateInSampleSize(options, 400, 400)
                                 options.inJustDecodeBounds = false
                                 
                                 val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
@@ -219,6 +189,19 @@ object ImageCacheManager {
         }
         
         return withContext(Dispatchers.IO) {
+            val diskFile = getDiskCacheFile(videoUrl)
+            if (diskFile.exists() && diskFile.length() > 0) {
+                diskFile.setLastModified(System.currentTimeMillis())
+                val bmp = BitmapFactory.decodeFile(diskFile.absolutePath)
+                if (bmp != null) {
+                    val entry = ImageCacheEntry(bmp)
+                    cache.put(videoUrl, entry)
+                    return@withContext bmp
+                } else {
+                    diskFile.delete()
+                }
+            }
+
             var retriever: android.media.MediaMetadataRetriever? = null
             try {
                 Log.d(TAG, "Retrieving video thumbnail from: $videoUrl")
@@ -226,9 +209,30 @@ object ImageCacheManager {
                 retriever.setDataSource(videoUrl, HashMap<String, String>())
                 val bmp = retriever.getFrameAtTime(1_000_000, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
                 if (bmp != null) {
-                    val entry = ImageCacheEntry(bmp)
+                    val maxDim = 400f
+                    val width = bmp.width
+                    val height = bmp.height
+                    val scale = if (width > height) maxDim / width else maxDim / height
+                    val scaledBmp = if (scale < 1.0f) {
+                        val scaled = Bitmap.createScaledBitmap(bmp, (width * scale).toInt(), (height * scale).toInt(), true)
+                        bmp.recycle()
+                        scaled
+                    } else {
+                        bmp
+                    }
+                    
+                    try {
+                        java.io.FileOutputStream(diskFile).use { out ->
+                            @Suppress("DEPRECATION")
+                            scaledBmp.compress(Bitmap.CompressFormat.WEBP, 65, out)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to compress video thumbnail to disk: ${e.message}")
+                    }
+
+                    val entry = ImageCacheEntry(scaledBmp)
                     cache.put(videoUrl, entry)
-                    bmp
+                    scaledBmp
                 } else {
                     null
                 }

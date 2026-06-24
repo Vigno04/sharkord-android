@@ -477,7 +477,7 @@ class ChatViewModel : ViewModel() {
         
         android.widget.Toast.makeText(context, context.getString(R.string.chat_openingFile, file.displayName), android.widget.Toast.LENGTH_SHORT).show()
         
-        clearOldTempFiles(context)
+        com.sharkord.android.utils.DiskCacheManager.trim(context)
         
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
@@ -533,24 +533,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    private fun clearOldTempFiles(context: android.content.Context) {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            try {
-                val cacheDir = context.cacheDir
-                if (cacheDir != null && cacheDir.exists()) {
-                    val now = System.currentTimeMillis()
-                    val oneDayMs = 24 * 60 * 60 * 1000L
-                    cacheDir.listFiles()?.forEach { file ->
-                        if (now - file.lastModified() > oneDayMs) {
-                            file.delete()
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to clear temp files", e)
-            }
-        }
-    }
+
 
     // typing Indicators
 
