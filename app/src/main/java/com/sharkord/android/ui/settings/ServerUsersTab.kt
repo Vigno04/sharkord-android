@@ -26,6 +26,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
+import androidx.compose.ui.res.stringResource
+import com.sharkord.android.R
 import com.sharkord.android.data.model.User
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -45,7 +47,7 @@ fun ServerUsersTab(
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
-            text = "SERVER USERS",
+            text = stringResource(R.string.settings_serverUsersTitle),
             color = foregroundText,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
@@ -54,7 +56,7 @@ fun ServerUsersTab(
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
-            placeholder = { Text("Search users...", color = primaryText) },
+            placeholder = { Text(stringResource(R.string.settings_searchUsers), color = primaryText) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = primaryText) },
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             colors = TextFieldDefaults.colors(
@@ -105,18 +107,18 @@ fun UserItemRow(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete ${user.name}") },
+            title = { Text(stringResource(R.string.settings_deleteUserTitle, user.name)) },
             text = {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = wipeData, onCheckedChange = { wipeData = it })
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Wipe all data (destructive)", color = foregroundText)
+                        Text(stringResource(R.string.settings_wipeAllDataLabel), color = foregroundText)
                     }
                     if (wipeData) {
-                        Text("This will permanently delete all messages and files from this user.", color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                        Text(stringResource(R.string.settings_wipeAllDataDesc1), color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
                     } else {
-                        Text("The user will be deleted, but messages will remain as __delete_user_.", color = primaryText, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                        Text(stringResource(R.string.settings_wipeAllDataDesc2), color = primaryText, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
                     }
                 }
             },
@@ -125,12 +127,12 @@ fun UserItemRow(
                     showDeleteDialog = false
                     onDelete(wipeData)
                 }) {
-                    Text("Delete", color = Color.Red)
+                    Text(stringResource(R.string.common_delete), color = Color.Red)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel", color = primaryText)
+                    Text(stringResource(R.string.common_cancel), color = primaryText)
                 }
             },
             containerColor = cardColor,
@@ -178,7 +180,7 @@ fun UserItemRow(
         
         Column(modifier = Modifier.weight(1f)) {
             Text(user.name, color = foregroundText, fontWeight = FontWeight.Bold)
-            Text("Joined: $joinDate", color = primaryText, fontSize = 12.sp)
+            Text(stringResource(R.string.settings_joinedDate, joinDate), color = primaryText, fontSize = 12.sp)
         }
         
         Spacer(modifier = Modifier.width(8.dp))
@@ -200,7 +202,7 @@ fun UserItemRow(
                 modifier = Modifier.background(cardColor)
             ) {
                 DropdownMenuItem(
-                    text = { Text("Moderate User", color = foregroundText) },
+                    text = { Text(stringResource(R.string.settings_moderateUserMenu), color = foregroundText) },
                     leadingIcon = { Icon(Icons.Default.Security, contentDescription = null, tint = foregroundText) },
                     onClick = {
                         menuExpanded = false
@@ -208,7 +210,7 @@ fun UserItemRow(
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("Delete User", color = Color(0xFFED4245)) },
+                    text = { Text(stringResource(R.string.settings_deleteUserMenu), color = Color(0xFFED4245)) },
                     leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFED4245)) },
                     onClick = {
                         menuExpanded = false

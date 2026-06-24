@@ -29,11 +29,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.sharkord.android.R
 import com.sharkord.android.data.model.Role
 import com.sharkord.android.data.network.SharkordClient
 import kotlinx.coroutines.launch
@@ -63,16 +65,16 @@ fun ServerSettingsScreen(
     fun hasPerm(p: String) = isOwner || userPermissions.contains(p)
 
     val tabs = remember(data) {
-        val list = mutableListOf<String>()
-        if (hasPerm("MANAGE_SETTINGS")) list.add("General")
-        if (hasPerm("MANAGE_ROLES")) list.add("Roles")
-        if (hasPerm("MANAGE_EMOJIS")) list.add("Emojis")
-        if (hasPerm("MANAGE_INVITES")) list.add("Invites")
-        if (hasPerm("MANAGE_USERS")) list.add("Users")
-        if (hasPerm("MANAGE_PLUGINS")) list.add("Plugins")
-        if (hasPerm("MANAGE_STORAGE")) list.add("Storage")
-        if (hasPerm("MANAGE_UPDATES")) list.add("Updates")
-        if (list.isEmpty()) list.add("No Access")
+        val list = mutableListOf<Int>()
+        if (hasPerm("MANAGE_SETTINGS")) list.add(R.string.settings_tabGeneral)
+        if (hasPerm("MANAGE_ROLES")) list.add(R.string.settings_tabRoles)
+        if (hasPerm("MANAGE_EMOJIS")) list.add(R.string.settings_tabEmojis)
+        if (hasPerm("MANAGE_INVITES")) list.add(R.string.settings_tabInvites)
+        if (hasPerm("MANAGE_USERS")) list.add(R.string.settings_tabUsers)
+        if (hasPerm("MANAGE_PLUGINS")) list.add(R.string.settings_tabPlugins)
+        if (hasPerm("MANAGE_STORAGE")) list.add(R.string.settings_tabStorage)
+        if (hasPerm("MANAGE_UPDATES")) list.add(R.string.settings_tabUpdates)
+        if (list.isEmpty()) list.add(R.string.settings_tabNoAccess)
         list
     }
     
@@ -94,7 +96,7 @@ fun ServerSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Server Settings", color = foregroundText, fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.settings_serverSettings), color = foregroundText, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = foregroundText)
@@ -125,7 +127,7 @@ fun ServerSettingsScreen(
                 },
                 divider = { HorizontalDivider(color = Color.White.copy(alpha = 0.1f)) }
             ) {
-                tabs.forEachIndexed { index, title ->
+                tabs.forEachIndexed { index, titleRes ->
                     Tab(
                         selected = pagerState.currentPage == index,
                         onClick = {
@@ -135,7 +137,7 @@ fun ServerSettingsScreen(
                         },
                         text = {
                             Text(
-                                text = title,
+                                text = stringResource(titleRes),
                                 color = if (pagerState.currentPage == index) foregroundText else primaryText.copy(alpha = 0.7f),
                                 fontWeight = if (pagerState.currentPage == index) FontWeight.Bold else FontWeight.Normal
                             )
@@ -155,17 +157,17 @@ fun ServerSettingsScreen(
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        val tabName = tabs.getOrNull(page) ?: "Unknown"
-                        when (tabName) {
-                            "General" -> ServerGeneralTab(viewModel, cardColor, foregroundText, primaryText, accentColor)
-                            "Roles" -> ServerRolesTab(uiState.serverData?.roles ?: emptyList(), viewModel, cardColor, foregroundText, primaryText, accentColor)
-                            "Emojis" -> ServerEmojisTab(uiState.serverData?.emojis ?: emptyList(), viewModel, cardColor, foregroundText, primaryText, accentColor)
-                            "Invites" -> ServerInvitesTab(uiState.activeInvites, uiState.serverData?.roles ?: emptyList(), viewModel, cardColor, foregroundText, primaryText, accentColor)
-                            "Users" -> ServerUsersTab(uiState.serverData?.users ?: emptyList(), viewModel, cardColor, foregroundText, primaryText, accentColor)
-                            "Plugins" -> ServerPluginsTab(viewModel, cardColor, foregroundText, primaryText, accentColor)
-                            "Storage" -> ServerStorageTab(viewModel)
-                            "Updates" -> ServerUpdatesTab(viewModel, cardColor, foregroundText, primaryText, accentColor)
-                            else -> PlaceholderTab(tabName, primaryText)
+                        val tabRes = tabs.getOrNull(page)
+                        when (tabRes) {
+                            R.string.settings_tabGeneral -> ServerGeneralTab(viewModel, cardColor, foregroundText, primaryText, accentColor)
+                            R.string.settings_tabRoles -> ServerRolesTab(uiState.serverData?.roles ?: emptyList(), viewModel, cardColor, foregroundText, primaryText, accentColor)
+                            R.string.settings_tabEmojis -> ServerEmojisTab(uiState.serverData?.emojis ?: emptyList(), viewModel, cardColor, foregroundText, primaryText, accentColor)
+                            R.string.settings_tabInvites -> ServerInvitesTab(uiState.activeInvites, uiState.serverData?.roles ?: emptyList(), viewModel, cardColor, foregroundText, primaryText, accentColor)
+                            R.string.settings_tabUsers -> ServerUsersTab(uiState.serverData?.users ?: emptyList(), viewModel, cardColor, foregroundText, primaryText, accentColor)
+                            R.string.settings_tabPlugins -> ServerPluginsTab(viewModel, cardColor, foregroundText, primaryText, accentColor)
+                            R.string.settings_tabStorage -> ServerStorageTab(viewModel)
+                            R.string.settings_tabUpdates -> ServerUpdatesTab(viewModel, cardColor, foregroundText, primaryText, accentColor)
+                            else -> PlaceholderTab(tabRes?.let { stringResource(it) } ?: "Unknown", primaryText)
                         }
                     }
                 }
@@ -194,7 +196,7 @@ fun ServerSettingsScreen(
 @Composable
 fun PlaceholderTab(tabName: String, primaryText: Color) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("$tabName Settings coming soon...", color = primaryText)
+        Text(stringResource(R.string.settings_comingSoon, tabName), color = primaryText)
     }
 }
 
@@ -245,7 +247,7 @@ fun ServerGeneralTab(
             containerColor = cardColor
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("Update Server Logo", color = foregroundText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text(stringResource(R.string.settings_updateServerLogo), color = foregroundText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth().clickable { openCamera() }.padding(16.dp),
@@ -253,7 +255,7 @@ fun ServerGeneralTab(
                 ) {
                     Icon(Icons.Default.CameraAlt, contentDescription = null, tint = primaryText)
                     Spacer(modifier = Modifier.width(16.dp))
-                    Text("Take Photo", color = primaryText)
+                    Text(stringResource(R.string.settings_takePhoto), color = primaryText)
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth().clickable { galleryLauncher.launch("image/*") }.padding(16.dp),
@@ -261,7 +263,7 @@ fun ServerGeneralTab(
                 ) {
                     Icon(Icons.Default.Image, contentDescription = null, tint = primaryText)
                     Spacer(modifier = Modifier.width(16.dp))
-                    Text("Choose from Gallery", color = primaryText)
+                    Text(stringResource(R.string.settings_chooseFromGallery), color = primaryText)
                 }
                 Spacer(modifier = Modifier.height(32.dp))
             }
@@ -278,7 +280,7 @@ fun ServerGeneralTab(
     }
 
     Column(modifier = Modifier.verticalScroll(scrollState).fillMaxSize()) {
-        SettingsSection(title = "GENERAL INFORMATION", cardColor = cardColor, foregroundText = foregroundText) {
+        SettingsSection(title = stringResource(R.string.settings_generalInformation), cardColor = cardColor, foregroundText = foregroundText) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Box(
                     modifier = Modifier
@@ -298,7 +300,7 @@ fun ServerGeneralTab(
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
-                        Text("No Logo", color = Color.Gray, fontSize = 10.sp)
+                        Text(stringResource(R.string.settings_noLogo), color = Color.Gray, fontSize = 10.sp)
                     }
                     Box(
                         modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)),
@@ -309,7 +311,7 @@ fun ServerGeneralTab(
                 }
                 
                 Spacer(modifier = Modifier.width(16.dp))
-                Text("Update your server's logo to make it recognizable.", color = primaryText, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.settings_updateLogoDesc), color = primaryText, fontSize = 12.sp, modifier = Modifier.weight(1f))
             }
             
             Spacer(modifier = Modifier.height(24.dp))
@@ -317,7 +319,7 @@ fun ServerGeneralTab(
             OutlinedTextField(
                 value = adminSettings.name,
                 onValueChange = { viewModel.updateAdminSettings(adminSettings.copy(name = it)) },
-                label = { Text("Server Name", color = primaryText) },
+                label = { Text(stringResource(R.string.settings_serverNameLabel), color = primaryText) },
                 modifier = Modifier.fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
@@ -331,7 +333,7 @@ fun ServerGeneralTab(
             OutlinedTextField(
                 value = adminSettings.description ?: "",
                 onValueChange = { viewModel.updateAdminSettings(adminSettings.copy(description = it)) },
-                label = { Text("Server Description", color = primaryText) },
+                label = { Text(stringResource(R.string.settings_serverDescriptionLabel), color = primaryText) },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3,
                 maxLines = 5,
@@ -347,7 +349,7 @@ fun ServerGeneralTab(
             OutlinedTextField(
                 value = adminSettings.password ?: "",
                 onValueChange = { viewModel.updateAdminSettings(adminSettings.copy(password = it.takeIf { it.isNotEmpty() })) },
-                label = { Text("Password", color = primaryText) },
+                label = { Text(stringResource(R.string.common_passwordLabel), color = primaryText) },
                 modifier = Modifier.fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
@@ -361,56 +363,56 @@ fun ServerGeneralTab(
             Spacer(modifier = Modifier.height(16.dp))
 
             AdminSwitch(
-                title = "Consenti nuovi utenti",
-                description = "Consenti a chiunque di registrarsi e unirsi al server. Se disabilitato, potranno entrare solo gli utenti invitati.",
+                title = stringResource(R.string.settings_allowNewUsersLabel),
+                description = stringResource(R.string.settings_allowNewUsersDesc),
                 checked = adminSettings.allowNewUsers,
                 onCheckedChange = { viewModel.updateAdminSettings(adminSettings.copy(allowNewUsers = it)) },
                 foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor
             )
 
             AdminSwitch(
-                title = "Plugin",
-                description = "Abilita o disabilita i plugin del server.",
+                title = stringResource(R.string.settings_pluginsLabel),
+                description = stringResource(R.string.settings_pluginsDesc),
                 checked = adminSettings.enablePlugins,
                 onCheckedChange = { viewModel.updateAdminSettings(adminSettings.copy(enablePlugins = it)) },
                 foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor
             )
 
             AdminSwitch(
-                title = "Simulcast",
-                description = "Allow users to send multiple video quality layers so receivers can adapt to weaker connections. This will increase bandwidth and CPU usage in the server, but can improve the experience for users on slower connections.",
+                title = stringResource(R.string.settings_simulcastLabel),
+                description = stringResource(R.string.settings_simulcastDesc),
                 checked = adminSettings.webRtcSimulcastEnabled,
                 onCheckedChange = { viewModel.updateAdminSettings(adminSettings.copy(webRtcSimulcastEnabled = it)) },
                 foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor
             )
 
             AdminSwitch(
-                title = "Messaggi diretti",
-                description = "Consenti agli utenti di inviarsi messaggi diretti. Se disabilitato, potranno comunicare solo nei canali.",
+                title = stringResource(R.string.settings_directMessagesLabel),
+                description = stringResource(R.string.settings_directMessagesDesc),
                 checked = adminSettings.directMessagesEnabled,
                 onCheckedChange = { viewModel.updateAdminSettings(adminSettings.copy(directMessagesEnabled = it)) },
                 foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor
             )
 
             AdminSwitch(
-                title = "Ricerca",
-                description = "Consenti agli utenti di cercare messaggi e file in tutto il server.",
+                title = stringResource(R.string.settings_searchLabel),
+                description = stringResource(R.string.settings_searchDesc),
                 checked = adminSettings.enableSearch,
                 onCheckedChange = { viewModel.updateAdminSettings(adminSettings.copy(enableSearch = it)) },
                 foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor
             )
 
             AdminSwitch(
-                title = "Chiedi la password solo al primo accesso",
-                description = "Se abilitato, gli utenti devono inserire la password del server solo la prima volta che entrano.",
+                title = stringResource(R.string.settings_askPasswordFirstJoinLabel),
+                description = stringResource(R.string.settings_askPasswordFirstJoinDesc),
                 checked = adminSettings.onlyAskForPasswordOnFirstJoin,
                 onCheckedChange = { viewModel.updateAdminSettings(adminSettings.copy(onlyAskForPasswordOnFirstJoin = it)) },
                 foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor
             )
 
             AdminSwitch(
-                title = "Mostra finestra di benvenuto",
-                description = "Mostra agli utenti una finestra di configurazione del profilo la prima volta che entrano nel server.",
+                title = stringResource(R.string.settings_showWelcomeDialogLabel),
+                description = stringResource(R.string.settings_showWelcomeDialogDesc),
                 checked = adminSettings.showWelcomeDialog,
                 onCheckedChange = { viewModel.updateAdminSettings(adminSettings.copy(showWelcomeDialog = it)) },
                 foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor
@@ -427,7 +429,7 @@ fun ServerGeneralTab(
                     CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White)
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text("Save Changes")
+                Text(stringResource(R.string.common_saveChanges))
             }
         }
     }
@@ -497,12 +499,12 @@ fun ServerRolesTab(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("SERVER ROLES", color = foregroundText, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.settings_serverRolesTitle), color = foregroundText, fontWeight = FontWeight.Bold)
             Button(
                 onClick = { viewModel.createRole() },
                 colors = ButtonDefaults.buttonColors(containerColor = accentColor)
             ) {
-                Text("Create Role")
+                Text(stringResource(R.string.settings_createRoleBtn))
             }
         }
         
@@ -542,7 +544,7 @@ fun RoleItemRow(role: Role, onClick: () -> Unit, cardColor: Color, foregroundTex
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(role.name, color = foregroundText, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-        Text("${role.permissions.size} permissions", color = primaryText, fontSize = 12.sp)
+        Text(stringResource(R.string.settings_permissionsCount, role.permissions.size), color = primaryText, fontSize = 12.sp)
         Spacer(modifier = Modifier.width(8.dp))
         IconButton(onClick = onClick) {
             Icon(androidx.compose.material.icons.Icons.Default.Edit, contentDescription = "Edit Role", tint = primaryText)
@@ -596,18 +598,18 @@ fun RoleEditor(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Edit Role", color = foregroundText, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Text(stringResource(R.string.settings_editRoleTitle), color = foregroundText, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (role.id != 1 && role.name.lowercase() != "everyone") {
                         TextButton(onClick = { onDelete(role.id) }) {
-                            Text("Delete", color = Color(0xFFED4245))
+                            Text(stringResource(R.string.common_delete), color = Color(0xFFED4245))
                         }
                     }
                     Button(
                         onClick = { onSave(role.id, editName, editColor, editPermissions.toList()) },
                         colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                     ) {
-                        Text("Save")
+                        Text(stringResource(R.string.common_save))
                     }
                 }
             }
@@ -616,7 +618,7 @@ fun RoleEditor(
                 OutlinedTextField(
                     value = editName,
                     onValueChange = { editName = it },
-                    label = { Text("Role Name", color = primaryText) },
+                    label = { Text(stringResource(R.string.settings_roleNameLabel), color = primaryText) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
@@ -625,7 +627,7 @@ fun RoleEditor(
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Role Color", color = foregroundText, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.settings_roleColorLabel), color = foregroundText, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 androidx.compose.foundation.lazy.LazyRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(colorPresets) { hex ->
@@ -647,7 +649,7 @@ fun RoleEditor(
                 OutlinedTextField(
                     value = editColor,
                     onValueChange = { editColor = it },
-                    label = { Text("Hex Color", color = primaryText) },
+                    label = { Text(stringResource(R.string.settings_hexColorLabel), color = primaryText) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
@@ -656,7 +658,7 @@ fun RoleEditor(
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
-                Text("Permissions", color = foregroundText, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.settings_permissionsLabel), color = foregroundText, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 allPermissions.forEach { perm ->
