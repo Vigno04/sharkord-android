@@ -50,7 +50,8 @@ class UserSettingsViewModel : ViewModel() {
     var backVideoResolution = MutableStateFlow("1280x720")
     var backVideoFps = MutableStateFlow(30)
     var mirrorFrontCamera = MutableStateFlow(true)
-    var screenShareOptimizeFor = MutableStateFlow("Quality")
+    var screenShareResolution = MutableStateFlow("1280x720")
+    var screenShareFps = MutableStateFlow(30)
 
     init {
         maxDiskCacheMb.value = SharkordClient.session.maxDiskCacheMb
@@ -64,7 +65,8 @@ class UserSettingsViewModel : ViewModel() {
         backVideoResolution.value = SharkordClient.session.backVideoResolution
         backVideoFps.value = SharkordClient.session.backVideoFps
         mirrorFrontCamera.value = SharkordClient.session.mirrorFrontCamera
-        screenShareOptimizeFor.value = SharkordClient.session.screenShareOptimizeFor
+        screenShareResolution.value = SharkordClient.session.screenShareResolution
+        screenShareFps.value = SharkordClient.session.screenShareFps
         loadUser()
     }
 
@@ -186,9 +188,14 @@ class UserSettingsViewModel : ViewModel() {
         SharkordClient.session.mirrorFrontCamera = value
     }
 
-    fun saveScreenShareOptimizeFor(value: String) {
-        screenShareOptimizeFor.value = value
-        SharkordClient.session.screenShareOptimizeFor = value
+    fun saveScreenShareResolution(value: String) {
+        screenShareResolution.value = value
+        SharkordClient.session.screenShareResolution = value
+    }
+
+    fun saveScreenShareFps(value: Int) {
+        screenShareFps.value = value
+        SharkordClient.session.screenShareFps = value
     }
 
     fun uploadAvatar(context: Context, uri: Uri) {

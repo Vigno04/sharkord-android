@@ -283,6 +283,7 @@ fun HomeScreen(
                                     isMuted = isMuted,
                                     isDeafened = isDeafened,
                                     cameraEnabled = uiState.cameraEnabled,
+                                    isScreenSharing = uiState.isScreenSharing,
                                     localVideoTrack = uiState.localVideoTrack,
                                     remoteVideoTracks = uiState.remoteVideoTracks,
                                     eglBaseContext = uiState.eglBaseContext,
@@ -316,6 +317,9 @@ fun HomeScreen(
                                         } else {
                                             cameraPermissionLauncher.launch(toRequest.toTypedArray())
                                         }
+                                    },
+                                    onToggleScreenShareClick = { enabled, intent ->
+                                        viewModel.toggleScreenShare(context, intent, enabled)
                                     },
                                     onSwitchCameraClick = {
                                         viewModel.switchCamera(context)

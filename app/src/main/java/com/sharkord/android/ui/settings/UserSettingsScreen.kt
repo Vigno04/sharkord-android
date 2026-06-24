@@ -433,7 +433,8 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
     val backVideoFps by viewModel.backVideoFps.collectAsState()
     val mirrorFrontCamera by viewModel.mirrorFrontCamera.collectAsState()
 
-    val screenShareOptimizeFor by viewModel.screenShareOptimizeFor.collectAsState()
+    val screenShareResolution by viewModel.screenShareResolution.collectAsState()
+    val screenShareFps by viewModel.screenShareFps.collectAsState()
 
     var expandedAudioRoute by remember { mutableStateOf(false) }
     var expandedCamera by remember { mutableStateOf(false) }
@@ -441,9 +442,33 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
     var expandedFrontVideoFps by remember { mutableStateOf(false) }
     var expandedBackVideoResolution by remember { mutableStateOf(false) }
     var expandedBackVideoFps by remember { mutableStateOf(false) }
-    var expandedOptimizeFor by remember { mutableStateOf(false) }
+    var expandedScreenShareResolution by remember { mutableStateOf(false) }
+    var expandedScreenShareFps by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
+    
+    // Screen share options derived from device capabilities
+    val availableScreenShareResolutions = remember {
+        val displayMetrics = context.resources.displayMetrics
+        val w = displayMetrics.widthPixels
+        val h = displayMetrics.heightPixels
+        val nativeRes = "${maxOf(w, h)}x${minOf(w, h)}"
+        val resList = mutableListOf(
+            "${w}x${h} (Native)",
+            "${w / 2}x${h / 2} (1/2 Native)",
+            "${w / 3}x${h / 3} (1/3 Native)",
+            "${w / 4}x${h / 4} (1/4 Native)"
+        )
+        // clean up duplicates if native matches one of the standards
+        resList.distinctBy { it.split(" ")[0] }
+    }
+    
+    val availableScreenShareFpsList = remember {
+        val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+        val maxRefreshRate = windowManager.defaultDisplay.refreshRate.toInt()
+        val fpsList = mutableListOf(maxRefreshRate, 120, 60, 30, 15)
+        fpsList.filter { it <= maxRefreshRate }.distinct().sortedDescending()
+    }
     var availableFrontResolutions by remember { mutableStateOf<List<String>>(emptyList()) }
     var availableFrontFpsList by remember { mutableStateOf<List<Int>>(emptyList()) }
     var availableBackResolutions by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -673,25 +698,52 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
 
     SettingsSection(title = "SCREEN SHARE SETTINGS", cardColor = cardColor, foregroundText = foregroundText) {
         ExposedDropdownMenuBox(
-            expanded = expandedOptimizeFor,
-            onExpandedChange = { expandedOptimizeFor = !expandedOptimizeFor },
+            expanded = expandedScreenShareResolution,
+            onExpandedChange = { expandedScreenShareResolution = !expandedScreenShareResolution },
             modifier = Modifier.fillMaxWidth()
         ) {
             OutlinedTextField(
-                value = screenShareOptimizeFor,
+                value = screenShareResolution,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Optimize For") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedOptimizeFor) },
+                label = { Text("Resolution") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedScreenShareResolution) },
                 modifier = Modifier.menuAnchor().fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                     focusedTextColor = foregroundText, unfocusedTextColor = primaryText
                 )
             )
-            ExposedDropdownMenu(expanded = expandedOptimizeFor, onDismissRequest = { expandedOptimizeFor = false }) {
-                listOf("Performance", "Quality").forEach { opt ->
-                    DropdownMenuItem(text = { Text(opt) }, onClick = { viewModel.saveScreenShareOptimizeFor(opt); expandedOptimizeFor = false })
+            ExposedDropdownMenu(expanded = expandedScreenShareResolution, onDismissRequest = { expandedScreenShareResolution = false }) {
+                availableScreenShareResolutions.forEach { resOption ->
+                    val actualValue = resOption.split(" ")[0]
+                    DropdownMenuItem(text = { Text(resOption) }, onClick = { viewModel.saveScreenShareResolution(actualValue); expandedScreenShareResolution = false })
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(12.dp))
+
+        ExposedDropdownMenuBox(
+            expanded = expandedScreenShareFps,
+            onExpandedChange = { expandedScreenShareFps = !expandedScreenShareFps },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = "$screenShareFps fps",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Framerate") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedScreenShareFps) },
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                    focusedTextColor = foregroundText, unfocusedTextColor = primaryText
+                )
+            )
+            ExposedDropdownMenu(expanded = expandedScreenShareFps, onDismissRequest = { expandedScreenShareFps = false }) {
+                availableScreenShareFpsList.forEach { fps ->
+                    DropdownMenuItem(text = { Text("$fps fps") }, onClick = { viewModel.saveScreenShareFps(fps); expandedScreenShareFps = false })
                 }
             }
         }

@@ -116,9 +116,13 @@ class SessionManager(context: Context) {
         get() = prefs.getBoolean(KEY_MIRROR_FRONT_CAMERA, true)
         set(value) = prefs.edit().putBoolean(KEY_MIRROR_FRONT_CAMERA, value).apply()
 
-    var screenShareOptimizeFor: String
-        get() = prefs.getString(KEY_SCREEN_SHARE_OPTIMIZE_FOR, "Quality") ?: "Quality"
-        set(value) = prefs.edit().putString(KEY_SCREEN_SHARE_OPTIMIZE_FOR, value).apply()
+    var screenShareResolution: String
+        get() = prefs.getString(KEY_SCREEN_SHARE_RESOLUTION, "1280x720") ?: "1280x720"
+        set(value) = prefs.edit().putString(KEY_SCREEN_SHARE_RESOLUTION, value).apply()
+
+    var screenShareFps: Int
+        get() = prefs.getInt(KEY_SCREEN_SHARE_FPS, 30)
+        set(value) = prefs.edit().putInt(KEY_SCREEN_SHARE_FPS, value).apply()
 
     companion object {
         private const val PREFS_NAME = "sharkord_prefs"
@@ -139,6 +143,7 @@ class SessionManager(context: Context) {
         private const val KEY_BACK_VIDEO_RESOLUTION = "back_video_resolution"
         private const val KEY_BACK_VIDEO_FPS = "back_video_fps"
         private const val KEY_MIRROR_FRONT_CAMERA = "mirror_front_camera"
-        private const val KEY_SCREEN_SHARE_OPTIMIZE_FOR = "screen_share_optimize_for"
+        private const val KEY_SCREEN_SHARE_RESOLUTION = "screen_share_resolution"
+        private const val KEY_SCREEN_SHARE_FPS = "screen_share_fps"
     }
 }

@@ -35,6 +35,10 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.media.projection.MediaProjectionManager
+import android.app.Activity
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -63,6 +67,7 @@ fun VoicePanel(
     isMuted: Boolean = true,
     isDeafened: Boolean = true,
     cameraEnabled: Boolean = false,
+    isScreenSharing: Boolean = false,
     localVideoTrack: VideoTrack? = null,
     remoteVideoTracks: Map<String, VideoTrack> = emptyMap(),
     eglBaseContext: EglBase.Context,
@@ -72,6 +77,7 @@ fun VoicePanel(
     onToggleMicClick: (Boolean) -> Unit = {},
     onToggleDeafenClick: (Boolean) -> Unit = {},
     onToggleCameraClick: () -> Unit = {},
+    onToggleScreenShareClick: (Boolean, android.content.Intent?) -> Unit = { _, _ -> },
     onSwitchCameraClick: () -> Unit = {},
     onOpenChatClick: () -> Unit,
     onBackClick: () -> Unit,
@@ -81,6 +87,17 @@ val colors = LocalSharkordColors.current
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    val mediaProjectionManager = remember { context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager }
+    val screenShareLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            onToggleScreenShareClick(true, result.data)
+        } else {
+            onToggleScreenShareClick(false, null)
+        }
+    }
 
     var showOutputDropdown by remember { mutableStateOf(false) }
     var showInputDropdown by remember { mutableStateOf(false) }
@@ -590,6 +607,23 @@ val colors = LocalSharkordColors.current
                         ) {
                             Icon(if (!cameraEnabled) Icons.Default.VideocamOff else Icons.Default.Videocam, contentDescription = if (!cameraEnabled) "Enable Camera" else "Disable Camera")
                         }
+
+                        // screen share Toggle
+                        FloatingActionButton(
+                            onClick = {
+                                if (!isScreenSharing) {
+                                    screenShareLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
+                                } else {
+                                    onToggleScreenShareClick(false, null)
+                                }
+                            },
+                            containerColor = if (!isScreenSharing) colors.bgColor else colors.foregroundText,
+                            contentColor = if (!isScreenSharing) colors.foregroundText else colors.bgColor,
+                            shape = CircleShape,
+                            modifier = Modifier.size(56.dp)
+                        ) {
+                            Icon(if (!isScreenSharing) Icons.Default.ScreenShare else Icons.Default.StopScreenShare, contentDescription = if (!isScreenSharing) "Share Screen" else "Stop Screen Share")
+                        }
                     }
 
                     // disconnect
@@ -974,6 +1008,23 @@ val colors = LocalSharkordColors.current
                             modifier = Modifier.size(56.dp)
                         ) {
                             Icon(if (!cameraEnabled) Icons.Default.VideocamOff else Icons.Default.Videocam, contentDescription = if (!cameraEnabled) "Enable Camera" else "Disable Camera")
+                        }
+
+                        // screen share Toggle
+                        FloatingActionButton(
+                            onClick = {
+                                if (!isScreenSharing) {
+                                    screenShareLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
+                                } else {
+                                    onToggleScreenShareClick(false, null)
+                                }
+                            },
+                            containerColor = if (!isScreenSharing) colors.bgColor else colors.foregroundText,
+                            contentColor = if (!isScreenSharing) colors.foregroundText else colors.bgColor,
+                            shape = CircleShape,
+                            modifier = Modifier.size(56.dp)
+                        ) {
+                            Icon(if (!isScreenSharing) Icons.Default.ScreenShare else Icons.Default.StopScreenShare, contentDescription = if (!isScreenSharing) "Share Screen" else "Stop Screen Share")
                         }
                     }
 

@@ -61,7 +61,9 @@ data class HomeUiState(
     val activeSpeakers: Set<String> = emptySet(),
     val isViewingVoiceChat: Boolean = false,
     val cameraEnabled: Boolean = false,
+    val isScreenSharing: Boolean = false,
     val localVideoTrack: org.webrtc.VideoTrack? = null,
+    val localScreenTrack: org.webrtc.VideoTrack? = null,
     val remoteVideoTracks: Map<String, org.webrtc.VideoTrack> = emptyMap(),
     // always available since EglBase is created at VoiceEngine init time
     val eglBaseContext: org.webrtc.EglBase.Context = SharkordClient.voiceEngine.eglBaseContext
@@ -107,7 +109,9 @@ class HomeViewModel : ViewModel() {
                             activeVoiceChannelId = null, 
                             activeSpeakers = emptySet(), 
                             cameraEnabled = false, 
+                            isScreenSharing = false,
                             localVideoTrack = null, 
+                            localScreenTrack = null,
                             remoteVideoTracks = emptyMap()
                         ) 
                     }
@@ -625,6 +629,7 @@ class HomeViewModel : ViewModel() {
 
     private var audioLevelsJob: kotlinx.coroutines.Job? = null
     private var localVideoJob: kotlinx.coroutines.Job? = null
+    private var localScreenJob: kotlinx.coroutines.Job? = null
     private var remoteVideoJob: kotlinx.coroutines.Job? = null
 
     fun joinVoiceChannel(channelId: Int, context: Context, channelName: String) {
@@ -687,6 +692,13 @@ class HomeViewModel : ViewModel() {
                 localVideoJob = viewModelScope.launch {
                     SharkordClient.voiceEngine.videoEngine.localVideoTrackFlow.collect { track ->
                         _uiState.update { it.copy(localVideoTrack = track) }
+                    }
+                }
+                
+                localScreenJob?.cancel()
+                localScreenJob = viewModelScope.launch {
+                    SharkordClient.voiceEngine.videoEngine.localScreenTrackFlow.collect { track ->
+                        _uiState.update { it.copy(localScreenTrack = track) }
                     }
                 }
                 
@@ -834,6 +846,37 @@ class HomeViewModel : ViewModel() {
                     SharkordClient.webSocket.sendMutationAwait("voice.updateState", input)
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to update voice state", e)
+                }
+            }
+        }
+    }
+
+    fun toggleScreenShare(context: Context, intent: android.content.Intent?, enabled: Boolean) {
+        _uiState.update { it.copy(isScreenSharing = enabled) }
+        val serviceIntent = android.content.Intent(context, com.sharkord.android.data.network.VoiceService::class.java).apply {
+            action = if (enabled) com.sharkord.android.data.network.VoiceService.ACTION_START_SCREEN_SHARE else com.sharkord.android.data.network.VoiceService.ACTION_STOP_SCREEN_SHARE
+            if (intent != null) {
+                putExtra("EXTRA_MEDIA_PROJECTION_INTENT", intent)
+            }
+        }
+        androidx.core.content.ContextCompat.startForegroundService(context, serviceIntent)
+
+        _uiState.value.activeVoiceChannelId?.let { channelId ->
+            viewModelScope.launch {
+                try {
+                    if (!enabled) {
+                        val closeInput = com.google.gson.JsonObject().apply {
+                            addProperty("kind", "screen")
+                        }
+                        SharkordClient.webSocket.sendMutationAwait("voice.closeProducer", closeInput)
+                    }
+
+                    val input = com.google.gson.JsonObject().apply {
+                        addProperty("sharingScreen", enabled)
+                    }
+                    SharkordClient.webSocket.sendMutationAwait("voice.updateState", input)
+                } catch (e: Exception) {
+                    android.util.Log.e("HomeViewModel", "Failed to update voice state for screen share", e)
                 }
             }
         }

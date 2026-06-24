@@ -8,6 +8,7 @@ import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.content.pm.ServiceInfo
 import androidx.core.app.NotificationCompat
 import com.google.gson.JsonObject
 import com.sharkord.android.MainActivity
@@ -24,11 +25,14 @@ class VoiceService : Service() {
         const val ACTION_STOP = "ACTION_STOP"
         const val ACTION_TOGGLE_MIC = "ACTION_TOGGLE_MIC"
         const val ACTION_TOGGLE_DEAFEN = "ACTION_TOGGLE_DEAFEN"
+        const val ACTION_START_SCREEN_SHARE = "ACTION_START_SCREEN_SHARE"
+        const val ACTION_STOP_SCREEN_SHARE = "ACTION_STOP_SCREEN_SHARE"
         private const val CHANNEL_ID = "VoiceServiceChannel"
         private const val NOTIFICATION_ID = 1001
     }
 
     private var currentChannelName: String = ""
+    private var isScreenSharing: Boolean = false
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onBind(intent: Intent?): IBinder? {
@@ -47,13 +51,37 @@ class VoiceService : Service() {
             ACTION_STOP -> stopForegroundService()
             ACTION_TOGGLE_MIC -> toggleMic()
             ACTION_TOGGLE_DEAFEN -> toggleDeafen()
+            ACTION_START_SCREEN_SHARE -> {
+                isScreenSharing = true
+                startForegroundService()
+                val mediaProjectionIntent = intent.getParcelableExtra<Intent>("EXTRA_MEDIA_PROJECTION_INTENT")
+                SharkordClient.voiceEngine.setScreenShareEnabled(this, mediaProjectionIntent, true)
+            }
+            ACTION_STOP_SCREEN_SHARE -> {
+                SharkordClient.voiceEngine.setScreenShareEnabled(this, null, false)
+                isScreenSharing = false
+                startForegroundService()
+            }
         }
         return START_NOT_STICKY
     }
 
     private fun startForegroundService() {
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification())
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val type = if (isScreenSharing) {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+            } else {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+            }
+            startForeground(
+                NOTIFICATION_ID, 
+                buildNotification(), 
+                type
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, buildNotification())
+        }
     }
 
     private fun buildNotification(): Notification {
@@ -95,8 +123,8 @@ class VoiceService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val isMicMuted = SharkordClient.voiceEngine.isMicMuted
-        val isSoundMuted = SharkordClient.voiceEngine.isSoundMuted
+        val isMicMuted = if (SharkordClient.isVoiceEngineInitialized) SharkordClient.voiceEngine.isMicMuted else true
+        val isSoundMuted = if (SharkordClient.isVoiceEngineInitialized) SharkordClient.voiceEngine.isSoundMuted else true
 
         val micActionText = if (isMicMuted) "Riattiva microfono" else "Silenzia"
         val deafenActionText = if (isSoundMuted) "Riattiva audio" else "Silenzia audio"
@@ -115,6 +143,7 @@ class VoiceService : Service() {
     }
 
     private fun toggleMic() {
+        if (!SharkordClient.isVoiceEngineInitialized) return
         val newMuted = !SharkordClient.voiceEngine.isMicMuted
         val currentDeafened = SharkordClient.voiceEngine.isSoundMuted
         
@@ -125,6 +154,7 @@ class VoiceService : Service() {
     }
 
     private fun toggleDeafen() {
+        if (!SharkordClient.isVoiceEngineInitialized) return
         val newDeafened = !SharkordClient.voiceEngine.isSoundMuted
         val newMuted = if (newDeafened) true else SharkordClient.voiceEngine.isMicMuted
 

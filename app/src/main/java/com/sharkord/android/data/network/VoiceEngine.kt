@@ -94,6 +94,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
     var isSoundMuted = false
         private set
     val cameraEnabled: Boolean get() = videoEngine.cameraEnabled
+    val isScreenSharing: Boolean get() = videoEngine.screenShareEnabled
 
     // subscription IDs
     private var onNewProducerSubId: Int? = null
@@ -326,11 +327,23 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                 }
 
                 override fun onProduce(transport: Transport, kind: String, rtpParameters: String, appData: String): String {
-                    Log.d(TAG, "SendTransport onProduce: kind=$kind")
+                    Log.d(TAG, "SendTransport onProduce: kind=$kind, appData=$appData")
                     return runBlocking {
+                        var actualKind = kind
+                        if (appData.isNotEmpty() && appData != "null") {
+                            try {
+                                val appDataObject = gson.fromJson(appData, com.google.gson.JsonObject::class.java)
+                                if (appDataObject.has("kind")) {
+                                    actualKind = appDataObject.get("kind").asString
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to parse appData JSON", e)
+                            }
+                        }
+
                         val input = JsonObject().apply {
                             addProperty("transportId", id)
-                            addProperty("kind", kind)
+                            addProperty("kind", actualKind)
                             add("rtpParameters", gson.fromJson(rtpParameters, JsonObject::class.java))
                         }
                         val produceResponse = webSocketManager.sendMutationAwait("voice.produce", input)
@@ -652,6 +665,10 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
 
     fun setCameraEnabled(context: Context, enabled: Boolean) {
         videoEngine.setCameraEnabled(context, enabled, peerConnectionFactory, sendTransport)
+    }
+
+    fun setScreenShareEnabled(context: Context, intent: android.content.Intent?, enabled: Boolean) {
+        videoEngine.setScreenShareEnabled(context, enabled, intent, peerConnectionFactory, sendTransport)
     }
 
     fun switchCamera(context: Context) {

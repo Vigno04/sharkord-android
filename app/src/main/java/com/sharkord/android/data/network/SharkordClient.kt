@@ -41,6 +41,9 @@ object SharkordClient {
     lateinit var voiceEngine: VoiceEngine
         private set
 
+    val isVoiceEngineInitialized: Boolean
+        get() = this::voiceEngine.isInitialized
+
     // session/preferences manager. Initialized lazily via [initialize]
     lateinit var session: SessionManager
         private set
