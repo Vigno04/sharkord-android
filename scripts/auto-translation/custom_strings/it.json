@@ -7,7 +7,7 @@
   "common_you": "(Tu)",
   "common_online": "Online",
   "common_add": "Aggiungi",
-  "profile_user_settings_title": "Profilo Utente & Impostazioni",
+  "profile_user_settings_title": "Profilo Utente e Impostazioni",
   "profile_show_members": "Mostra membri",
   "common_member_count": "%1$d membri",
   "dialogs_searchTitle": "Cerca",
@@ -208,5 +208,13 @@
   "settings_videoFramerateLabel": "Framerate Video",
   "settings_screenShareCodecLabel": "Codec Condivisione Schermo",
   "settings_updatePasswordBtn": "Aggiorna Password",
-  "settings_diskUsedPercent": "%1$s in uso (%2$s)"
+  "settings_diskUsedPercent": "%1$s in uso (%2$s)",
+  "settings_deviceSettingsSaved": "Impostazioni chiamate salvate",
+  "settings_devicesDesc": "Gestisci le impostazioni delle chiamate e dei media.",
+  "settings_devicesTab": "Impostazioni Chiamate",
+  "settings_devicesTitle": "Impostazioni Chiamate",
+  "settings_compressMediaLabel": "Comprimi prima di inviare",
+  "settings_compressMediaDesc": "Comprimi le foto e i video della fotocamera prima di caricarli per risparmiare dati e tempo.",
+  "settings_mediaCodecLabel": "Codec Media",
+  "settings_mediaQualityLabel": "Qualità Media"
 }

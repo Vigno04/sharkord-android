@@ -106,7 +106,7 @@ fun MediaLightboxViewer(
                 CustomVideoPlayer(
                     videoUrl = videoUrl,
                     autoPlay = true,
-                    isOverlayActive = true,
+                    isOverlayActive = false,
                     onFullscreenClick = onClose,
                     modifier = Modifier.fillMaxSize()
                 )

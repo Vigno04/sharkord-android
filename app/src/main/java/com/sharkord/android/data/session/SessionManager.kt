@@ -193,6 +193,18 @@ class SessionManager(context: Context) {
         prefs.edit().putString(KEY_VIDEO_CODEC, value).apply()
     }
 
+    var compressMedia: Boolean
+        get() = prefs.getBoolean(KEY_COMPRESS_MEDIA, false)
+        set(value) = prefs.edit().putBoolean(KEY_COMPRESS_MEDIA, value).apply()
+
+    var mediaCodec: String
+        get() = prefs.getString(KEY_MEDIA_CODEC, "H.264") ?: "H.264"
+        set(value) = prefs.edit().putString(KEY_MEDIA_CODEC, value).apply()
+
+    var mediaQuality: String
+        get() = prefs.getString(KEY_MEDIA_QUALITY, "Medium") ?: "Medium"
+        set(value) = prefs.edit().putString(KEY_MEDIA_QUALITY, value).apply()
+
     companion object {
         private const val PREFS_NAME = "sharkord_prefs"
         private const val KEY_TOKEN = "login_token"
@@ -218,5 +230,8 @@ class SessionManager(context: Context) {
         private const val KEY_SCREEN_SHARE_RESOLUTION = "screen_share_resolution"
         private const val KEY_SCREEN_SHARE_FPS = "screen_share_fps"
         private const val KEY_VIDEO_CODEC = "video_codec"
+        private const val KEY_COMPRESS_MEDIA = "compress_media"
+        private const val KEY_MEDIA_CODEC = "app_media_codec"
+        private const val KEY_MEDIA_QUALITY = "app_media_quality"
     }
 }

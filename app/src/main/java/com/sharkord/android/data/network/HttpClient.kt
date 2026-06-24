@@ -188,6 +188,13 @@ class SharkordHttpClient(private val client: OkHttpClient) {
                     }
                 }
             }
+        } else if (uri.scheme == "file") {
+            uri.path?.let { path ->
+                val file = java.io.File(path)
+                if (file.exists()) {
+                    fileLength = file.length()
+                }
+            }
         }
 
         val mediaType = "application/octet-stream".toMediaType()

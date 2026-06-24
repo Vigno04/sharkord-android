@@ -106,6 +106,10 @@ fun ChatInputBar(
     var hasSwipeCancelled by remember { mutableStateOf(false) }
     var mediaRecorder by remember { mutableStateOf<android.media.MediaRecorder?>(null) }
     var audioFilepath by remember { mutableStateOf<String?>(null) }
+    
+    // attachment Menu State
+    var isAttachmentMenuOpen by remember { mutableStateOf(false) }
+    var showCameraCapture by remember { mutableStateOf(false) }
 
     val startRecording = {
         try {
@@ -232,6 +236,20 @@ fun ChatInputBar(
                 onFileUpload(originalName, uri.toString())
             } catch (e: Exception) {
                 Log.e("ChatInputBar", "Failed to process file uri", e)
+            }
+        }
+    }
+
+    // gallery Picker
+    val galleryPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            val originalName = "gallery_media"
+            try {
+                onFileUpload(originalName, uri.toString())
+            } catch (e: Exception) {
+                Log.e("ChatInputBar", "Failed to process gallery uri", e)
             }
         }
     }
@@ -504,6 +522,35 @@ fun ChatInputBar(
             }
         }
 
+        // Attachment Menu
+        AnimatedVisibility(
+            visible = isAttachmentMenuOpen,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            AttachmentMenu(
+                onCameraClick = {
+                    isAttachmentMenuOpen = false
+                    showCameraCapture = true
+                },
+                onGalleryClick = {
+                    isAttachmentMenuOpen = false
+                    galleryPickerLauncher.launch(
+                        androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                    )
+                },
+                onFilesClick = {
+                    isAttachmentMenuOpen = false
+                    filePickerLauncher.launch("*/*")
+                },
+                onLocationClick = {
+                    isAttachmentMenuOpen = false
+                    android.widget.Toast.makeText(context, "Work in progress", android.widget.Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+
         // input Field Row
         Row(
             modifier = Modifier
@@ -601,12 +648,12 @@ fun ChatInputBar(
                     }
                 )
 
-                // right: Attach File button
-                IconButton(onClick = { filePickerLauncher.launch("*/*") }) {
+                // right: Attach Menu button
+                IconButton(onClick = { isAttachmentMenuOpen = !isAttachmentMenuOpen }) {
                     Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Attach File",
-                        tint = textSecondary
+                        imageVector = if (isAttachmentMenuOpen) Icons.Default.Close else Icons.Default.Add,
+                        contentDescription = "Attach Options",
+                        tint = if (isAttachmentMenuOpen) accentColor else textSecondary
                     )
                 }
             }
@@ -709,6 +756,27 @@ fun ChatInputBar(
                     )
                 }
             }
+        }
+    }
+
+    if (showCameraCapture) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { showCameraCapture = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            CameraCaptureScreen(
+                onPhotoCaptured = { name, uri ->
+                    showCameraCapture = false
+                    onFileUpload(name, uri.toString())
+                },
+                onVideoCaptured = { name, uri ->
+                    showCameraCapture = false
+                    onFileUpload(name, uri.toString())
+                },
+                onClose = {
+                    showCameraCapture = false
+                }
+            )
         }
     }
 }

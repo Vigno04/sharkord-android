@@ -344,7 +344,7 @@
     <string name="permissions_server_USE_PLUGINS">Usare plugin</string>
     <string name="permissions_server_VIEW_USER_SENSITIVE_DATA">Vedere dati sensibili utente</string>
     <string name="profile_show_members">Mostra membri</string>
-    <string name="profile_user_settings_title">Profilo Utente &amp;amp; Impostazioni</string>
+    <string name="profile_user_settings_title">Profilo Utente e Impostazioni</string>
     <string name="settings_activityFiles">File</string>
     <string name="settings_activityLinks">Link</string>
     <string name="settings_activityMessages">Messaggi</string>

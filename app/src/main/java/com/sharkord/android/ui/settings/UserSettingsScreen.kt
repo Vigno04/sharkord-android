@@ -65,7 +65,7 @@ fun UserSettingsScreen(
     val foregroundText = Color(0xFFFAFAFA)
     val accentColor = Color(0xFF5865F2)
     
-    val tabs = listOf("Profile", "Devices", "Password", "Notifications", "App Settings")
+    val tabs = listOf("Profile", "Call Settings", "Password", "Notifications", "App Settings")
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val coroutineScope = rememberCoroutineScope()
 
@@ -949,6 +949,7 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregroundText: Color, primaryText: Color, accentColor: Color) {
     val maxDiskCacheMb by viewModel.maxDiskCacheMb.collectAsState()
@@ -1015,6 +1016,78 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
             ),
             modifier = Modifier.fillMaxWidth()
         )
+    }
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    val compressMedia by viewModel.compressMedia.collectAsState()
+    val mediaCodec by viewModel.mediaCodec.collectAsState()
+    val mediaQuality by viewModel.mediaQuality.collectAsState()
+    var expandedMediaCodec by remember { mutableStateOf(false) }
+    var expandedMediaQuality by remember { mutableStateOf(false) }
+
+    SettingsSection(title = "MEDIA COMPRESSION", cardColor = cardColor, foregroundText = foregroundText) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.settings_compressMediaLabel), color = foregroundText)
+                Text(stringResource(R.string.settings_compressMediaDesc), color = primaryText, fontSize = 12.sp)
+            }
+            Switch(checked = compressMedia, onCheckedChange = { viewModel.saveCompressMedia(it) }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
+        }
+
+        if (compressMedia) {
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // codec dropdown
+            ExposedDropdownMenuBox(
+                expanded = expandedMediaCodec,
+                onExpandedChange = { expandedMediaCodec = !expandedMediaCodec }
+            ) {
+                OutlinedTextField(
+                    value = mediaCodec,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.settings_mediaCodecLabel)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMediaCodec) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                        focusedTextColor = foregroundText, unfocusedTextColor = primaryText
+                    )
+                )
+                ExposedDropdownMenu(expanded = expandedMediaCodec, onDismissRequest = { expandedMediaCodec = false }) {
+                    listOf("H.264", "HEVC").forEach { codec ->
+                        DropdownMenuItem(text = { Text(codec) }, onClick = { viewModel.saveMediaCodec(codec); expandedMediaCodec = false })
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // quality dropdown
+            ExposedDropdownMenuBox(
+                expanded = expandedMediaQuality,
+                onExpandedChange = { expandedMediaQuality = !expandedMediaQuality }
+            ) {
+                OutlinedTextField(
+                    value = mediaQuality,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.settings_mediaQualityLabel)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMediaQuality) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                        focusedTextColor = foregroundText, unfocusedTextColor = primaryText
+                    )
+                )
+                ExposedDropdownMenu(expanded = expandedMediaQuality, onDismissRequest = { expandedMediaQuality = false }) {
+                    listOf("High", "Medium", "Low").forEach { quality ->
+                        DropdownMenuItem(text = { Text(quality) }, onClick = { viewModel.saveMediaQuality(quality); expandedMediaQuality = false })
+                    }
+                }
+            }
+        }
     }
 }
 

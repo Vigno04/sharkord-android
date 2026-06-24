@@ -346,7 +346,7 @@
     <string name="permissions_server_USE_PLUGINS">Use plugins</string>
     <string name="permissions_server_VIEW_USER_SENSITIVE_DATA">View user sensitive data</string>
     <string name="profile_show_members">Show members</string>
-    <string name="profile_user_settings_title">User Profile &amp;amp; Settings</string>
+    <string name="profile_user_settings_title">User Profile and Settings</string>
     <string name="settings_activityFiles">Files</string>
     <string name="settings_activityLinks">Links</string>
     <string name="settings_activityMessages">Messages</string>
@@ -441,10 +441,10 @@
     <string name="settings_detailLocation">Location</string>
     <string name="settings_detailUserId">User ID</string>
     <string name="settings_detailsTitle">Details</string>
-    <string name="settings_deviceSettingsSaved">Device settings saved</string>
-    <string name="settings_devicesDesc">Manage your peripheral devices and their settings.</string>
-    <string name="settings_devicesTab">Devices</string>
-    <string name="settings_devicesTitle">Devices</string>
+    <string name="settings_deviceSettingsSaved">Call settings saved</string>
+    <string name="settings_devicesDesc">Manage your call and media settings.</string>
+    <string name="settings_devicesTab">Call Settings</string>
+    <string name="settings_devicesTitle">Call Settings</string>
     <string name="settings_directMessagesDesc">Allow users to send direct messages to each other. If disabled, they can only communicate in channels.</string>
     <string name="settings_directMessagesEnabledDesc">Allow users to send direct messages to each other. If disabled, users can only communicate in channels.</string>
     <string name="settings_directMessagesEnabledLabel">Direct Messages</string>
@@ -461,6 +461,10 @@
     <string name="settings_dmNotificationsLabel">Direct Messages</string>
     <string name="settings_echoCancellationLabel">Echo Cancellation</string>
     <string name="settings_editEmojiTitle">Edit Emoji</string>
+    <string name="settings_compressMediaLabel">Compress before sending</string>
+    <string name="settings_compressMediaDesc">Compress camera photos and videos before uploading them to save data and time.</string>
+    <string name="settings_mediaCodecLabel">Media Codec</string>
+    <string name="settings_mediaQualityLabel">Media Quality</string>
     <string name="settings_editPermissionsFor">EDIT PERMISSIONS FOR %1$s</string>
     <string name="settings_editRoleTitle">Edit Role</string>
     <string name="settings_emojiCreated">Emoji created</string>
