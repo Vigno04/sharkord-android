@@ -63,6 +63,25 @@ class VideoEngine(
     private var screenCapturer: VideoCapturer? = null
     private var screenSurfaceTextureHelper: SurfaceTextureHelper? = null
 
+    // Cache settings to prevent crashes if they change mid-call
+    private var cachedFrontRes = "1280x720"
+    private var cachedBackRes = "1280x720"
+    private var cachedFrontFps = 30
+    private var cachedBackFps = 30
+    private var cachedScreenRes = "1280x720"
+    private var cachedScreenFps = 30
+    private var cachedDefaultCamera = "Front"
+
+    fun refreshSettings() {
+        cachedFrontRes = SharkordClient.session.frontVideoResolution
+        cachedBackRes = SharkordClient.session.backVideoResolution
+        cachedFrontFps = SharkordClient.session.frontVideoFps
+        cachedBackFps = SharkordClient.session.backVideoFps
+        cachedScreenRes = SharkordClient.session.screenShareResolution
+        cachedScreenFps = SharkordClient.session.screenShareFps
+        cachedDefaultCamera = SharkordClient.session.defaultCamera
+    }
+
     fun addRemoteVideoTrack(remoteId: String, track: VideoTrack) {
         _remoteVideoTracks.update { map ->
             map.toMutableMap().also { it[remoteId] = track }
@@ -147,13 +166,13 @@ class VideoEngine(
         
         val isFront = enumerator.isFrontFacing(selectedDeviceName)
         val resParts = if (isFront) {
-            SharkordClient.session.frontVideoResolution.split("x")
+            cachedFrontRes.split("x")
         } else {
-            SharkordClient.session.backVideoResolution.split("x")
+            cachedBackRes.split("x")
         }
         val targetWidth = resParts.getOrNull(0)?.toIntOrNull() ?: 1280
         val targetHeight = resParts.getOrNull(1)?.toIntOrNull() ?: 720
-        val targetFps = if (isFront) SharkordClient.session.frontVideoFps else SharkordClient.session.backVideoFps
+        val targetFps = if (isFront) cachedFrontFps else cachedBackFps
 
         var finalWidth = targetWidth
         var finalHeight = targetHeight
@@ -255,18 +274,19 @@ class VideoEngine(
         scope.launch {
             cameraMutex.withLock {
                 if (!cameraEnabled || localVideoTrack == null || videoCapturer !is org.webrtc.CameraVideoCapturer) return@withLock
-                val current = SharkordClient.session.defaultCamera
-                SharkordClient.session.defaultCamera = if (current == "Front") "Back" else "Front"
+                val current = cachedDefaultCamera
+                cachedDefaultCamera = if (current == "Front") "Back" else "Front"
+                SharkordClient.session.defaultCamera = cachedDefaultCamera
                 
-                val isFront = SharkordClient.session.defaultCamera == "Front"
+                val isFront = cachedDefaultCamera == "Front"
                 val resParts = if (isFront) {
-                    SharkordClient.session.frontVideoResolution.split("x")
+                    cachedFrontRes.split("x")
                 } else {
-                    SharkordClient.session.backVideoResolution.split("x")
+                    cachedBackRes.split("x")
                 }
                 val targetWidth = resParts.getOrNull(0)?.toIntOrNull() ?: 1280
                 val targetHeight = resParts.getOrNull(1)?.toIntOrNull() ?: 720
-                val targetFps = if (isFront) SharkordClient.session.frontVideoFps else SharkordClient.session.backVideoFps
+                val targetFps = if (isFront) cachedFrontFps else cachedBackFps
 
                 (videoCapturer as org.webrtc.CameraVideoCapturer).switchCamera(object : org.webrtc.CameraVideoCapturer.CameraSwitchHandler {
                     override fun onCameraSwitchDone(isFrontFacing: Boolean) {
@@ -357,12 +377,12 @@ class VideoEngine(
         screenCapturer?.initialize(screenSurfaceTextureHelper, activeContext, screenVideoSource?.capturerObserver)
         
         val displayMetrics = activeContext.resources.displayMetrics
-        val resString = com.sharkord.android.data.network.SharkordClient.session.screenShareResolution
+        val resString = cachedScreenRes
         val resParts = resString.split("x")
-        val width = resParts.getOrNull(0)?.toIntOrNull() ?: displayMetrics.widthPixels
-        val height = resParts.getOrNull(1)?.toIntOrNull() ?: displayMetrics.heightPixels
-        val fps = com.sharkord.android.data.network.SharkordClient.session.screenShareFps
-        screenCapturer?.startCapture(width, height, fps)
+        val targetWidth = resParts.getOrNull(0)?.toIntOrNull() ?: 1280
+        val targetHeight = resParts.getOrNull(1)?.toIntOrNull() ?: 720
+        val fps = cachedScreenFps
+        screenCapturer?.startCapture(targetWidth, targetHeight, fps)
 
         screenVideoTrack = factory.createVideoTrack("ARDAMSv0_screen", screenVideoSource)
         screenVideoTrack?.setEnabled(true)

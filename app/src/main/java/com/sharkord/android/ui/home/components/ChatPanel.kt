@@ -545,7 +545,7 @@ fun ChatPanel(
                 },
                 onCancelReply = { viewModel.setReplyTarget(null) },
                 onCancelEdit = { viewModel.setEditingMessage(null) },
-                onFileUpload = { name, bytes, uri -> viewModel.uploadAndAttachFile(name, bytes, uri) },
+                onFileUpload = { name, uri -> viewModel.uploadAndAttachFile(context, name, uri) },
                 onRemoveAttachment = { id -> viewModel.removeAttachedFile(id) },
                 onSendAudioRecording = { name, bytes -> viewModel.sendAudioVoiceNote(name, bytes) },
                 isEmojiPickerOpen = isEmojiPickerOpen,

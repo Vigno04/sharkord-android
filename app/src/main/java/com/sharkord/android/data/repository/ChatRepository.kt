@@ -1,5 +1,6 @@
 package com.sharkord.android.data.repository
 
+import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -97,9 +98,15 @@ class ChatRepository {
 
     // uploads a raw file attachment using the HTTP REST endpoint
     suspend fun uploadFile(originalName: String, fileBytes: ByteArray): Result<com.sharkord.android.data.model.FileInfo> {
-        val serverUrl = SharkordClient.currentServerUrl ?: return Result.failure(Exception("Server URL is not initialized"))
-        val token = SharkordClient.currentToken ?: return Result.failure(Exception("Auth token is not initialized"))
+        val serverUrl = SharkordClient.session.serverUrl ?: return Result.failure(Exception("No server URL"))
+        val token = SharkordClient.session.token ?: return Result.failure(Exception("No token"))
         return SharkordClient.http.uploadFile(serverUrl, token, originalName, fileBytes)
+    }
+
+    suspend fun uploadFileStream(context: Context, originalName: String, localUri: String, onProgress: ((Int) -> Unit)? = null): Result<com.sharkord.android.data.model.FileInfo> {
+        val serverUrl = SharkordClient.session.serverUrl ?: return Result.failure(Exception("No server URL"))
+        val token = SharkordClient.session.token ?: return Result.failure(Exception("No token"))
+        return SharkordClient.http.uploadFileStream(context, serverUrl, token, originalName, localUri, onProgress)
     }
 
     // edits an existing message

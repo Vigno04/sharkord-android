@@ -61,13 +61,15 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToServerSettings: () -> Unit,
     onNavigateToChannelSettings: (channelId: Int) -> Unit,
-    viewModel: HomeViewModel = viewModel()
+    viewModel: HomeViewModel = viewModel(),
+    voiceViewModel: com.sharkord.android.ui.voice.VoiceViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     
     // collect uiState
     val uiState by viewModel.uiState.collectAsState()
+    val voiceUiState by voiceViewModel.uiState.collectAsState()
 
     // initial connection
     LaunchedEffect(Unit) {
@@ -172,6 +174,16 @@ fun HomeScreen(
                     viewModel.closeDmsList()
                 }
 
+                // close voice chat when pressing back button
+                BackHandler(enabled = uiState.isViewingVoiceChat) {
+                    viewModel.setViewingVoiceChat(false)
+                }
+
+                // go back to server list when pressing back button in chat
+                BackHandler(enabled = uiState.activePanel == HomePanel.CHAT && !uiState.isViewingVoiceChat) {
+                    viewModel.setPanel(HomePanel.SERVER)
+                }
+
                 Box(modifier = Modifier.fillMaxSize()) {
                     // chat Panel
                     if (uiState.selectedChannelId != null) {
@@ -199,7 +211,7 @@ fun HomeScreen(
                                 ActivityResultContracts.RequestMultiplePermissions()
                             ) { results ->
                                 if (results[Manifest.permission.RECORD_AUDIO] == true) {
-                                    viewModel.joinVoiceChannel(uiState.selectedChannelId!!, context, displayName)
+                                    voiceViewModel.joinVoiceChannel(uiState.selectedChannelId!!, context, displayName)
                                 }
                             }
                             
@@ -207,7 +219,7 @@ fun HomeScreen(
                                 ActivityResultContracts.RequestMultiplePermissions()
                             ) { results ->
                                 if (results[Manifest.permission.CAMERA] == true) {
-                                    viewModel.toggleCamera(context)
+                                    voiceViewModel.toggleCamera(context)
                                 }
                             }
 
@@ -270,25 +282,25 @@ fun HomeScreen(
                                             val user = data.users.find { it.id.toString() == userIdStr }
                                             if (user != null) {
                                                 val isSpeaking = if (user.id == data.ownUserId) {
-                                                    uiState.activeSpeakers.contains("local")
+                                                    voiceUiState.activeSpeakers.contains("local")
                                                 } else {
-                                                    uiState.activeSpeakers.contains(user.id.toString())
+                                                    voiceUiState.activeSpeakers.contains(user.id.toString())
                                                 }
                                                 VoiceUserDisplay(user, state, isSpeaking)
                                             } else null
                                         }
                                     } else emptyList(),
-                                    isConnected = uiState.activeVoiceChannelId == uiState.selectedChannelId,
-                                    isConnectingToVoice = uiState.isConnectingToVoice,
+                                    isConnected = voiceUiState.activeVoiceChannelId == uiState.selectedChannelId,
+                                    isConnectingToVoice = voiceUiState.isConnectingToVoice,
                                     isMuted = isMuted,
                                     isDeafened = isDeafened,
-                                    cameraEnabled = uiState.cameraEnabled,
-                                    isScreenSharing = uiState.isScreenSharing,
-                                    localVideoTrack = uiState.localVideoTrack,
-                                    remoteVideoTracks = uiState.remoteVideoTracks,
-                                    eglBaseContext = uiState.eglBaseContext,
+                                    cameraEnabled = voiceUiState.cameraEnabled,
+                                    isScreenSharing = voiceUiState.isScreenSharing,
+                                    localVideoTrack = voiceUiState.localVideoTrack,
+                                    remoteVideoTracks = voiceUiState.remoteVideoTracks,
+                                    eglBaseContext = voiceUiState.eglBaseContext,
                                     ownUserId = data.ownUserId,
-                                    onDisconnectClick = { viewModel.leaveVoiceChannel(context) },
+                                    onDisconnectClick = { voiceViewModel.leaveVoiceChannel(context) },
                                     onConnectClick = { 
                                         val neededPermissions = mutableListOf(Manifest.permission.RECORD_AUDIO)
                                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -297,32 +309,32 @@ fun HomeScreen(
                                         val toRequest = neededPermissions.filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
                                         
                                         if (toRequest.isEmpty()) {
-                                            viewModel.joinVoiceChannel(uiState.selectedChannelId!!, context, displayName)
+                                            voiceViewModel.joinVoiceChannel(uiState.selectedChannelId!!, context, displayName)
                                         } else {
                                             permissionLauncher.launch(toRequest.toTypedArray())
                                         }
                                     },
                                     onToggleMicClick = { _ -> 
-                                        viewModel.toggleMic(uiState.selectedChannelId!!, isMuted, isDeafened) 
+                                        voiceViewModel.toggleMic(uiState.selectedChannelId!!, isMuted, isDeafened) 
                                     },
                                     onToggleDeafenClick = { _ ->
-                                        viewModel.toggleDeafen(uiState.selectedChannelId!!, isMuted, isDeafened)
+                                        voiceViewModel.toggleDeafen(uiState.selectedChannelId!!, isMuted, isDeafened)
                                     },
                                     onToggleCameraClick = {
                                         val neededPermissions = mutableListOf(Manifest.permission.CAMERA)
                                         val toRequest = neededPermissions.filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
                                         
                                         if (toRequest.isEmpty()) {
-                                            viewModel.toggleCamera(context)
+                                            voiceViewModel.toggleCamera(context)
                                         } else {
                                             cameraPermissionLauncher.launch(toRequest.toTypedArray())
                                         }
                                     },
                                     onToggleScreenShareClick = { enabled, intent ->
-                                        viewModel.toggleScreenShare(context, intent, enabled)
+                                        voiceViewModel.toggleScreenShare(context, enabled, intent)
                                     },
                                     onSwitchCameraClick = {
-                                        viewModel.switchCamera(context)
+                                        voiceViewModel.switchCamera(context)
                                     },
                                     onOpenChatClick = {
                                         viewModel.setViewingVoiceChat(true)
@@ -746,9 +758,9 @@ fun HomeScreen(
                                                     val user = data.users.find { it.id.toString() == userIdStr }
                                                     if (user != null) {
                                                         val isSpeaking = if (user.id == data.ownUserId) {
-                                                            uiState.activeSpeakers.contains("local")
+                                                            voiceUiState.activeSpeakers.contains("local")
                                                         } else {
-                                                            uiState.activeSpeakers.contains(user.id.toString())
+                                                            voiceUiState.activeSpeakers.contains(user.id.toString())
                                                         }
                                                         VoiceUserDisplay(user, state, isSpeaking)
                                                     } else null
@@ -790,7 +802,7 @@ fun HomeScreen(
                                             voiceMap = data.voiceMap,
                                             users = data.users,
                                             ownUserId = data.ownUserId,
-                                            activeSpeakers = uiState.activeSpeakers
+                                            activeSpeakers = voiceUiState.activeSpeakers
                                         )
                                     }
                                 }

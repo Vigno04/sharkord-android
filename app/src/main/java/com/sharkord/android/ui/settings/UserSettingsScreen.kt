@@ -98,6 +98,31 @@ fun UserSettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            val isInVoiceChannel by remember {
+                if (com.sharkord.android.data.network.SharkordClient.isVoiceEngineInitialized) {
+                    com.sharkord.android.data.network.SharkordClient.voiceEngine.isConnected
+                } else {
+                    kotlinx.coroutines.flow.MutableStateFlow(false)
+                }
+            }.collectAsState()
+
+            if (isInVoiceChannel && pagerState.currentPage == 1) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFE53935))
+                        .padding(12.dp),
+                    contentAlignment = androidx.compose.ui.Alignment.Center
+                ) {
+                    Text(
+                        text = "Changing settings will take effect when re entering a new chanel",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            }
             ScrollableTabRow(
                 selectedTabIndex = pagerState.currentPage,
                 containerColor = bgColor,

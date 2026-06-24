@@ -82,7 +82,7 @@ fun ChatInputBar(
     onSend: (String) -> Unit,
     onCancelReply: () -> Unit,
     onCancelEdit: () -> Unit,
-    onFileUpload: (String, ByteArray, String?) -> Unit,
+    onFileUpload: (String, String) -> Unit,
     onRemoveAttachment: (String) -> Unit,
     onSendAudioRecording: (String, ByteArray) -> Unit,
     isEmojiPickerOpen: Boolean = false,
@@ -229,12 +229,9 @@ fun ChatInputBar(
             }
 
             try {
-                contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val fileBytes = inputStream.readBytes()
-                    onFileUpload(originalName, fileBytes, uri.toString())
-                }
+                onFileUpload(originalName, uri.toString())
             } catch (e: Exception) {
-                Log.e("ChatInputBar", "Failed to read file", e)
+                Log.e("ChatInputBar", "Failed to process file uri", e)
             }
         }
     }
@@ -379,11 +376,20 @@ fun ChatInputBar(
                             .padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        CircularProgressIndicator(
-                            color = accentColor,
-                            modifier = Modifier.size(14.dp),
-                            strokeWidth = 2.dp
-                        )
+                        if (uiState.uploadProgress != null) {
+                            CircularProgressIndicator(
+                                progress = uiState.uploadProgress.toFloat() / 100f,
+                                color = accentColor,
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            CircularProgressIndicator(
+                                color = accentColor,
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp
+                            )
+                        }
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = stringResource(id = R.string.chat_uploading),

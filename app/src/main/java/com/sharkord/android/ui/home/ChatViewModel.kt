@@ -53,6 +53,8 @@ data class ChatUiState(
     val attachedFiles: List<com.sharkord.android.data.model.FileInfo> = emptyList(),
     // true while an attachment upload is in-flight
     val isUploadingAttachment: Boolean = false,
+    // current upload progress (0-100) or null if not uploading or indeterminate
+    val uploadProgress: Int? = null,
     // expose the current user's ID reactively from the server connection state
     val ownUserId: Int = -1,
     // the media file currently being viewed in full-screen lightbox
@@ -376,22 +378,26 @@ class ChatViewModel : ViewModel() {
 
     // file Upload & Voice Messaging
 
-    // uploads a file and attaches it to the draft
-    fun uploadAndAttachFile(originalName: String, fileBytes: ByteArray, localUri: String? = null) {
+    // uploads a file and attaches it to the draft using streaming
+    fun uploadAndAttachFile(context: android.content.Context, originalName: String, localUri: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isUploadingAttachment = true, errorMessage = null) }
-            repository.uploadFile(originalName, fileBytes).fold(
+            _uiState.update { it.copy(isUploadingAttachment = true, uploadProgress = 0, errorMessage = null) }
+            repository.uploadFileStream(context, originalName, localUri) { progress ->
+                _uiState.update { it.copy(uploadProgress = progress) }
+            }.fold(
                 onSuccess = { fileInfo ->
                     val updatedFileInfo = fileInfo.copy(localUri = localUri)
                     _uiState.update { it.copy(
                         attachedFiles = it.attachedFiles + updatedFileInfo,
-                        isUploadingAttachment = false
+                        isUploadingAttachment = false,
+                        uploadProgress = null
                     )}
                 },
                 onFailure = { error ->
                     Log.e(TAG, "Failed to upload file: ${error.message}")
                     _uiState.update { it.copy(
                         isUploadingAttachment = false,
+                        uploadProgress = null,
                         errorMessage = error.message ?: "Failed to upload file"
                     )}
                 }
