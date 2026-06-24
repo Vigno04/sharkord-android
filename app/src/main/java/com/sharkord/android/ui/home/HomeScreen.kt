@@ -9,6 +9,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -40,6 +41,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import com.sharkord.android.R
 import com.sharkord.android.data.model.Channel
 import com.sharkord.android.data.network.SharkordClient
@@ -47,7 +53,6 @@ import com.sharkord.android.ui.components.rememberAsyncImagePainter
 import com.sharkord.android.ui.components.rememberExtendedImageState
 import com.sharkord.android.ui.home.components.*
 import kotlinx.coroutines.launch
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,15 +66,15 @@ fun HomeScreen(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     
-    // Collect uiState
+    // collect uiState
     val uiState by viewModel.uiState.collectAsState()
 
-    // Initial connection
+    // initial connection
     LaunchedEffect(Unit) {
         viewModel.connect()
     }
 
-    // Theme colors
+    // theme colors
     val colors = com.sharkord.android.ui.theme.LocalSharkordColors.current
     val bgColor = colors.bgColor
     val cardColor = colors.cardColor
@@ -77,7 +82,7 @@ fun HomeScreen(
     val foregroundText = colors.foregroundText
     val accentColor = colors.accentColor
 
-    // Main container
+    // main container
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -123,21 +128,52 @@ fun HomeScreen(
                 val density = LocalDensity.current
                 val screenWidthPx = remember(screenWidthDp) { with(density) { screenWidthDp.toPx() } }
                 
-                // Track dynamic swipe-to-dismiss offset of the Channels List in pixels
+                // track dynamic swipe-to-dismiss offset of the Channels List in pixels
                 val swipeOffset = remember { Animatable(if (uiState.activePanel == HomePanel.SERVER) 0f else -screenWidthPx) }
+                val voiceSwipeOffset = remember { Animatable(if (uiState.isViewingVoiceChat) -screenWidthPx else 0f) }
                 val coroutineScope = rememberCoroutineScope()
+                val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
 
-                // Programmatic panel transitions
+                // programmatic panel transitions
                 LaunchedEffect(uiState.activePanel) {
                     if (uiState.activePanel == HomePanel.SERVER) {
+                        keyboardController?.hide()
                         swipeOffset.animateTo(0f)
                     } else {
                         swipeOffset.animateTo(-screenWidthPx)
                     }
                 }
 
+                LaunchedEffect(uiState.isViewingVoiceChat) {
+                    if (uiState.isViewingVoiceChat) {
+                        voiceSwipeOffset.animateTo(-screenWidthPx)
+                    } else {
+                        voiceSwipeOffset.animateTo(0f)
+                    }
+                }
+
+                // handle screen orientation/width changes
+                LaunchedEffect(screenWidthPx) {
+                    if (uiState.activePanel == HomePanel.SERVER) {
+                        swipeOffset.snapTo(0f)
+                    } else {
+                        swipeOffset.snapTo(-screenWidthPx)
+                    }
+                    
+                    if (uiState.isViewingVoiceChat) {
+                        voiceSwipeOffset.snapTo(-screenWidthPx)
+                    } else {
+                        voiceSwipeOffset.snapTo(0f)
+                    }
+                }
+
+                // close DM list when pressing back button
+                BackHandler(enabled = uiState.activePanel == HomePanel.SERVER && uiState.isDmsListOpen) {
+                    viewModel.closeDmsList()
+                }
+
                 Box(modifier = Modifier.fillMaxSize()) {
-                    // Chat Panel
+                    // chat Panel
                     if (uiState.selectedChannelId != null) {
                         val activeChannel = data.channels.find { it.id == uiState.selectedChannelId }
                         val isDm = activeChannel?.isDm == true
@@ -153,37 +189,267 @@ fun HomeScreen(
                             activeChannel?.name ?: ""
                         }
                         
-                        ChatPanel(
-                            channelId = uiState.selectedChannelId!!,
-                            targetMessageId = uiState.selectedMessageId,
-                            jumpTrigger = uiState.jumpTrigger,
-                            channelName = displayName,
-                            isDm = isDm,
-                            dmUser = otherUser,
-                            users = data.users,
-                            roles = data.roles ?: emptyList(),
-                            customEmojis = data.emojis ?: emptyList(),
-                            onBackClick = {
-                                coroutineScope.launch {
-                                    swipeOffset.animateTo(0f)
-                                    viewModel.setPanel(HomePanel.SERVER)
+                        if (activeChannel?.isVoice == true) {
+                            val channelUsers = data.voiceMap?.get(uiState.selectedChannelId!!.toString())?.users ?: emptyMap()
+                            val currentState = channelUsers[data.ownUserId.toString()]
+                            val isMuted = currentState?.micMuted ?: true
+                            val isDeafened = currentState?.soundMuted ?: true
+
+                            val permissionLauncher = rememberLauncherForActivityResult(
+                                ActivityResultContracts.RequestMultiplePermissions()
+                            ) { results ->
+                                if (results[Manifest.permission.RECORD_AUDIO] == true) {
+                                    viewModel.joinVoiceChannel(uiState.selectedChannelId!!, context, displayName)
                                 }
-                            },
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .pointerInput(uiState.activePanel) {
-                                    if (uiState.activePanel == HomePanel.CHAT) {
-                                        detectHorizontalDragGestures { change, dragAmount ->
-                                            if (dragAmount > 50) {
-                                                viewModel.setPanel(HomePanel.SERVER)
+                            }
+                            
+                            val cameraPermissionLauncher = rememberLauncherForActivityResult(
+                                ActivityResultContracts.RequestMultiplePermissions()
+                            ) { results ->
+                                if (results[Manifest.permission.CAMERA] == true) {
+                                    viewModel.toggleCamera(context)
+                                }
+                            }
+
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                // chat Panel (underneath)
+                                ChatPanel(
+                                    channelId = uiState.selectedChannelId!!,
+                                    targetMessageId = uiState.selectedMessageId,
+                                    jumpTrigger = uiState.jumpTrigger,
+                                    channelName = displayName,
+                                    isDm = isDm,
+                                    dmUser = otherUser,
+                                    users = data.users,
+                                    roles = data.roles ?: emptyList(),
+                                    customEmojis = data.emojis ?: emptyList(),
+                                    isActive = uiState.activePanel == HomePanel.CHAT && uiState.isViewingVoiceChat,
+                                    onBackClick = {
+                                        viewModel.setViewingVoiceChat(false)
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .pointerInput(uiState.activePanel) {
+                                            if (uiState.activePanel == HomePanel.CHAT) {
+                                                detectHorizontalDragGestures(
+                                                    onDragEnd = {
+                                                        coroutineScope.launch {
+                                                            if (voiceSwipeOffset.value > -screenWidthPx * 2 / 3) {
+                                                                voiceSwipeOffset.animateTo(0f)
+                                                                viewModel.setViewingVoiceChat(false)
+                                                            } else {
+                                                                voiceSwipeOffset.animateTo(-screenWidthPx)
+                                                            }
+                                                        }
+                                                    },
+                                                    onDragCancel = {
+                                                        coroutineScope.launch {
+                                                            voiceSwipeOffset.animateTo(-screenWidthPx)
+                                                        }
+                                                    },
+                                                    onHorizontalDrag = { change, dragAmount ->
+                                                        change.consume()
+                                                        coroutineScope.launch {
+                                                            if (dragAmount > 0 || voiceSwipeOffset.value > -screenWidthPx) {
+                                                                val newOffset = (voiceSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                                                voiceSwipeOffset.snapTo(newOffset)
+                                                            }
+                                                        }
+                                                    }
+                                                )
                                             }
                                         }
+                                )
+
+                                // voice Panel (sliding on top)
+                                val vOffset = with(density) { voiceSwipeOffset.value.toDp() }
+                                VoicePanel(
+                                    channelName = displayName,
+                                    voiceUsers = if (data.voiceMap != null) {
+                                        channelUsers.mapNotNull { (userIdStr, state) ->
+                                            val user = data.users.find { it.id.toString() == userIdStr }
+                                            if (user != null) {
+                                                val isSpeaking = if (user.id == data.ownUserId) {
+                                                    uiState.activeSpeakers.contains("local")
+                                                } else {
+                                                    uiState.activeSpeakers.contains(user.id.toString())
+                                                }
+                                                VoiceUserDisplay(user, state, isSpeaking)
+                                            } else null
+                                        }
+                                    } else emptyList(),
+                                    isConnected = uiState.activeVoiceChannelId == uiState.selectedChannelId,
+                                    isConnectingToVoice = uiState.isConnectingToVoice,
+                                    isMuted = isMuted,
+                                    isDeafened = isDeafened,
+                                    cameraEnabled = uiState.cameraEnabled,
+                                    isScreenSharing = uiState.isScreenSharing,
+                                    localVideoTrack = uiState.localVideoTrack,
+                                    remoteVideoTracks = uiState.remoteVideoTracks,
+                                    eglBaseContext = uiState.eglBaseContext,
+                                    ownUserId = data.ownUserId,
+                                    onDisconnectClick = { viewModel.leaveVoiceChannel(context) },
+                                    onConnectClick = { 
+                                        val neededPermissions = mutableListOf(Manifest.permission.RECORD_AUDIO)
+                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                            neededPermissions.add(Manifest.permission.POST_NOTIFICATIONS)
+                                        }
+                                        val toRequest = neededPermissions.filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
+                                        
+                                        if (toRequest.isEmpty()) {
+                                            viewModel.joinVoiceChannel(uiState.selectedChannelId!!, context, displayName)
+                                        } else {
+                                            permissionLauncher.launch(toRequest.toTypedArray())
+                                        }
+                                    },
+                                    onToggleMicClick = { _ -> 
+                                        viewModel.toggleMic(uiState.selectedChannelId!!, isMuted, isDeafened) 
+                                    },
+                                    onToggleDeafenClick = { _ ->
+                                        viewModel.toggleDeafen(uiState.selectedChannelId!!, isMuted, isDeafened)
+                                    },
+                                    onToggleCameraClick = {
+                                        val neededPermissions = mutableListOf(Manifest.permission.CAMERA)
+                                        val toRequest = neededPermissions.filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
+                                        
+                                        if (toRequest.isEmpty()) {
+                                            viewModel.toggleCamera(context)
+                                        } else {
+                                            cameraPermissionLauncher.launch(toRequest.toTypedArray())
+                                        }
+                                    },
+                                    onToggleScreenShareClick = { enabled, intent ->
+                                        viewModel.toggleScreenShare(context, intent, enabled)
+                                    },
+                                    onSwitchCameraClick = {
+                                        viewModel.switchCamera(context)
+                                    },
+                                    onOpenChatClick = {
+                                        viewModel.setViewingVoiceChat(true)
+                                    },
+                                    onBackClick = {
+                                        coroutineScope.launch {
+                                            swipeOffset.animateTo(0f)
+                                            viewModel.setPanel(HomePanel.SERVER)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .offset(x = vOffset)
+                                        .drawBehind {
+                                            val strokeWidth = 1.dp.toPx()
+                                            val x = size.width - strokeWidth / 2
+                                            drawLine(
+                                                color = Color.Black.copy(alpha = 0.6f),
+                                                start = Offset(x, 0f),
+                                                end = Offset(x, size.height),
+                                                strokeWidth = strokeWidth
+                                            )
+                                        }
+                                        .pointerInput(uiState.activePanel) {
+                                            if (uiState.activePanel == HomePanel.CHAT) {
+                                                detectHorizontalDragGestures(
+                                                    onDragEnd = {
+                                                        coroutineScope.launch {
+                                                            if (swipeOffset.value > -screenWidthPx * 2 / 3 && swipeOffset.value != -screenWidthPx) {
+                                                                swipeOffset.animateTo(0f)
+                                                                viewModel.setPanel(HomePanel.SERVER)
+                                                            } else if (swipeOffset.value > -screenWidthPx) {
+                                                                swipeOffset.animateTo(-screenWidthPx)
+                                                            } else if (voiceSwipeOffset.value < -screenWidthPx / 3 && voiceSwipeOffset.value != 0f) {
+                                                                voiceSwipeOffset.animateTo(-screenWidthPx)
+                                                                viewModel.setViewingVoiceChat(true)
+                                                            } else if (voiceSwipeOffset.value < 0f) {
+                                                                voiceSwipeOffset.animateTo(0f)
+                                                            }
+                                                        }
+                                                    },
+                                                    onDragCancel = {
+                                                        coroutineScope.launch {
+                                                            swipeOffset.animateTo(-screenWidthPx)
+                                                            voiceSwipeOffset.animateTo(0f)
+                                                        }
+                                                    },
+                                                    onHorizontalDrag = { change, dragAmount ->
+                                                        change.consume()
+                                                        coroutineScope.launch {
+                                                            if (swipeOffset.value > -screenWidthPx) {
+                                                                val newOffset = (swipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                                                swipeOffset.snapTo(newOffset)
+                                                            } else if (voiceSwipeOffset.value < 0f) {
+                                                                val newOffset = (voiceSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                                                voiceSwipeOffset.snapTo(newOffset)
+                                                            } else {
+                                                                if (dragAmount > 0) {
+                                                                    val newOffset = (swipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                                                    swipeOffset.snapTo(newOffset)
+                                                                } else {
+                                                                    val newOffset = (voiceSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                                                    voiceSwipeOffset.snapTo(newOffset)
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                )
+                                            }
+                                        }
+                                )
+                            }
+                        } else {
+                            ChatPanel(
+                                channelId = uiState.selectedChannelId!!,
+                                targetMessageId = uiState.selectedMessageId,
+                                jumpTrigger = uiState.jumpTrigger,
+                                channelName = displayName,
+                                isDm = isDm,
+                                dmUser = otherUser,
+                                users = data.users,
+                                roles = data.roles ?: emptyList(),
+                                customEmojis = data.emojis ?: emptyList(),
+                                isActive = uiState.activePanel == HomePanel.CHAT,
+                                onBackClick = {
+                                    coroutineScope.launch {
+                                        swipeOffset.animateTo(0f)
+                                        viewModel.setPanel(HomePanel.SERVER)
                                     }
-                                }
-                        )
+                                },
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .pointerInput(uiState.activePanel) {
+                                        if (uiState.activePanel == HomePanel.CHAT) {
+                                            detectHorizontalDragGestures(
+                                                onDragEnd = {
+                                                    coroutineScope.launch {
+                                                        if (swipeOffset.value > -screenWidthPx * 2 / 3) {
+                                                            swipeOffset.animateTo(0f)
+                                                            viewModel.setPanel(HomePanel.SERVER)
+                                                        } else {
+                                                            swipeOffset.animateTo(-screenWidthPx)
+                                                        }
+                                                    }
+                                                },
+                                                onDragCancel = {
+                                                    coroutineScope.launch {
+                                                        swipeOffset.animateTo(-screenWidthPx)
+                                                    }
+                                                },
+                                                onHorizontalDrag = { change, dragAmount ->
+                                                    change.consume()
+                                                    coroutineScope.launch {
+                                                        if (dragAmount > 0 || swipeOffset.value > -screenWidthPx) {
+                                                            val newOffset = (swipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                                            swipeOffset.snapTo(newOffset)
+                                                        }
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    }
+                            )
+                        }
                     }
 
-                    // Server Channels list
+                    // server Channels list
                     val channelsOffset = with(density) { swipeOffset.value.toDp() }
 
                     Column(
@@ -206,11 +472,11 @@ fun HomeScreen(
                                     onDragEnd = {
                                         coroutineScope.launch {
                                             if (swipeOffset.value < -screenWidthPx / 3) {
-                                                // Complete swipe back to chat panel
+                                                // complete swipe back to chat panel
                                                 swipeOffset.animateTo(-screenWidthPx)
                                                 viewModel.setPanel(HomePanel.CHAT)
                                             } else {
-                                                // Return to current server panel position
+                                                // return to current server panel position
                                                 swipeOffset.animateTo(0f)
                                             }
                                         }
@@ -231,7 +497,7 @@ fun HomeScreen(
                             },
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Find authenticated user in returned list to confirm correct name
+                        // find authenticated user in returned list to confirm correct name
                         val currentUser = data.users.find { it.id == data.ownUserId }
                         val userName = currentUser?.name ?: stringResource(id = R.string.common_unknownUser)
 
@@ -241,7 +507,7 @@ fun HomeScreen(
                             p.contains("MANAGE_CHANNELS") || p.contains("MANAGE_SETTINGS")
                         } || data.ownUserId == 1
 
-                        // Channels Grouping
+                        // channels Grouping
                         val uncategorizedText =
                             data.channels.filter { it.categoryId == null && !it.isVoice && !it.isDm }
                         val uncategorizedVoice =
@@ -295,7 +561,7 @@ fun HomeScreen(
                             }
                         }
 
-                        // Main Scrollable Content
+                        // main Scrollable Content
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -377,7 +643,7 @@ fun HomeScreen(
                                     }
                                 }
                             } else {
-                            // Server Banner
+                            // server Banner
                             item {
                                 val logoState =
                                     rememberExtendedImageState(SharkordClient.currentServerLogoUrl)
@@ -400,7 +666,7 @@ fun HomeScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (logoState.painter != null) {
-                                        // Foreground custom logo
+                                        // foreground custom logo
                                         Image(
                                             painter = logoState.painter,
                                             contentDescription = null,
@@ -408,7 +674,7 @@ fun HomeScreen(
                                             modifier = Modifier.fillMaxSize()
                                         )
                                     } else {
-                                        // Fallback logo
+                                        // fallback logo
                                         val fallbackPainter = painterResource(id = R.drawable.logo)
                                         Image(
                                             painter = fallbackPainter,
@@ -422,7 +688,7 @@ fun HomeScreen(
                                 }
                             }
 
-                            // Server Header
+                            // server Header
                             item {
                                 val totalUnreadDMs = dmChannels.sumOf { uiState.readStates[it.id] ?: 0 }
 
@@ -439,7 +705,7 @@ fun HomeScreen(
                                 )
                             }
 
-                            // Uncategorized Channels
+                            // uncategorized Channels
                             if (uncategorizedText.isNotEmpty()) {
                                 items(uncategorizedText) { channel ->
                                     Box(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -465,19 +731,35 @@ fun HomeScreen(
                                     ChannelItem(
                                             channel = channel,
                                             isSelected = uiState.selectedChannelId == channel.id,
-                                            onSelect = { /* Voice channel — no text chat */ },
+                                            onSelect = {
+                                                viewModel.selectChannel(channel.id)
+                                            },
                                             canManage = hasManageChannels,
                                             onEditClick = { onNavigateToChannelSettings(channel.id) },
                                             onDeleteClick = { viewModel.showDeleteChannelDialog(channel.id) },
                                             foregroundText = foregroundText,
                                             primaryText = primaryText,
-                                            unreadCount = uiState.readStates[channel.id] ?: 0
+                                            unreadCount = uiState.readStates[channel.id] ?: 0,
+                                            voiceUsers = if (data.voiceMap != null) {
+                                                val channelUsers = data.voiceMap[channel.id.toString()]?.users ?: emptyMap()
+                                                channelUsers.mapNotNull { (userIdStr, state) ->
+                                                    val user = data.users.find { it.id.toString() == userIdStr }
+                                                    if (user != null) {
+                                                        val isSpeaking = if (user.id == data.ownUserId) {
+                                                            uiState.activeSpeakers.contains("local")
+                                                        } else {
+                                                            uiState.activeSpeakers.contains(user.id.toString())
+                                                        }
+                                                        VoiceUserDisplay(user, state, isSpeaking)
+                                                    } else null
+                                                }
+                                            } else emptyList()
                                         )
                                     }
                                 }
                             }
 
-                            // Grouped Categories
+                            // grouped Categories
                             categoriesList.forEach { category ->
                                 val catChannels =
                                     data.channels.filter { it.categoryId == category.id && !it.isDm }
@@ -495,28 +777,34 @@ fun HomeScreen(
                                             selectedChannelId = uiState.selectedChannelId,
                                             onToggleCategory = { viewModel.toggleCategory(category.id) },
                                             onAddChannelClick = { viewModel.showAddChannelDialog(category.id) },
-                                            onChannelSelect = { channelId -> viewModel.selectChannel(channelId) },
+                                            onChannelSelect = { channelId ->
+                                                viewModel.selectChannel(channelId)
+                                            },
                                             onChannelLongPress = { channelId -> viewModel.selectChannel(channelId, navigateToChat = false) },
                                             onChannelEdit = { channelId -> onNavigateToChannelSettings(channelId) },
                                             onChannelDelete = { channelId -> viewModel.showDeleteChannelDialog(channelId) },
                                             onReorderChannels = { newChannelIds -> viewModel.reorderChannels(category.id, newChannelIds) },
                                             foregroundText = foregroundText,
                                             primaryText = primaryText,
-                                            readStates = uiState.readStates
+                                            readStates = uiState.readStates,
+                                            voiceMap = data.voiceMap,
+                                            users = data.users,
+                                            ownUserId = data.ownUserId,
+                                            activeSpeakers = uiState.activeSpeakers
                                         )
                                     }
                                 }
                             }
                             }
 
-                            // Bottom spacer
+                            // bottom spacer
                             item {
                                 Spacer(modifier = Modifier.height(96.dp))
                             }
                         }
                     }
 
-                    // Bottom Profile Bar
+                    // bottom Profile Bar
                     BottomProfileBar(
                         currentUser = currentUser,
                         userName = userName,
@@ -526,7 +814,7 @@ fun HomeScreen(
                     )
                 }
 
-                // Profile Bottom Sheet
+                // profile Bottom Sheet
                 if (uiState.showProfileSheet) {
                     ProfileBottomSheet(
                         currentUser = currentUser,
@@ -553,7 +841,7 @@ fun HomeScreen(
                     )
                 }
 
-                // Members Bottom Sheet
+                // members Bottom Sheet
                 if (uiState.showMembersSheet) {
                     val usersToShow = if (uiState.membersSheetFilterDms) {
                         val existingDmUserIds = data.channels.filter { it.isDm }.mapNotNull { ch ->
@@ -578,7 +866,7 @@ fun HomeScreen(
                     )
                 }
 
-                // Server Profile Bottom Sheet
+                // server Profile Bottom Sheet
                 var showUnderConstruction by remember { mutableStateOf(false) }
 
                 if (uiState.showServerSheet) {
@@ -617,7 +905,7 @@ fun HomeScreen(
 
                 }
                 
-                // Add Channel Dialog
+                // add Channel Dialog
                 if (uiState.showAddChannelDialog) {
                     AddChannelDialog(
                         onDismissRequest = { viewModel.dismissAddChannelDialog() },
@@ -629,7 +917,7 @@ fun HomeScreen(
                     )
                 }
 
-                // Add Category Dialog
+                // add Category Dialog
                 if (uiState.showAddCategoryDialog) {
                     AddCategoryDialog(
                         onDismissRequest = { viewModel.dismissAddCategoryDialog() },
@@ -641,7 +929,7 @@ fun HomeScreen(
                     )
                 }
 
-                // Delete Channel Dialog
+                // delete Channel Dialog
                 if (uiState.showDeleteChannelDialogForId != null) {
                     val channelId = uiState.showDeleteChannelDialogForId!!
                     val channelToDelete = data.channels.find { it.id == channelId }
@@ -667,7 +955,7 @@ fun HomeScreen(
                     }
                 }
 
-                // Search Panel
+                // search Panel
                 androidx.compose.animation.AnimatedVisibility(
                     visible = uiState.showSearchSheet,
                     enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { it },

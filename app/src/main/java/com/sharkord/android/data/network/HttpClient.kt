@@ -17,12 +17,9 @@ import java.io.IOException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-/**
- * Handles all HTTP REST API calls to the Sharkord server.
- *
- * Uses Kotlin coroutines instead of callbacks — callers get clean `Result<T>` returns.
- * No Android Context dependency; error mapping happens at the ViewModel layer.
- */
+// handles all HTTP REST API calls to the Sharkord server
+// uses Kotlin coroutines instead of callbacks — callers get clean `Result<T>` returns
+// no Android Context dependency; error mapping happens at the ViewModel layer
 class SharkordHttpClient(private val client: OkHttpClient) {
 
     private val gson = Gson()
@@ -32,14 +29,11 @@ class SharkordHttpClient(private val client: OkHttpClient) {
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
     }
 
-    // Public API
+    // public API
 
-    /**
-     * POST /login — authenticate with identity and password.
-     *
-     * @return [Result.success] with the JWT token string on success,
-     *         [Result.failure] with a descriptive [SharkordApiException] on failure.
-     */
+    // POST /login — authenticate with identity and password
+    // @return [Result.success] with the JWT token string on success,
+    // [Result.failure] with a descriptive [SharkordApiException] on failure
     suspend fun login(serverUrl: String, identity: String, password: String): Result<String> {
         val cleanUrl = serverUrl.trimEnd('/')
         val requestUrl = "$cleanUrl/login"
@@ -55,7 +49,7 @@ class SharkordHttpClient(private val client: OkHttpClient) {
             val body = response.body?.string()
 
             if (!response.isSuccessful || body == null) {
-                // Try to parse validation errors from the server
+                // try to parse validation errors from the server
                 if (body != null) {
                     try {
                         val loginResponse = gson.fromJson(body, LoginResponse::class.java)
@@ -78,6 +72,8 @@ class SharkordHttpClient(private val client: OkHttpClient) {
                     ?: "Login failed"
                 Result.failure(SharkordApiException(errorMsg))
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: IOException) {
             Log.e(TAG, "Login network error: ${e.message}")
             Result.failure(SharkordApiException("Network error: ${e.message}", cause = e))
@@ -87,9 +83,7 @@ class SharkordHttpClient(private val client: OkHttpClient) {
         }
     }
 
-    /**
-     * GET /info — fetch server metadata (name, description, logo, version).
-     */
+    // GET /info — fetch server metadata (name, description, logo, version)
     suspend fun fetchServerInfo(serverUrl: String): Result<ServerInfoResponse> {
         val cleanUrl = serverUrl.trimEnd('/')
         val requestUrl = "$cleanUrl/info"
@@ -112,6 +106,8 @@ class SharkordHttpClient(private val client: OkHttpClient) {
             val serverInfo = gson.fromJson(body, ServerInfoResponse::class.java)
             Log.d(TAG, "Server info fetched: name=${serverInfo.name}, logo=${serverInfo.logo}")
             Result.success(serverInfo)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: IOException) {
             Log.e(TAG, "Server info network error: ${e.message}")
             Result.failure(SharkordApiException("Network error: ${e.message}", cause = e))
@@ -121,9 +117,7 @@ class SharkordHttpClient(private val client: OkHttpClient) {
         }
     }
 
-    /**
-     * POST /upload — upload a raw file attachment.
-     */
+    // POST /upload — upload a raw file attachment
     suspend fun uploadFile(
         serverUrl: String,
         token: String,
@@ -156,6 +150,8 @@ class SharkordHttpClient(private val client: OkHttpClient) {
             val fileInfo = gson.fromJson(body, com.sharkord.android.data.model.FileInfo::class.java)
             Log.d(TAG, "File uploaded successfully: id=${fileInfo.id}, name=${fileInfo.name}")
             Result.success(fileInfo)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: IOException) {
             Log.e(TAG, "File upload network error: ${e.message}")
             Result.failure(SharkordApiException("Network error: ${e.message}", cause = e))
@@ -165,11 +161,9 @@ class SharkordHttpClient(private val client: OkHttpClient) {
         }
     }
 
-    // Internal Utilities
+    // internal Utilities
 
-    /**
-     * Bridge from OkHttp's callback-based API to Kotlin coroutines.
-     */
+    // bridge from OkHttp's callback-based API to Kotlin coroutines
     private suspend fun OkHttpClient.awaitCall(request: Request): Response {
         return suspendCancellableCoroutine { continuation ->
             val call = this.newCall(request)
@@ -195,9 +189,7 @@ class SharkordHttpClient(private val client: OkHttpClient) {
     }
 }
 
-/**
- * Exception type for Sharkord API errors, carrying an optional HTTP status code.
- */
+// exception type for Sharkord API errors, carrying an optional HTTP status code
 class SharkordApiException(
     message: String,
     val httpCode: Int? = null,

@@ -66,6 +66,7 @@ fun ChatPanel(
     users: List<User>,
     roles: List<Role>,
     customEmojis: List<Emoji>,
+    isActive: Boolean = true,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ChatViewModel = viewModel(key = "chat_$channelId")
@@ -102,17 +103,16 @@ fun ChatPanel(
 
     val keyboardController = LocalSoftwareKeyboardController.current
 
-
-    // Initialize ViewModel
+    // initialize ViewModel
     LaunchedEffect(channelId, targetMessageId, jumpTrigger) {
         if (targetMessageId != null) {
             val index = uiState.messages.indexOfFirst { it.id == targetMessageId }
             if (index != -1) {
-                // The message is already loaded. Scroll to it directly.
+                // the message is already loaded. Scroll to it directly
                 val headerOffset = if (uiState.isLoadingOlder || (uiState.hasReachedTop && uiState.messages.isNotEmpty())) 1 else 0
                 val viewportHeight = listState.layoutInfo.viewportSize.height
-                // Offset by roughly a third of the viewport height to position the target message 
-                // towards the center rather than stuck at the top/bottom edge.
+                // offset by roughly a third of the viewport height to position the target message
+                // towards the center rather than stuck at the top/bottom edge
                 val offset = if (viewportHeight > 0) -(viewportHeight / 3) else -500
                 listState.scrollToItem(index + headerOffset, offset)
                 playingHighlightId = targetMessageId
@@ -122,7 +122,7 @@ fun ChatPanel(
         viewModel.init(channelId, targetMessageId)
     }
 
-    // Jump to message
+    // jump to message
     val jumpTarget = uiState.jumpTargetMessageId
     LaunchedEffect(jumpTarget, uiState.messages) {
         if (jumpTarget != null && uiState.messages.isNotEmpty()) {
@@ -130,8 +130,8 @@ fun ChatPanel(
             if (index != -1) {
                 val headerOffset = if (uiState.isLoadingOlder || (uiState.hasReachedTop && uiState.messages.isNotEmpty())) 1 else 0
                 val viewportHeight = listState.layoutInfo.viewportSize.height
-                // Offset by roughly a third of the viewport height to position the target message 
-                // towards the center rather than stuck at the top/bottom edge.
+                // offset by roughly a third of the viewport height to position the target message
+                // towards the center rather than stuck at the top/bottom edge
                 val offset = if (viewportHeight > 0) -(viewportHeight / 3) else -500
                 listState.scrollToItem(index + headerOffset, offset)
                 playingHighlightId = jumpTarget
@@ -141,7 +141,7 @@ fun ChatPanel(
         }
     }
 
-    // Edit mode: populate input field
+    // edit mode: populate input field
     LaunchedEffect(uiState.editingMessage) {
         val editing = uiState.editingMessage
         if (editing != null) {
@@ -152,7 +152,7 @@ fun ChatPanel(
         }
     }
 
-    // Auto-scroll to bottom
+    // auto-scroll to bottom
     val isAtBottom by remember {
         derivedStateOf {
             val layout = listState.layoutInfo
@@ -170,7 +170,7 @@ fun ChatPanel(
     LaunchedEffect(lastMessageId) {
         if (lastMessageId == null) return@LaunchedEffect
         
-        // Do not auto-scroll to bottom if there is a jump target
+        // do not auto-scroll to bottom if there is a jump target
         if (uiState.jumpTargetMessageId != null) return@LaunchedEffect
 
         if (!hasInitialLoaded) {
@@ -194,15 +194,55 @@ fun ChatPanel(
         if (isAtBottom) unreadNewCount = 0
     }
 
-    // Paginate old messages
+    // paginate old messages & retain scroll position
     val firstVisibleIndex by remember { derivedStateOf { listState.firstVisibleItemIndex } }
+    
+    var previousMessagesSize by remember(channelId) { mutableIntStateOf(0) }
+    var previousFirstVisibleId by remember(channelId) { mutableStateOf<Int?>(null) }
+    var previousFirstVisibleOffset by remember(channelId) { mutableIntStateOf(0) }
+    var previousFirstVisibleIndex by remember(channelId) { mutableIntStateOf(0) }
+
+    LaunchedEffect(firstVisibleIndex, listState.firstVisibleItemScrollOffset) {
+        val headerOffset = if (uiState.isLoadingOlder || (uiState.hasReachedTop && uiState.messages.isNotEmpty())) 1 else 0
+        if (uiState.messages.isNotEmpty()) {
+            if (firstVisibleIndex >= headerOffset && firstVisibleIndex - headerOffset < uiState.messages.size) {
+                previousFirstVisibleId = uiState.messages[firstVisibleIndex - headerOffset].id
+                previousFirstVisibleOffset = listState.firstVisibleItemScrollOffset
+                previousFirstVisibleIndex = firstVisibleIndex - headerOffset
+            } else if (firstVisibleIndex < headerOffset) {
+                previousFirstVisibleId = uiState.messages[0].id
+                previousFirstVisibleOffset = listState.firstVisibleItemScrollOffset
+                previousFirstVisibleIndex = 0
+            }
+        }
+    }
+
+    LaunchedEffect(uiState.messages.size) {
+        val newSize = uiState.messages.size
+        val oldSize = previousMessagesSize
+        previousMessagesSize = newSize
+
+        if (oldSize > 0 && newSize > oldSize) {
+            val prevFirstId = previousFirstVisibleId
+            if (prevFirstId != null) {
+                val newIndex = uiState.messages.indexOfFirst { it.id == prevFirstId }
+                // Only adjust scroll if items were prepended (pushing the old first item down)
+                if (newIndex > previousFirstVisibleIndex) {
+                    val headerOffset = if (uiState.isLoadingOlder || (uiState.hasReachedTop && uiState.messages.isNotEmpty())) 1 else 0
+                    listState.scrollToItem(newIndex + headerOffset, previousFirstVisibleOffset)
+                    previousFirstVisibleIndex = newIndex
+                }
+            }
+        }
+    }
+
     LaunchedEffect(firstVisibleIndex) {
-        if (firstVisibleIndex == 0 && !uiState.isLoadingHistory && !uiState.isLoadingOlder && !uiState.hasReachedTop) {
+        if (firstVisibleIndex <= 5 && !uiState.isLoadingHistory && !uiState.isLoadingOlder && !uiState.hasReachedTop) {
             viewModel.loadOlderMessages()
         }
     }
 
-    // Helper to close the keyboard
+    // helper to close the keyboard
     val dismissInputPanel = {
         if (isEmojiPickerOpen) {
             isEmojiPickerOpen = false
@@ -210,8 +250,8 @@ fun ChatPanel(
         keyboardController?.hide()
     }
 
-    // System back button interception
-    BackHandler {
+    // system back button interception
+    BackHandler(enabled = isActive) {
         when {
             uiState.viewingMediaFile != null -> viewModel.setViewingMediaFile(null)
             showMenuMessage != null          -> showMenuMessage = null
@@ -228,7 +268,7 @@ fun ChatPanel(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
 
-            // Top Bar
+            // top Bar
             ChatTopBar(
                 channelName = channelName,
                 isDm = isDm,
@@ -238,7 +278,7 @@ fun ChatPanel(
                 onTogglePinnedMessages = { viewModel.setPinnedMessagesVisible(!uiState.showPinnedMessages) }
             )
 
-            // Error Banner
+            // error Banner
             AnimatedVisibility(
                 visible = uiState.errorMessage != null,
                 enter = fadeIn(),
@@ -270,8 +310,8 @@ fun ChatPanel(
                 }
             }
 
-            // Message List Area
-            // Tapping anywhere in this area dismisses the keyboard,
+            // message List Area
+            // tapping anywhere in this area dismisses the keyboard,
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -398,8 +438,8 @@ fun ChatPanel(
                                         if (targetIndex != -1) {
                                             val headerOffset = if (uiState.isLoadingOlder || (uiState.hasReachedTop && uiState.messages.isNotEmpty())) 1 else 0
                                             val viewportHeight = listState.layoutInfo.viewportSize.height
-                                            // Offset by roughly a third of the viewport height to position the target message 
-                                            // towards the center rather than stuck at the top/bottom edge.
+                                            // offset by roughly a third of the viewport height to position the target message
+                                            // towards the center rather than stuck at the top/bottom edge
                                             val offset = if (viewportHeight > 0) -(viewportHeight / 3) else -500
                                             coroutineScope.launch {
                                                 listState.animateScrollToItem(targetIndex + headerOffset, offset)
@@ -430,7 +470,7 @@ fun ChatPanel(
                     }
                 }
 
-                // New Messages Pill
+                // new Messages Pill
                 androidx.compose.animation.AnimatedVisibility(
                     visible = unreadNewCount > 0,
                     modifier = Modifier
@@ -473,7 +513,7 @@ fun ChatPanel(
                 }
             }
 
-            // Input Bar
+            // input Bar
             ChatInputBar(
                 channelName = channelName,
                 users = users,
@@ -511,17 +551,17 @@ fun ChatPanel(
                 isEmojiPickerOpen = isEmojiPickerOpen,
                 onToggleEmojiPicker = {
                     if (!isEmojiPickerOpen) {
-                        // Keyboard → Emoji: open emoji picker, hide keyboard
+                        // keyboard → Emoji: open emoji picker, hide keyboard
                         isEmojiPickerOpen = true
                         keyboardController?.hide()
                     }
-                    // Emoji → Keyboard: do nothing here.
-                    // ChatInputBar will request focus and show the keyboard.
-                    // The LaunchedEffect below closes emoji once the keyboard appears.
+                    // emoji → Keyboard: do nothing here
+                    // chatInputBar will request focus and show the keyboard
+                    // the LaunchedEffect below closes emoji once the keyboard appears
                 }
             )
 
-            // Bottom Panel (keyboard / emoji space)
+            // bottom Panel (keyboard / emoji space)
             com.sharkord.android.ui.home.components.chat.ChatBottomPanel(
                 isEmojiPickerOpen = isEmojiPickerOpen,
                 onCloseEmojiPicker = { isEmojiPickerOpen = false },
@@ -542,7 +582,7 @@ fun ChatPanel(
             )
         }
 
-        // Pinned Messages Overlay
+        // pinned Messages Overlay
         if (uiState.showPinnedMessages) {
             PinnedMessagesSheet(
                 isLoading = uiState.isLoadingPinned,
@@ -553,7 +593,7 @@ fun ChatPanel(
             )
         }
 
-        // Context Menu Overlay
+        // context Menu Overlay
         if (showMenuMessage != null) {
             val msg = showMenuMessage!!
             MessageContextMenu(
@@ -574,7 +614,7 @@ fun ChatPanel(
             )
         }
 
-        // Media Lightbox Overlay
+        // media Lightbox Overlay
         val viewingFile = uiState.viewingMediaFile
         if (viewingFile != null) {
             com.sharkord.android.ui.home.components.chat.MediaLightboxViewer(

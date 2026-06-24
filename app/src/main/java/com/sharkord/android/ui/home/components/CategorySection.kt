@@ -39,9 +39,13 @@ fun CategorySection(
     onReorderChannels: (List<Int>) -> Unit,
     foregroundText: Color,
     primaryText: Color,
-    readStates: Map<Int, Int> = emptyMap()
+    readStates: Map<Int, Int> = emptyMap(),
+    voiceMap: com.sharkord.android.data.model.VoiceMap? = null,
+    users: List<com.sharkord.android.data.model.User> = emptyList(),
+    ownUserId: Int = -1,
+    activeSpeakers: Set<String> = emptySet()
 ) {
-    // Local state for dragging
+    // local state for dragging
     var localChannels by remember(channels) { mutableStateOf(channels) }
     var draggedId by remember { mutableStateOf<Int?>(null) }
     var dragOffset by remember { mutableStateOf(0f) }
@@ -112,10 +116,10 @@ fun CategorySection(
                         channel = channel,
                         isSelected = selectedChannelId == channel.id,
                         onSelect = {
-                            if (!channel.isVoice) onChannelSelect(channel.id)
+                            onChannelSelect(channel.id)
                         },
                         onLongPress = {
-                            if (!channel.isVoice) onChannelLongPress(channel.id)
+                            onChannelLongPress(channel.id)
                         },
                         canManage = hasManageChannels,
                         onEditClick = { onChannelEdit(channel.id) },
@@ -130,14 +134,14 @@ fun CategorySection(
                             val maxDown = (localChannels.size - 1 - dragStartIndex) * itemHeightPx
                             dragOffset = (dragOffset + delta).coerceIn(maxUp, maxDown)
 
-                            // Calculate if drag moved past the threshold of another item
+                            // calculate if drag moved past the threshold of another item
                             val newIndex = (dragStartIndex + (dragOffset / itemHeightPx).roundToInt())
                                 .coerceIn(0, localChannels.size - 1)
                             
                             val currentIndex = localChannels.indexOfFirst { it.id == channel.id }
                             
                             if (currentIndex != -1 && newIndex != currentIndex) {
-                                // Swap items visually
+                                // swap items visually
                                 val mutableList = localChannels.toMutableList()
                                 val item = mutableList.removeAt(currentIndex)
                                 mutableList.add(newIndex, item)
@@ -149,7 +153,7 @@ fun CategorySection(
                         onDragEnd = {
                             draggedId = null
                             dragOffset = 0f
-                            // Trigger callback to backend
+                            // trigger callback to backend
                             if (localChannels != channels) {
                                 onReorderChannels(localChannels.map { it.id })
                             }
@@ -157,7 +161,21 @@ fun CategorySection(
                         isDragging = isDragging,
                         foregroundText = foregroundText,
                         primaryText = primaryText,
-                        unreadCount = readStates[channel.id] ?: 0
+                        unreadCount = readStates[channel.id] ?: 0,
+                        voiceUsers = if (channel.isVoice && voiceMap != null) {
+                            val channelUsers = voiceMap[channel.id.toString()]?.users ?: emptyMap()
+                            channelUsers.mapNotNull { (userIdStr, state) ->
+                                val user = users.find { it.id.toString() == userIdStr }
+                                if (user != null) {
+                                    val isSpeaking = if (user.id == ownUserId) {
+                                        activeSpeakers.contains("local")
+                                    } else {
+                                        activeSpeakers.contains(user.id.toString())
+                                    }
+                                    VoiceUserDisplay(user, state, isSpeaking)
+                                } else null
+                            }
+                        } else emptyList()
                     )
                 }
             }

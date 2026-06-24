@@ -24,24 +24,17 @@ import okhttp3.Request
 import java.util.concurrent.ConcurrentHashMap
 import android.util.LruCache
 
-/**
- * Shared image loading composables.
- *
- * Extracted from LoginScreen and HomeScreen to fix the cross-package
- * dependency where HomeScreen imported from the login package.
- */
+// shared image loading composables
+// extracted from LoginScreen and HomeScreen to fix the cross-package
+// dependency where HomeScreen imported from the login package
 
-/**
- * Represents a cached image with decoded bitmap and fetch timestamp.
- */
+// represents a cached image with decoded bitmap and fetch timestamp
 data class ImageCacheEntry(
     val bitmap: Bitmap
 )
 
-/**
- * Centralized thread-safe image loader manager that provides in-memory caching,
- * request deduplication, and rate-limiting to avoid redundant network requests.
- */
+// centralized thread-safe image loader manager that provides in-memory caching,
+// request deduplication, and rate-limiting to avoid redundant network requests
 object ImageCacheManager {
     private const val TAG = "ImageCacheManager"
     
@@ -74,7 +67,7 @@ object ImageCacheManager {
     }
 
     private fun getDiskCacheFile(url: String): java.io.File {
-        // Use a simple hash to generate a safe filename
+        // use a simple hash to generate a safe filename
         val fileName = url.hashCode().toString() + ".img_cache"
         val cacheDir = java.io.File(SharkordClient.applicationContext.cacheDir, "images")
         if (!cacheDir.exists()) cacheDir.mkdirs()
@@ -90,18 +83,18 @@ object ImageCacheManager {
                 val files = cacheDir.listFiles() ?: return@launch
                 var totalSize = files.sumOf { it.length() }
                 
-                // Read from session manager settings
+                // read from session manager settings
                 val maxMb = SharkordClient.session.maxDiskCacheMb
                 val maxDiskCacheSize = maxMb * 1024 * 1024L
 
                 if (totalSize > maxDiskCacheSize) {
-                    // Sort by last modified, oldest first
+                    // sort by last modified, oldest first
                     val sortedFiles = files.sortedBy { it.lastModified() }
                     for (file in sortedFiles) {
                         totalSize -= file.length()
                         file.delete()
                         if (totalSize <= maxDiskCacheSize / 2) {
-                            // Trim down to half the max size to avoid constantly trimming on every small addition
+                            // trim down to half the max size to avoid constantly trimming on every small addition
                             break
                         }
                     }
@@ -113,9 +106,7 @@ object ImageCacheManager {
         }
     }
 
-    /**
-     * Loads an image from the network or returns a cached one if it was loaded recently.
-     */
+    // loads an image from the network or returns a cached one if it was loaded recently
     suspend fun loadImage(url: String): ImageCacheEntry? {
         if (url.isBlank()) return null
 
@@ -129,13 +120,13 @@ object ImageCacheManager {
             return cached
         }
 
-        // De-duplicate in-flight requests for the exact same URL
+        // de-duplicate in-flight requests for the exact same URL
         val deferred = mutex.withLock {
             inFlight[url] ?: scope.async {
                 try {
                     val diskFile = getDiskCacheFile(url)
                     if (diskFile.exists() && diskFile.length() > 0) {
-                        // Update last modified time to keep it fresh for LRU disk eviction
+                        // update last modified time to keep it fresh for LRU disk eviction
                         diskFile.setLastModified(System.currentTimeMillis())
                         
                         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -218,9 +209,7 @@ object ImageCacheManager {
         }
     }
 
-    /**
-     * Extracts and caches a thumbnail frame from a remote video.
-     */
+    // extracts and caches a thumbnail frame from a remote video
     suspend fun loadVideoThumbnail(videoUrl: String): Bitmap? {
         if (videoUrl.isBlank()) return null
         
@@ -254,25 +243,19 @@ object ImageCacheManager {
         }
     }
 
-    /**
-     * Retrieves an image from the cache synchronously, avoiding loading states if it already exists.
-     */
+    // retrieves an image from the cache synchronously, avoiding loading states if it already exists
     fun getCachedImage(url: String): ImageCacheEntry? {
         return cache.get(url)
     }
 
-    /**
-     * Clears the cache.
-     */
+    // clears the cache
     fun clearCache() {
         cache.evictAll()
         inFlight.clear()
     }
 }
 
-/**
- * Three-state result for async image loading.
- */
+// three-state result for async image loading
 sealed class AsyncImageState {
     object Loading : AsyncImageState()
     data class Success(val painter: Painter) : AsyncImageState()
@@ -280,14 +263,11 @@ sealed class AsyncImageState {
     object Empty : AsyncImageState() // url was null/blank
 }
 
-/**
- * Loads an image from a URL and returns a tri-state [AsyncImageState].
- *
- * - [AsyncImageState.Empty]   — url was null / blank
- * - [AsyncImageState.Loading] — fetch in-flight
- * - [AsyncImageState.Success] — bitmap ready
- * - [AsyncImageState.Failure] — network / decode error
- */
+// loads an image from a URL and returns a tri-state [AsyncImageState]
+// - [AsyncImageState.Empty]   — url was null / blank
+// - [AsyncImageState.Loading] — fetch in-flight
+// - [AsyncImageState.Success] — bitmap ready
+// - [AsyncImageState.Failure] — network / decode error
 @Composable
 fun rememberAsyncImageState(url: String?): AsyncImageState {
     if (url.isNullOrBlank()) return AsyncImageState.Empty
@@ -314,9 +294,7 @@ fun rememberAsyncImageState(url: String?): AsyncImageState {
     return state
 }
 
-/**
- * Loads a video thumbnail from a URL and returns a tri-state [AsyncImageState].
- */
+// loads a video thumbnail from a URL and returns a tri-state [AsyncImageState]
 @Composable
 fun rememberVideoThumbnailState(url: String?): AsyncImageState {
     if (url.isNullOrBlank()) return AsyncImageState.Empty
@@ -343,14 +321,11 @@ fun rememberVideoThumbnailState(url: String?): AsyncImageState {
     return state
 }
 
-/**
- * Loads an image from a URL asynchronously and returns a [Painter].
- *
- * - Returns **null** while loading OR when [url] is null/blank.
- *   Callers should render their own placeholder (spinner, initials, etc.).
- * - Returns the [fallbackResourceId] painter only on a real load **failure**.
- *   Pass `null` for [fallbackResourceId] to get `null` on failure too.
- */
+// loads an image from a URL asynchronously and returns a [Painter]
+// - Returns **null** while loading OR when [url] is null/blank
+// callers should render their own placeholder (spinner, initials, etc.)
+// - Returns the [fallbackResourceId] painter only on a real load **failure**
+// pass `null` for [fallbackResourceId] to get `null` on failure too
 @Composable
 fun rememberAsyncImagePainter(
     url: String?,
@@ -365,19 +340,15 @@ fun rememberAsyncImagePainter(
     }
 }
 
-/**
- * Extended image state that also extracts edge colors from the bitmap
- * for dynamic gradient backgrounds (used in server banner).
- */
+// extended image state that also extracts edge colors from the bitmap
+// for dynamic gradient backgrounds (used in server banner)
 data class ExtendedImageState(
     val painter: Painter?,
     val leftColor: Color,
     val rightColor: Color
 )
 
-/**
- * Loads an image and extracts left/right edge pixel colors for gradient effects.
- */
+// loads an image and extracts left/right edge pixel colors for gradient effects
 @Composable
 fun rememberExtendedImageState(url: String?): ExtendedImageState {
     if (url.isNullOrBlank()) {
@@ -401,7 +372,7 @@ fun rememberExtendedImageState(url: String?): ExtendedImageState {
             val entry = ImageCacheManager.loadImage(url)
             if (entry != null) {
                 val bmp = entry.bitmap
-                // Extract edge colors on background thread
+                // extract edge colors on background thread
                 withContext(Dispatchers.Default) {
                     val leftCol = bmp.getPixel(0, bmp.height / 2)
                     val rightCol = bmp.getPixel(bmp.width - 1, bmp.height / 2)

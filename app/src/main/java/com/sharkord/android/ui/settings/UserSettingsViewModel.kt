@@ -26,21 +26,59 @@ class UserSettingsViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(UserSettingsState())
     val uiState: StateFlow<UserSettingsState> = _uiState.asStateFlow()
 
-    // Profile Fields
+    // profile Fields
     var name = MutableStateFlow("")
     var bio = MutableStateFlow("")
     var bannerColor = MutableStateFlow("#FFFFFF")
 
-    // Password Fields
+    // password Fields
     var currentPassword = MutableStateFlow("")
     var newPassword = MutableStateFlow("")
     var confirmNewPassword = MutableStateFlow("")
 
-    // App Settings
+    // app Settings
     var maxDiskCacheMb = MutableStateFlow(250)
+
+    // devices Settings
+    var defaultAudioRoute = MutableStateFlow("None")
+    var echoCancellation = MutableStateFlow(true)
+    var noiseSuppression = MutableStateFlow(true)
+    var autoGainControl = MutableStateFlow(true)
+    var defaultCamera = MutableStateFlow("Front")
+    var frontVideoResolution = MutableStateFlow("1280x720")
+    var frontVideoFps = MutableStateFlow(30)
+    var backVideoResolution = MutableStateFlow("1280x720")
+    var backVideoFps = MutableStateFlow(30)
+    var mirrorFrontCamera = MutableStateFlow(true)
+    var screenShareResolution = MutableStateFlow("1280x720")
+    var screenShareFps = MutableStateFlow(30)
+    
+    var videoCodec = MutableStateFlow("VP8")
+    var availableVideoCodecs = MutableStateFlow<List<String>>(emptyList())
 
     init {
         maxDiskCacheMb.value = SharkordClient.session.maxDiskCacheMb
+        defaultAudioRoute.value = SharkordClient.session.defaultAudioRoute
+        echoCancellation.value = SharkordClient.session.echoCancellation
+        noiseSuppression.value = SharkordClient.session.noiseSuppression
+        autoGainControl.value = SharkordClient.session.autoGainControl
+        defaultCamera.value = SharkordClient.session.defaultCamera
+        frontVideoResolution.value = SharkordClient.session.frontVideoResolution
+        frontVideoFps.value = SharkordClient.session.frontVideoFps
+        backVideoResolution.value = SharkordClient.session.backVideoResolution
+        backVideoFps.value = SharkordClient.session.backVideoFps
+        mirrorFrontCamera.value = SharkordClient.session.mirrorFrontCamera
+        screenShareResolution.value = SharkordClient.session.screenShareResolution
+        screenShareFps.value = SharkordClient.session.screenShareFps
+        
+        val codecs = if (SharkordClient.isVoiceEngineInitialized) {
+            SharkordClient.voiceEngine.supportedVideoCodecs
+        } else {
+            listOf("VP8", "VP9", "H264")
+        }
+        availableVideoCodecs.value = codecs
+        videoCodec.value = SharkordClient.session.getVideoCodec(codecs)
+        
         loadUser()
     }
 
@@ -112,6 +150,71 @@ class UserSettingsViewModel : ViewModel() {
         SharkordClient.session.maxDiskCacheMb = value
     }
 
+    fun saveDefaultAudioRoute(value: String) {
+        defaultAudioRoute.value = value
+        SharkordClient.session.defaultAudioRoute = value
+    }
+
+    fun saveEchoCancellation(value: Boolean) {
+        echoCancellation.value = value
+        SharkordClient.session.echoCancellation = value
+    }
+
+    fun saveNoiseSuppression(value: Boolean) {
+        noiseSuppression.value = value
+        SharkordClient.session.noiseSuppression = value
+    }
+
+    fun saveAutoGainControl(value: Boolean) {
+        autoGainControl.value = value
+        SharkordClient.session.autoGainControl = value
+    }
+
+    fun saveDefaultCamera(value: String) {
+        defaultCamera.value = value
+        SharkordClient.session.defaultCamera = value
+    }
+
+    fun saveFrontVideoResolution(value: String) {
+        frontVideoResolution.value = value
+        SharkordClient.session.frontVideoResolution = value
+    }
+
+    fun saveFrontVideoFps(value: Int) {
+        frontVideoFps.value = value
+        SharkordClient.session.frontVideoFps = value
+    }
+
+    fun saveBackVideoResolution(value: String) {
+        backVideoResolution.value = value
+        SharkordClient.session.backVideoResolution = value
+    }
+
+    fun saveBackVideoFps(value: Int) {
+        backVideoFps.value = value
+        SharkordClient.session.backVideoFps = value
+    }
+
+    fun saveMirrorFrontCamera(value: Boolean) {
+        mirrorFrontCamera.value = value
+        SharkordClient.session.mirrorFrontCamera = value
+    }
+
+    fun saveScreenShareResolution(value: String) {
+        screenShareResolution.value = value
+        SharkordClient.session.screenShareResolution = value
+    }
+
+    fun saveScreenShareFps(value: Int) {
+        screenShareFps.value = value
+        SharkordClient.session.screenShareFps = value
+    }
+
+    fun saveVideoCodec(value: String) {
+        videoCodec.value = value
+        SharkordClient.session.setVideoCodec(value)
+    }
+
     fun uploadAvatar(context: Context, uri: Uri) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSavingProfile = true, error = null, successMessage = null)
@@ -162,7 +265,7 @@ class UserSettingsViewModel : ViewModel() {
                 val serverUrl = SharkordClient.currentServerUrl ?: return null
                 val token = SharkordClient.currentToken ?: return null
                 
-                // Get filename from uri or fallback
+                // get filename from uri or fallback
                 val fileName = "upload.jpg" // Could extract real name
                 
                 val result = SharkordClient.http.uploadFile(serverUrl, token, fileName, bytes)

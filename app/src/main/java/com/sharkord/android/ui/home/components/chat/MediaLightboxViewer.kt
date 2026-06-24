@@ -106,6 +106,8 @@ fun MediaLightboxViewer(
                 CustomVideoPlayer(
                     videoUrl = videoUrl,
                     autoPlay = true,
+                    isOverlayActive = true,
+                    onFullscreenClick = onClose,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -115,7 +117,7 @@ fun MediaLightboxViewer(
             }
         }
 
-        // Top Controls
+        // top Controls
         Row(
             modifier = Modifier
                 .align(Alignment.TopCenter)

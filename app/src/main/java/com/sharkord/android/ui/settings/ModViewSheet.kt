@@ -256,7 +256,7 @@ private fun ModViewHeader(
         )
     }
 
-    // Banner
+    // banner
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -366,7 +366,7 @@ private fun ModViewHeader(
             }
         }
 
-        // Overlapping Avatar
+        // overlapping Avatar
         Box(
             modifier = Modifier
                 .offset(y = (-40).dp)

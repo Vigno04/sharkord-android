@@ -59,7 +59,7 @@ fun ChatBottomPanel(
     val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
     var storedKbAboveNavPx by remember { mutableIntStateOf(prefs.getInt("keyboard_height_above_nav", 0)) }
 
-    // Persist keyboard height when it settles
+    // persist keyboard height when it settles
     LaunchedEffect(imeAboveNavPx) {
         val minKbPx = with(density) { 150.dp.toPx() }
         if (imeAboveNavPx > minKbPx) {
@@ -71,7 +71,7 @@ fun ChatBottomPanel(
         }
     }
 
-    // Emoji → Keyboard: close emoji after the keyboard has appeared
+    // emoji → Keyboard: close emoji after the keyboard has appeared
     LaunchedEffect(isImeVisible) {
         if (isImeVisible && isEmojiPickerOpen) {
             kotlinx.coroutines.delay(300)
@@ -79,7 +79,7 @@ fun ChatBottomPanel(
         }
     }
 
-    // Bottom panel height = max(current IME above nav, emoji target)
+    // bottom panel height = max(current IME above nav, emoji target)
     val fallbackAboveNavPx = with(density) { 300.dp.toPx().toInt() }
     val emojiTargetPx = if (isEmojiPickerOpen) {
         if (storedKbAboveNavPx > 0) storedKbAboveNavPx else fallbackAboveNavPx

@@ -51,7 +51,7 @@ class ServerSettingsViewModel(
     val uiState: StateFlow<ServerSettingsUiState> = _uiState.asStateFlow()
 
     init {
-        // Collect real-time server data (emits on initial connect)
+        // collect real-time server data (emits on initial connect)
         viewModelScope.launch {
             repository.serverData.collect { data ->
                 _uiState.value = _uiState.value.copy(
@@ -60,7 +60,7 @@ class ServerSettingsViewModel(
             }
         }
 
-        // Listen for real-time events to update the local copy
+        // listen for real-time events to update the local copy
         viewModelScope.launch {
             repository.incomingEvents.collect { event ->
                 val parsed = com.sharkord.android.data.network.ServerEventHandler.parse(event)
@@ -70,13 +70,13 @@ class ServerSettingsViewModel(
             }
         }
 
-        // Fetch admin settings immediately
+        // fetch admin settings immediately
         fetchAdminSettings()
 
-        // Fetch disk metrics
+        // fetch disk metrics
         fetchDiskMetrics()
 
-        // Fetch invites immediately
+        // fetch invites immediately
         fetchInvites()
     }
 
@@ -254,7 +254,7 @@ class ServerSettingsViewModel(
         }
     }
 
-    // Invites
+    // invites
 
     fun fetchInvites() {
         viewModelScope.launch {
@@ -285,7 +285,7 @@ class ServerSettingsViewModel(
         }
     }
 
-    // Emojis
+    // emojis
 
     fun uploadEmoji(name: String, fileBytes: ByteArray, originalName: String) {
         viewModelScope.launch {
@@ -305,7 +305,7 @@ class ServerSettingsViewModel(
         }
     }
 
-    // Plugins
+    // plugins
 
     fun fetchPlugins() {
         viewModelScope.launch {
@@ -448,7 +448,7 @@ class ServerSettingsViewModel(
         _uiState.update { it.copy(pluginLogs = null, pluginCommands = null, pluginSettings = null) }
     }
 
-    // Updates
+    // updates
 
     fun fetchUpdateInfo() {
         viewModelScope.launch {
@@ -474,14 +474,14 @@ class ServerSettingsViewModel(
         }
     }
 
-    // Users
+    // users
 
     fun deleteUser(userId: Int, wipe: Boolean = false) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             val result = repository.deleteUser(userId, wipe)
             if (result.isSuccess) {
-                // Remove user from the local serverData list
+                // remove user from the local serverData list
                 _uiState.update { state ->
                     val updatedUsers = state.serverData?.users?.filter { it.id != userId } ?: emptyList()
                     state.copy(
@@ -496,7 +496,7 @@ class ServerSettingsViewModel(
         }
     }
 
-    // Mod View
+    // mod View
 
     fun openModView(userId: Int) {
         _uiState.update { it.copy(isModViewOpen = true, isModViewLoading = true, modViewData = null) }

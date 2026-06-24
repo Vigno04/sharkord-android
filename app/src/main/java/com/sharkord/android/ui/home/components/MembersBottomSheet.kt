@@ -28,10 +28,8 @@ import com.sharkord.android.data.model.User
 import com.sharkord.android.data.network.SharkordClient
 import com.sharkord.android.ui.components.rememberAsyncImagePainter
 
-/**
- * Bottom sheet displaying the directory/list of members in the server.
- * This slides up to show a scrollable list of everyone hanging out on the server!
- */
+// bottom sheet displaying the directory/list of members in the server
+// this slides up to show a scrollable list of everyone hanging out on the server!
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MembersBottomSheet(
@@ -99,12 +97,12 @@ fun MembersBottomSheet(
                                     onMessageClick(user.id)
                                 }
                             }
-                            // Added slight background tint based on banner color if present
+                            // added slight background tint based on banner color if present
                             .background(if (bannerColor != Color.Transparent) bannerColor.copy(alpha = 0.1f) else Color.Transparent)
                             .padding(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Left accent bar for banner color
+                        // left accent bar for banner color
                         if (bannerColor != Color.Transparent) {
                             Box(
                                 modifier = Modifier

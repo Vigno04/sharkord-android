@@ -25,9 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharkord.android.R
 
-/**
- * Top Server Header, including search bar and Direct Messages trigger.
- */
+// top Server Header, including search bar and Direct Messages trigger
 @Composable
 fun ServerHeader(
     serverName: String,
@@ -41,13 +39,13 @@ fun ServerHeader(
     isServerSheetOpen: Boolean = false,
     totalUnreadDMs: Int = 0
 ) {
-    // Stack the header, search bar, and direct message bar vertically
+    // stack the header, search bar, and direct message bar vertically
     Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
     ) {
-        // This Row displays the server's name and how many people are in it.
+        // this Row displays the server's name and how many people are in it
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -63,7 +61,7 @@ fun ServerHeader(
                     .padding(4.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Show the server name with a little down arrow icon
+                    // show the server name with a little down arrow icon
                     Text(
                         text = serverName,
                         color = foregroundText,
@@ -86,7 +84,7 @@ fun ServerHeader(
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
-                // Display the number of members in a gray subtext
+                // display the number of members in a gray subtext
                 Text(
                     text = stringResource(id = R.string.common_member_count, memberCount),
                     color = Color.Gray,
@@ -96,7 +94,7 @@ fun ServerHeader(
             }
         }
 
-        // This Box is styled to look like a search bar (to implement)
+        // this Box is styled to look like a search bar (to implement)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -106,7 +104,7 @@ fun ServerHeader(
                 .padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Magnifying glass icon
+                // magnifying glass icon
                 Icon(
                     Icons.Default.Search,
                     contentDescription = stringResource(id = R.string.dialogs_searchTitle),
@@ -114,7 +112,7 @@ fun ServerHeader(
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                // Search placeholder text
+                // search placeholder text
                 Text(
                     text = stringResource(id = R.string.dialogs_searchTitle),
                     color = Color.Gray,
@@ -125,7 +123,7 @@ fun ServerHeader(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Separation line
+        // separation line
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -135,7 +133,7 @@ fun ServerHeader(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Direct Messages trigger bar (to implement)
+        // direct Messages trigger bar (to implement)
         Row(
             modifier = Modifier
                 .fillMaxWidth()

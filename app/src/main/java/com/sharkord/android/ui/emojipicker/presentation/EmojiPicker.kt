@@ -78,7 +78,7 @@ fun EmojiPicker(
 ) {
     val sheetState = rememberModalBottomSheetState()
     val gridState = rememberLazyGridState()
-    // Remember a CoroutineScope to be able to launch
+    // remember a CoroutineScope to be able to launch
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -114,7 +114,7 @@ fun EmojiPicker(
                 colors = colors,
                 onCategoryTabClick = { categoryTitleIndex ->
                     coroutineScope.launch {
-                        // Animate scroll to the 10th item
+                        // animate scroll to the 10th item
                         gridState.animateScrollToItem(
                             index = categoryTitleIndex
                         )
@@ -144,7 +144,7 @@ internal fun EmojiPickerContent(
             .fillMaxSize()
     ) {
 
-        // Calculate selected category only when firstVisibleItemIndex or categoryTitleIndexes actually change
+        // calculate selected category only when firstVisibleItemIndex or categoryTitleIndexes actually change
         val selectedCategoryKey by remember {
             derivedStateOf {
                 state.categoryTitleIndexes.keys

@@ -17,12 +17,9 @@ enum class LoginStep {
     CREDENTIALS
 }
 
-/**
- * ViewModel for the login flow (server URL entry + credentials).
- *
- * Uses [ServerRepository] for all network operations instead of directly
- * calling SharkordClient. Uses coroutines instead of callback chains.
- */
+// viewModel for the login flow (server URL entry + credentials)
+// uses [ServerRepository] for all network operations instead of directly
+// calling SharkordClient. Uses coroutines instead of callback chains
 class LoginViewModel : ViewModel() {
 
     private val repository = ServerRepository()
@@ -41,22 +38,20 @@ class LoginViewModel : ViewModel() {
     var serverName by mutableStateOf("Sharkord")
     var serverDescription by mutableStateOf<String?>(null)
 
-    /** Tracks whether we are currently performing an automatic login transition. */
+    // tracks whether we are currently performing an automatic login transition
     var isAutoLoggingIn by mutableStateOf(false)
         private set
 
-    /**
-     * Called once on first composition to restore saved state and
-     * optionally trigger auto-login.
-     */
+    // called once on first composition to restore saved state and
+    // optionally trigger auto-login
     fun initialize(context: Context, onAutoLoginSuccess: () -> Unit) {
-        // Ensure SharkordClient is initialized
+        // ensure SharkordClient is initialized
         SharkordClient.initialize(context)
 
-        // Restore auto-login preference
+        // restore auto-login preference
         autoLogin = repository.isAutoLoginEnabled()
 
-        // Try to auto-login if a saved session exists
+        // try to auto-login if a saved session exists
         if (repository.restoreSession()) {
             isAutoLoggingIn = true
             serverUrl = SharkordClient.currentServerUrl ?: ""
@@ -65,7 +60,7 @@ class LoginViewModel : ViewModel() {
             return
         }
 
-        // Try to pre-fill the server URL from saved preferences
+        // try to pre-fill the server URL from saved preferences
         val savedUrl = repository.getSavedServerUrl()
         if (!savedUrl.isNullOrBlank()) {
             serverUrl = savedUrl
@@ -76,10 +71,8 @@ class LoginViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Fetches server info (name, description, logo) for display.
-     * Silently ignores errors — this is a best-effort cosmetic operation.
-     */
+    // fetches server info (name, description, logo) for display
+    // silently ignores errors — this is a best-effort cosmetic operation
     private fun fetchServerDetails(url: String) {
         viewModelScope.launch {
             repository.fetchServerInfo(url).onSuccess { info ->
@@ -97,10 +90,8 @@ class LoginViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Step 1: User taps "Next" after entering a server URL.
-     * Validates the URL by fetching server info.
-     */
+    // step 1: User taps "Next" after entering a server URL
+    // validates the URL by fetching server info
     fun onNextClick(context: Context) {
         if (serverUrl.isBlank()) {
             errorMessage = context.getString(R.string.connect_invalidUrlError)
@@ -122,7 +113,7 @@ class LoginViewModel : ViewModel() {
                     serverName = info.name
                     serverDescription = info.description
 
-                    // Save the validated URL
+                    // save the validated URL
                     repository.saveServerUrl(cleanUrl)
                     serverUrl = cleanUrl
 
@@ -139,9 +130,7 @@ class LoginViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Step 1b: User taps "Back" to change the server URL.
-     */
+    // step 1b: User taps "Back" to change the server URL
     fun changeServer() {
         errorMessage = null
         currentStep = LoginStep.URL
@@ -150,9 +139,7 @@ class LoginViewModel : ViewModel() {
         serverLogoUrl = null
     }
 
-    /**
-     * Step 2: User taps "Connect" with identity + password.
-     */
+    // step 2: User taps "Connect" with identity + password
     fun onLoginClick(context: Context, onSuccess: () -> Unit) {
         if (serverUrl.isBlank() || identity.isBlank() || password.isBlank()) {
             errorMessage = context.getString(R.string.settings_errorBadge)

@@ -61,7 +61,7 @@ fun ProfileBottomSheet(
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
-            // Banner Section
+            // banner Section
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -86,12 +86,12 @@ fun ProfileBottomSheet(
                 }
             }
 
-            // Profile Info Section
+            // profile Info Section
             Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
                 Column(
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Spacer for the overlapping avatar
+                    // spacer for the overlapping avatar
                     Spacer(modifier = Modifier.height(56.dp))
 
                     Text(
@@ -216,7 +216,7 @@ fun ProfileBottomSheet(
                     Spacer(modifier = Modifier.height(24.dp))
                 }
 
-                // Overlapping Avatar
+                // overlapping Avatar
                 val avatarUrl = currentUser?.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }
 
                 Box(

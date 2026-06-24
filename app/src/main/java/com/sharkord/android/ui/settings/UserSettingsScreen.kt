@@ -43,6 +43,10 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import org.webrtc.Camera1Enumerator
+import org.webrtc.Camera2Enumerator
+import org.webrtc.CameraEnumerator
+import org.webrtc.CameraEnumerationAndroid.CaptureFormat
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,7 +67,7 @@ fun UserSettingsScreen(
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val coroutineScope = rememberCoroutineScope()
 
-    // Show toast for success/error messages
+    // show toast for success/error messages
     LaunchedEffect(uiState.successMessage, uiState.error) {
         uiState.successMessage?.let {
             android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
@@ -147,7 +151,7 @@ fun UserSettingsScreen(
                     ) {
                         when (page) {
                             0 -> ProfileTabContent(viewModel, cardColor, foregroundText, primaryText, accentColor)
-                            1 -> DevicesTabContent(cardColor, foregroundText, primaryText, accentColor)
+                            1 -> DevicesTabContent(viewModel, cardColor, foregroundText, primaryText, accentColor)
                             2 -> PasswordTabContent(viewModel, cardColor, foregroundText, primaryText, accentColor)
                             3 -> NotificationsTabContent(cardColor, foregroundText, primaryText, accentColor)
                             4 -> AppSettingsTabContent(viewModel, cardColor, foregroundText, primaryText, accentColor)
@@ -160,7 +164,7 @@ fun UserSettingsScreen(
     }
 }
 
-// Helper for temporary file creation
+// helper for temporary file creation
 fun createImageFile(context: Context): File {
     val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
     val storageDir: File? = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
@@ -416,258 +420,355 @@ fun ProfileTabContent(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DevicesTabContent(cardColor: Color, foregroundText: Color, primaryText: Color, accentColor: Color) {
-    // Microphone States
-    var micPermission by remember { mutableStateOf(false) }
-    var suppressNoise by remember { mutableStateOf(true) }
-    var echoCancellation by remember { mutableStateOf(true) }
-    var autoGainControl by remember { mutableStateOf(true) }
-    var noiseGate by remember { mutableStateOf(false) }
+fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregroundText: Color, primaryText: Color, accentColor: Color) {
+    val defaultAudioRoute by viewModel.defaultAudioRoute.collectAsState()
+    val echoCancellation by viewModel.echoCancellation.collectAsState()
+    val noiseSuppression by viewModel.noiseSuppression.collectAsState()
+    val autoGainControl by viewModel.autoGainControl.collectAsState()
 
-    // Camera States
-    var cameraPermission by remember { mutableStateOf(false) }
-    var camResolution by remember { mutableStateOf("4K") }
-    var camFps by remember { mutableStateOf("60fps") }
-    var mirrorVideo by remember { mutableStateOf(true) }
-    var expandedCamRes by remember { mutableStateOf(false) }
-    var expandedCamFps by remember { mutableStateOf(false) }
+    val defaultCamera by viewModel.defaultCamera.collectAsState()
+    val frontVideoResolution by viewModel.frontVideoResolution.collectAsState()
+    val frontVideoFps by viewModel.frontVideoFps.collectAsState()
+    val backVideoResolution by viewModel.backVideoResolution.collectAsState()
+    val backVideoFps by viewModel.backVideoFps.collectAsState()
+    val mirrorFrontCamera by viewModel.mirrorFrontCamera.collectAsState()
+    
+    val videoCodec by viewModel.videoCodec.collectAsState()
+    val availableVideoCodecs by viewModel.availableVideoCodecs.collectAsState()
 
-    // Screen Share States
-    var screenPermission by remember { mutableStateOf(false) }
-    var screenResolution by remember { mutableStateOf("1080p") }
-    var screenFps by remember { mutableStateOf("30fps") }
-    var codec by remember { mutableStateOf("H264") }
-    var bitrate by remember { mutableStateOf("2500 kbps") }
-    var expandedScreenRes by remember { mutableStateOf(false) }
-    var expandedScreenFps by remember { mutableStateOf(false) }
-    var expandedCodec by remember { mutableStateOf(false) }
-    var expandedBitrate by remember { mutableStateOf(false) }
+    val screenShareResolution by viewModel.screenShareResolution.collectAsState()
+    val screenShareFps by viewModel.screenShareFps.collectAsState()
 
-    SettingsSection(title = "MICROPHONE", cardColor = cardColor, foregroundText = foregroundText) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Microphone Access", color = foregroundText)
-                Text(if (micPermission) "Granted" else "Denied", color = primaryText, fontSize = 12.sp)
+    var expandedAudioRoute by remember { mutableStateOf(false) }
+    var expandedCamera by remember { mutableStateOf(false) }
+    var expandedFrontVideoResolution by remember { mutableStateOf(false) }
+    var expandedBackVideoResolution by remember { mutableStateOf(false) }
+    var expandedScreenShareResolution by remember { mutableStateOf(false) }
+    var expandedScreenShareFps by remember { mutableStateOf(false) }
+    var expandedVideoCodec by remember { mutableStateOf(false) }
+    var expandedScreenShareCodec by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    
+    // Screen share options derived from device capabilities
+    val availableScreenShareResolutions = remember {
+        val displayMetrics = context.resources.displayMetrics
+        val w = displayMetrics.widthPixels
+        val h = displayMetrics.heightPixels
+        val nativeRes = "${maxOf(w, h)}x${minOf(w, h)}"
+        val resList = mutableListOf(
+            "${w}x${h} (Native)",
+            "${w / 2}x${h / 2} (1/2 Native)",
+            "${w / 3}x${h / 3} (1/3 Native)",
+            "${w / 4}x${h / 4} (1/4 Native)"
+        )
+        // clean up duplicates if native matches one of the standards
+        resList.distinctBy { it.split(" ")[0] }
+    }
+    
+    val availableScreenShareFpsList = remember {
+        val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+        val maxRefreshRate = windowManager.defaultDisplay.refreshRate.toInt()
+        val fpsList = mutableListOf(maxRefreshRate, 120, 60, 30, 15)
+        fpsList.filter { it <= maxRefreshRate }.distinct().sortedDescending()
+    }
+    var availableFrontFormats by remember { mutableStateOf<List<String>>(emptyList()) }
+    var availableBackFormats by remember { mutableStateOf<List<String>>(emptyList()) }
+
+    LaunchedEffect(Unit) {
+        val enumerator: CameraEnumerator = if (Camera2Enumerator.isSupported(context)) {
+            Camera2Enumerator(context)
+        } else {
+            Camera1Enumerator(true)
+        }
+        for (name in enumerator.deviceNames) {
+            val formats = enumerator.getSupportedFormats(name)
+            val formatsByFps = formats.groupBy { it.framerate.max / 1000 }
+            val filteredFormats = mutableListOf<String>()
+            
+            for ((fps, fpsFormats) in formatsByFps) {
+                val sortedFormats = fpsFormats.sortedByDescending { it.width * it.height }
+                var lastArea = -1
+                for (format in sortedFormats) {
+                    val area = format.width * format.height
+                    if (lastArea == -1 || area <= lastArea * 0.85) {
+                        filteredFormats.add("${format.width}x${format.height} @ ${fps}fps")
+                        lastArea = area
+                    }
+                }
             }
-            Button(
-                onClick = { micPermission = !micPermission },
-                colors = ButtonDefaults.buttonColors(containerColor = if (micPermission) Color.DarkGray else accentColor)
-            ) {
-                Text(if (micPermission) "Revoke" else "Give Permission")
+            
+            val combinedList = filteredFormats
+                .sortedWith(compareByDescending<String> {
+                    val parts = it.split(" @ ")
+                    val res = parts[0].split("x")
+                    res[0].toInt() * res[1].toInt()
+                }.thenByDescending {
+                    val parts = it.split(" @ ")
+                    parts[1].replace("fps", "").trim().toInt()
+                })
+                
+            if (enumerator.isFrontFacing(name) && availableFrontFormats.isEmpty()) {
+                availableFrontFormats = combinedList
+            } else if (!enumerator.isFrontFacing(name) && availableBackFormats.isEmpty()) {
+                availableBackFormats = combinedList
             }
         }
         
-        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color.White.copy(alpha = 0.1f))
+        if (availableFrontFormats.isEmpty()) {
+            availableFrontFormats = listOf("1280x720 @ 30fps")
+        }
+        if (availableBackFormats.isEmpty()) {
+            availableBackFormats = listOf("1280x720 @ 30fps")
+        }
+    }
 
+    SettingsSection(title = "AUDIO SETTINGS", cardColor = cardColor, foregroundText = foregroundText) {
+        ExposedDropdownMenuBox(
+            expanded = expandedAudioRoute,
+            onExpandedChange = { expandedAudioRoute = !expandedAudioRoute },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = defaultAudioRoute,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Default Audio Route") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedAudioRoute) },
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                    focusedTextColor = foregroundText, unfocusedTextColor = primaryText
+                )
+            )
+            ExposedDropdownMenu(expanded = expandedAudioRoute, onDismissRequest = { expandedAudioRoute = false }) {
+                listOf("None", "Speaker", "Earpiece", "Bluetooth").forEach { route ->
+                    DropdownMenuItem(text = { Text(route) }, onClick = { viewModel.saveDefaultAudioRoute(route); expandedAudioRoute = false })
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Soppressione rumore", color = foregroundText, modifier = Modifier.weight(1f))
-            Switch(checked = suppressNoise, onCheckedChange = { suppressNoise = it }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
+            Text("Hardware Echo Cancellation", color = foregroundText, modifier = Modifier.weight(1f))
+            Switch(checked = echoCancellation, onCheckedChange = { viewModel.saveEchoCancellation(it) }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
         }
         Spacer(modifier = Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Cancellazione eco", color = foregroundText, modifier = Modifier.weight(1f))
-            Switch(checked = echoCancellation, onCheckedChange = { echoCancellation = it }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
+            Text("Hardware Noise Suppression", color = foregroundText, modifier = Modifier.weight(1f))
+            Switch(checked = noiseSuppression, onCheckedChange = { viewModel.saveNoiseSuppression(it) }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
         }
         Spacer(modifier = Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Controllo automatico del guadagno", color = foregroundText, modifier = Modifier.weight(1f))
-            Switch(checked = autoGainControl, onCheckedChange = { autoGainControl = it }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Noise gate", color = foregroundText, modifier = Modifier.weight(1f))
-            Switch(checked = noiseGate, onCheckedChange = { noiseGate = it }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
+            Text("Auto Gain Control", color = foregroundText, modifier = Modifier.weight(1f))
+            Switch(checked = autoGainControl, onCheckedChange = { viewModel.saveAutoGainControl(it) }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
         }
     }
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    SettingsSection(title = "CAMERA", cardColor = cardColor, foregroundText = foregroundText) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Camera Access", color = foregroundText)
-                Text(if (cameraPermission) "Granted" else "Denied", color = primaryText, fontSize = 12.sp)
+    SettingsSection(title = "VIDEO SETTINGS", cardColor = cardColor, foregroundText = foregroundText) {
+        ExposedDropdownMenuBox(
+            expanded = expandedCamera,
+            onExpandedChange = { expandedCamera = !expandedCamera },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = defaultCamera,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Default Camera") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCamera) },
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                    focusedTextColor = foregroundText, unfocusedTextColor = primaryText
+                )
+            )
+            ExposedDropdownMenu(expanded = expandedCamera, onDismissRequest = { expandedCamera = false }) {
+                listOf("Front", "Back").forEach { cam ->
+                    DropdownMenuItem(text = { Text(cam) }, onClick = { viewModel.saveDefaultCamera(cam); expandedCamera = false })
+                }
             }
-            Button(
-                onClick = { cameraPermission = !cameraPermission },
-                colors = ButtonDefaults.buttonColors(containerColor = if (cameraPermission) Color.DarkGray else accentColor)
-            ) {
-                Text(if (cameraPermission) "Revoke" else "Give Permission")
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Front Camera Settings", color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        ExposedDropdownMenuBox(
+            expanded = expandedFrontVideoResolution,
+            onExpandedChange = { expandedFrontVideoResolution = !expandedFrontVideoResolution },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = "$frontVideoResolution @ ${frontVideoFps}fps",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Format (Resolution @ FPS)") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFrontVideoResolution) },
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                    focusedTextColor = foregroundText, unfocusedTextColor = primaryText
+                )
+            )
+            ExposedDropdownMenu(expanded = expandedFrontVideoResolution, onDismissRequest = { expandedFrontVideoResolution = false }) {
+                availableFrontFormats.forEach { formatStr ->
+                    DropdownMenuItem(text = { Text(formatStr) }, onClick = { 
+                        val parts = formatStr.split(" @ ")
+                        viewModel.saveFrontVideoResolution(parts[0])
+                        viewModel.saveFrontVideoFps(parts[1].replace("fps", "").trim().toInt())
+                        expandedFrontVideoResolution = false 
+                    })
+                }
             }
         }
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color.White.copy(alpha = 0.1f))
-
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ExposedDropdownMenuBox(
-                expanded = expandedCamRes,
-                onExpandedChange = { expandedCamRes = !expandedCamRes },
-                modifier = Modifier.weight(1f)
-            ) {
-                OutlinedTextField(
-                    value = camResolution,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Quality") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCamRes) },
-                    modifier = Modifier.menuAnchor(),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
-                        focusedTextColor = foregroundText, unfocusedTextColor = primaryText
-                    )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Back Camera Settings", color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        ExposedDropdownMenuBox(
+            expanded = expandedBackVideoResolution,
+            onExpandedChange = { expandedBackVideoResolution = !expandedBackVideoResolution },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = "$backVideoResolution @ ${backVideoFps}fps",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Format (Resolution @ FPS)") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedBackVideoResolution) },
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                    focusedTextColor = foregroundText, unfocusedTextColor = primaryText
                 )
-                ExposedDropdownMenu(expanded = expandedCamRes, onDismissRequest = { expandedCamRes = false }) {
-                    listOf("720p", "1080p", "4K").forEach { res ->
-                        DropdownMenuItem(text = { Text(res) }, onClick = { camResolution = res; expandedCamRes = false })
-                    }
-                }
-            }
-            ExposedDropdownMenuBox(
-                expanded = expandedCamFps,
-                onExpandedChange = { expandedCamFps = !expandedCamFps },
-                modifier = Modifier.weight(1f)
-            ) {
-                OutlinedTextField(
-                    value = camFps,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("FPS") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCamFps) },
-                    modifier = Modifier.menuAnchor(),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
-                        focusedTextColor = foregroundText, unfocusedTextColor = primaryText
-                    )
-                )
-                ExposedDropdownMenu(expanded = expandedCamFps, onDismissRequest = { expandedCamFps = false }) {
-                    listOf("30fps", "60fps").forEach { fps ->
-                        DropdownMenuItem(text = { Text(fps) }, onClick = { camFps = fps; expandedCamFps = false })
-                    }
+            )
+            ExposedDropdownMenu(expanded = expandedBackVideoResolution, onDismissRequest = { expandedBackVideoResolution = false }) {
+                availableBackFormats.forEach { formatStr ->
+                    DropdownMenuItem(text = { Text(formatStr) }, onClick = { 
+                        val parts = formatStr.split(" @ ")
+                        viewModel.saveBackVideoResolution(parts[0])
+                        viewModel.saveBackVideoFps(parts[1].replace("fps", "").trim().toInt())
+                        expandedBackVideoResolution = false 
+                    })
                 }
             }
         }
         
         Spacer(modifier = Modifier.height(12.dp))
+        
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Reflect video", color = foregroundText, modifier = Modifier.weight(1f))
-            Switch(checked = mirrorVideo, onCheckedChange = { mirrorVideo = it }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
+            Text("Mirror Front Camera", color = foregroundText, modifier = Modifier.weight(1f))
+            Switch(checked = mirrorFrontCamera, onCheckedChange = { viewModel.saveMirrorFrontCamera(it) }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+
+        ExposedDropdownMenuBox(
+            expanded = expandedVideoCodec,
+            onExpandedChange = { expandedVideoCodec = !expandedVideoCodec },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = videoCodec,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Video Codec") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedVideoCodec) },
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                    focusedTextColor = foregroundText, unfocusedTextColor = primaryText
+                )
+            )
+            ExposedDropdownMenu(expanded = expandedVideoCodec, onDismissRequest = { expandedVideoCodec = false }) {
+                availableVideoCodecs.forEach { codec ->
+                    DropdownMenuItem(text = { Text(codec) }, onClick = { viewModel.saveVideoCodec(codec); expandedVideoCodec = false })
+                }
+            }
         }
     }
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    SettingsSection(title = "SCREEN SHARE", cardColor = cardColor, foregroundText = foregroundText) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Screen Capture Access", color = foregroundText)
-                Text(if (screenPermission) "Granted" else "Denied", color = primaryText, fontSize = 12.sp)
-            }
-            Button(
-                onClick = { screenPermission = !screenPermission },
-                colors = ButtonDefaults.buttonColors(containerColor = if (screenPermission) Color.DarkGray else accentColor)
-            ) {
-                Text(if (screenPermission) "Revoke" else "Give Permission")
-            }
-        }
-
-        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color.White.copy(alpha = 0.1f))
-
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ExposedDropdownMenuBox(
-                expanded = expandedScreenRes,
-                onExpandedChange = { expandedScreenRes = !expandedScreenRes },
-                modifier = Modifier.weight(1f)
-            ) {
-                OutlinedTextField(
-                    value = screenResolution,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Quality") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedScreenRes) },
-                    modifier = Modifier.menuAnchor(),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
-                        focusedTextColor = foregroundText, unfocusedTextColor = primaryText
-                    )
+    SettingsSection(title = "SCREEN SHARE SETTINGS", cardColor = cardColor, foregroundText = foregroundText) {
+        ExposedDropdownMenuBox(
+            expanded = expandedScreenShareResolution,
+            onExpandedChange = { expandedScreenShareResolution = !expandedScreenShareResolution },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = screenShareResolution,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Resolution") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedScreenShareResolution) },
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                    focusedTextColor = foregroundText, unfocusedTextColor = primaryText
                 )
-                ExposedDropdownMenu(expanded = expandedScreenRes, onDismissRequest = { expandedScreenRes = false }) {
-                    listOf("720p", "1080p", "1440p", "4K").forEach { res ->
-                        DropdownMenuItem(text = { Text(res) }, onClick = { screenResolution = res; expandedScreenRes = false })
-                    }
-                }
-            }
-            ExposedDropdownMenuBox(
-                expanded = expandedScreenFps,
-                onExpandedChange = { expandedScreenFps = !expandedScreenFps },
-                modifier = Modifier.weight(1f)
-            ) {
-                OutlinedTextField(
-                    value = screenFps,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("FPS") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedScreenFps) },
-                    modifier = Modifier.menuAnchor(),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
-                        focusedTextColor = foregroundText, unfocusedTextColor = primaryText
-                    )
-                )
-                ExposedDropdownMenu(expanded = expandedScreenFps, onDismissRequest = { expandedScreenFps = false }) {
-                    listOf("15fps", "30fps", "60fps").forEach { fps ->
-                        DropdownMenuItem(text = { Text(fps) }, onClick = { screenFps = fps; expandedScreenFps = false })
-                    }
+            )
+            ExposedDropdownMenu(expanded = expandedScreenShareResolution, onDismissRequest = { expandedScreenShareResolution = false }) {
+                availableScreenShareResolutions.forEach { resOption ->
+                    val actualValue = resOption.split(" ")[0]
+                    DropdownMenuItem(text = { Text(resOption) }, onClick = { viewModel.saveScreenShareResolution(actualValue); expandedScreenShareResolution = false })
                 }
             }
         }
-
+        
         Spacer(modifier = Modifier.height(12.dp))
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ExposedDropdownMenuBox(
-                expanded = expandedCodec,
-                onExpandedChange = { expandedCodec = !expandedCodec },
-                modifier = Modifier.weight(1f)
-            ) {
-                OutlinedTextField(
-                    value = codec,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Codec") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCodec) },
-                    modifier = Modifier.menuAnchor(),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
-                        focusedTextColor = foregroundText, unfocusedTextColor = primaryText
-                    )
+        ExposedDropdownMenuBox(
+            expanded = expandedScreenShareFps,
+            onExpandedChange = { expandedScreenShareFps = !expandedScreenShareFps },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = "$screenShareFps fps",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Framerate") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedScreenShareFps) },
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                    focusedTextColor = foregroundText, unfocusedTextColor = primaryText
                 )
-                ExposedDropdownMenu(expanded = expandedCodec, onDismissRequest = { expandedCodec = false }) {
-                    listOf("H264", "VP8", "VP9", "AV1").forEach { c ->
-                        DropdownMenuItem(text = { Text(c) }, onClick = { codec = c; expandedCodec = false })
-                    }
+            )
+            ExposedDropdownMenu(expanded = expandedScreenShareFps, onDismissRequest = { expandedScreenShareFps = false }) {
+                availableScreenShareFpsList.forEach { fps ->
+                    DropdownMenuItem(text = { Text("$fps fps") }, onClick = { viewModel.saveScreenShareFps(fps); expandedScreenShareFps = false })
                 }
             }
-            ExposedDropdownMenuBox(
-                expanded = expandedBitrate,
-                onExpandedChange = { expandedBitrate = !expandedBitrate },
-                modifier = Modifier.weight(1f)
-            ) {
-                OutlinedTextField(
-                    value = bitrate,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Bitrate") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedBitrate) },
-                    modifier = Modifier.menuAnchor(),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
-                        focusedTextColor = foregroundText, unfocusedTextColor = primaryText
-                    )
+        }
+        
+        Spacer(modifier = Modifier.height(12.dp))
+
+        ExposedDropdownMenuBox(
+            expanded = expandedScreenShareCodec,
+            onExpandedChange = { expandedScreenShareCodec = !expandedScreenShareCodec },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = videoCodec,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Screen Share Codec") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedScreenShareCodec) },
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                    focusedTextColor = foregroundText, unfocusedTextColor = primaryText
                 )
-                ExposedDropdownMenu(expanded = expandedBitrate, onDismissRequest = { expandedBitrate = false }) {
-                    listOf("1000 kbps", "2500 kbps", "5000 kbps", "8000 kbps").forEach { b ->
-                        DropdownMenuItem(text = { Text(b) }, onClick = { bitrate = b; expandedBitrate = false })
-                    }
+            )
+            ExposedDropdownMenu(expanded = expandedScreenShareCodec, onDismissRequest = { expandedScreenShareCodec = false }) {
+                availableVideoCodecs.forEach { codec ->
+                    DropdownMenuItem(text = { Text(codec) }, onClick = { viewModel.saveVideoCodec(codec); expandedScreenShareCodec = false })
                 }
             }
         }

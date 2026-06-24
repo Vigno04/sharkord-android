@@ -11,14 +11,11 @@ import com.google.gson.JsonObject
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
-/**
- * Repository layer that coordinates HTTP and WebSocket operations
- * and exposes reactive state for the UI layer.
- *
- * This is the single source of truth for server connectivity state,
- * replacing the scattered state management that was previously in
- * HomeScreen, LoginViewModel, and SharkordClient.
- */
+// repository layer that coordinates HTTP and WebSocket operations
+// and exposes reactive state for the UI layer
+// this is the single source of truth for server connectivity state,
+// replacing the scattered state management that was previously in
+// homeScreen, LoginViewModel, and SharkordClient
 class ServerRepository {
 
     companion object {
@@ -29,26 +26,24 @@ class ServerRepository {
     private val webSocket get() = SharkordClient.webSocket
     private val session get() = SharkordClient.session
 
-    // Reactive State
+    // reactive State
 
-    /** Current WebSocket connection state. */
+    // current WebSocket connection state
     val connectionState: StateFlow<ConnectionState>
         get() = webSocket.connectionState
 
-    /** Emits JoinServerData when successfully connected. */
+    // emits JoinServerData when successfully connected
     val serverData: SharedFlow<JoinServerData>
         get() = webSocket.serverData
 
-    /** Emits incoming real-time events from tRPC subscriptions. */
+    // emits incoming real-time events from tRPC subscriptions
     val incomingEvents: SharedFlow<IncomingEvent>
         get() = webSocket.incomingEvents
 
     // HTTP Operations
 
-    /**
-     * Fetches server info (name, description, logo, version) from GET /info.
-     * Does NOT modify session state.
-     */
+    // fetches server info (name, description, logo, version) from GET /info
+    // does NOT modify session state
     suspend fun fetchServerInfo(serverUrl: String): Result<ServerInfoResponse> {
         val cleanUrl = serverUrl.trimEnd('/')
         val result = http.fetchServerInfo(cleanUrl)
@@ -67,12 +62,9 @@ class ServerRepository {
         return result
     }
 
-    /**
-     * Authenticates with the server via POST /login.
-     * On success, stores the token and server URL in session (if auto-login is enabled).
-     *
-     * @return The JWT token on success.
-     */
+    // authenticates with the server via POST /login
+    // on success, stores the token and server URL in session (if auto-login is enabled)
+    // @return The JWT token on success
     suspend fun login(
         serverUrl: String,
         identity: String,
@@ -92,14 +84,11 @@ class ServerRepository {
         return result
     }
 
-    // WebSocket Operations
+    // webSocket Operations
 
-    /**
-     * Connects to the server via WebSocket and performs the full tRPC handshake + joinServer flow.
-     * Uses the currently stored token and server URL.
-     *
-     * @return true if connection was initiated, false if missing token/url.
-     */
+    // connects to the server via WebSocket and performs the full tRPC handshake + joinServer flow
+    // uses the currently stored token and server URL
+    // @return true if connection was initiated, false if missing token/url
     fun connectWebSocket(): Boolean {
         val url = SharkordClient.currentServerUrl
         val token = SharkordClient.currentToken
@@ -113,29 +102,23 @@ class ServerRepository {
         return true
     }
 
-    /**
-     * Disconnects the WebSocket and clears session state.
-     * Used for explicit logout.
-     */
+    // disconnects the WebSocket and clears session state
+    // used for explicit logout
     fun logout() {
         SharkordClient.clearState()
         session.clearSession()
         Log.d(TAG, "Logged out, session cleared")
     }
 
-    /**
-     * Disconnects the WebSocket without clearing session (e.g., app going to background).
-     */
+    // disconnects the WebSocket without clearing session (e.g., app going to background)
     fun disconnectWebSocket() {
         webSocket.disconnect()
     }
 
-    // Session Queries
+    // session Queries
 
-    /**
-     * Attempts to restore a saved session. Returns true if credentials exist
-     * and the session was restored to SharkordClient's in-memory state.
-     */
+    // attempts to restore a saved session. Returns true if credentials exist
+    // and the session was restored to SharkordClient's in-memory state
     fun restoreSession(): Boolean {
         if (!session.hasValidSession()) return false
 
@@ -151,25 +134,19 @@ class ServerRepository {
         return true
     }
 
-    /**
-     * Saves only the server URL to preferences (when user enters URL before login).
-     */
+    // saves only the server URL to preferences (when user enters URL before login)
     fun saveServerUrl(serverUrl: String) {
         val cleanUrl = serverUrl.trimEnd('/')
         session.saveServerUrl(cleanUrl)
         SharkordClient.currentServerUrl = cleanUrl
     }
 
-    /**
-     * Returns the saved server URL from preferences (for pre-filling the URL field).
-     */
+    // returns the saved server URL from preferences (for pre-filling the URL field)
     fun getSavedServerUrl(): String? = session.serverUrl
 
     fun isAutoLoginEnabled(): Boolean = session.autoLogin
 
-    /**
-     * Opens a direct message channel with the given user.
-     */
+    // opens a direct message channel with the given user
     suspend fun openDirectMessage(userId: Int): Result<Int> {
         return try {
             val input = JsonObject().apply {
@@ -322,7 +299,6 @@ class ServerRepository {
         }
     }
 
-
     suspend fun markChannelAsRead(channelId: Int): Result<Unit> {
         return try {
             val input = com.google.gson.JsonObject().apply {
@@ -336,8 +312,7 @@ class ServerRepository {
         }
     }
 
-
-    // Server Administration (Settings & Roles)
+    // server Administration (Settings & Roles)
 
     suspend fun getAdminSettings(): Result<com.sharkord.android.data.model.AdminSettings> {
         return try {
@@ -386,7 +361,7 @@ class ServerRepository {
                 addProperty("enableSearch", settings.enableSearch)
                 addProperty("showWelcomeDialog", settings.showWelcomeDialog)
                 
-                // Storage Fields
+                // storage Fields
                 addProperty("storageUploadEnabled", settings.storageUploadEnabled)
                 if (settings.storageQuota != null) addProperty("storageQuota", settings.storageQuota)
                 if (settings.storageUploadMaxFileSize != null) addProperty("storageUploadMaxFileSize", settings.storageUploadMaxFileSize)
@@ -409,7 +384,7 @@ class ServerRepository {
         }
     }
 
-    // Plugins
+    // plugins
 
     suspend fun getPlugins(): Result<List<com.sharkord.android.data.model.PluginInfo>> {
         return try {
@@ -487,7 +462,7 @@ class ServerRepository {
             }
             val response = webSocket.sendQueryAwait("plugins.getLogs", input)
             
-            // WebSocketManager wraps non-JsonObject responses (like arrays) in {"value": ...}
+            // webSocketManager wraps non-JsonObject responses (like arrays) in {"value": ...}
             val logsElement = if (response.has("value")) response.get("value") else response
             
             val type = object : com.google.gson.reflect.TypeToken<List<com.sharkord.android.data.model.PluginLogEntry>>() {}.type
@@ -579,7 +554,7 @@ class ServerRepository {
         }
     }
 
-    // Updates
+    // updates
 
     suspend fun getServerUpdate(): Result<com.sharkord.android.data.model.UpdateInfo> {
         return try {
@@ -603,7 +578,7 @@ class ServerRepository {
         }
     }
 
-    // Users
+    // users
 
     suspend fun deleteUser(userId: Int, wipe: Boolean = false): Result<Unit> {
         return try {
@@ -746,7 +721,7 @@ class ServerRepository {
         }
     }
 
-    // Invites Operations
+    // invites Operations
 
     suspend fun getInvites(): Result<List<Invite>> {
         return try {
@@ -790,7 +765,7 @@ class ServerRepository {
         }
     }
 
-    // Emojis Operations
+    // emojis Operations
 
     suspend fun uploadEmoji(name: String, fileBytes: ByteArray, originalName: String): Result<Unit> {
         return try {

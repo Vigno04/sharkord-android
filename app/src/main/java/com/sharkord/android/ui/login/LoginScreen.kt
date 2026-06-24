@@ -46,14 +46,14 @@ fun LoginScreen(
 ) {
     val context = LocalContext.current
     
-    // Synchronously check for a saved valid session on the very first frame
+    // synchronously check for a saved valid session on the very first frame
     // to prevent flashing of the login form/fields during auto-login transitions
     val hasSavedSession = remember(context) {
         SharkordClient.initialize(context)
         SharkordClient.session.hasValidSession()
     }
     
-    // Load saved URL on startup
+    // load saved URL on startup
     LaunchedEffect(Unit) {
         viewModel.initialize(context, onLoginSuccess)
     }
@@ -64,7 +64,7 @@ fun LoginScreen(
     val foregroundText = Color(0xFFFAFAFA)
     val accentColor = Color(0xFFE8E8E8)
 
-    // Render a premium full-screen splash screen immediately during auto-login transitions
+    // render a premium full-screen splash screen immediately during auto-login transitions
     if (hasSavedSession || viewModel.isAutoLoggingIn) {
         Box(
             modifier = Modifier
@@ -76,7 +76,7 @@ fun LoginScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // Show cached server logo if available in saved session
+                // show cached server logo if available in saved session
                 val savedLogoUrl = remember(context) {
                     if (SharkordClient.session.hasValidSession()) SharkordClient.session.serverLogoUrl else null
                 }
@@ -172,7 +172,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Title (Server Name or default "Sharkord")
+            // title (Server Name or default "Sharkord")
             Text(
                 text = viewModel.serverName,
                 color = foregroundText,
@@ -182,7 +182,7 @@ fun LoginScreen(
                 textAlign = TextAlign.Center
             )
             
-            // Server Description (if present)
+            // server Description (if present)
             viewModel.serverDescription?.let { desc ->
                 if (desc.isNotBlank()) {
                     Spacer(modifier = Modifier.height(8.dp))
@@ -198,7 +198,7 @@ fun LoginScreen(
             
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Form Card
+            // form Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -249,7 +249,7 @@ fun LoginScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Error Message
+                        // error Message
                         viewModel.errorMessage?.let { error ->
                             Text(
                                 text = error,
@@ -263,7 +263,7 @@ fun LoginScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                         }
 
-                        // Next Button
+                        // next Button
                         Button(
                             onClick = { viewModel.onNextClick(context) },
                             enabled = !viewModel.isLoading,
@@ -293,7 +293,7 @@ fun LoginScreen(
 
                     } else {
 
-                        // Email / Identity Input
+                        // email / Identity Input
                         OutlinedTextField(
                             value = viewModel.identity,
                             onValueChange = { viewModel.identity = it },
@@ -315,7 +315,7 @@ fun LoginScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        // Password Input
+                        // password Input
                         OutlinedTextField(
                             value = viewModel.password,
                             onValueChange = { viewModel.password = it },
@@ -339,7 +339,7 @@ fun LoginScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Switch button to save login (Login automatically)
+                        // switch button to save login (Login automatically)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -368,7 +368,7 @@ fun LoginScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Error Message
+                        // error Message
                         viewModel.errorMessage?.let { error ->
                             Text(
                                 text = error,
@@ -382,7 +382,7 @@ fun LoginScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                         }
 
-                        // Login Button
+                        // login Button
                         Button(
                             onClick = { viewModel.onLoginClick(context, onLoginSuccess) },
                             enabled = !viewModel.isLoading,

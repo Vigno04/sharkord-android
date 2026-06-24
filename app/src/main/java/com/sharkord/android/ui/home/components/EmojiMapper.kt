@@ -1908,25 +1908,19 @@ object EmojiMapper {
         "regional_indicator_z" to "�"
     )
 
-    /**
-     * Resolves an emoji code (shortcode like "grinning" or unicode like "😀") to its display unicode character.
-     * If it's already a unicode character or not found in the map, it returns the input code.
-     */
+    // resolves an emoji code (shortcode like "grinning" or unicode like "😀") to its display unicode character
+    // if it's already a unicode character or not found in the map, it returns the input code
     fun map(code: String): String {
         val trimmed = code.trim().removeSurrounding(":")
         return emojiMap[trimmed] ?: emojiMap[code] ?: code
     }
 
-    /**
-     * Exposes the entire database of shortcode-to-unicode emoji mappings.
-     */
+    // exposes the entire database of shortcode-to-unicode emoji mappings
     fun getAllEmojis(): Map<String, String> {
         return emojiMap
     }
 
-    /**
-     * Checks if the given text consists entirely of emojis and whitespace.
-     */
+    // checks if the given text consists entirely of emojis and whitespace
     fun isEmojiOnly(text: String): Boolean {
         if (text.isBlank()) return false
         
@@ -1947,7 +1941,7 @@ object EmojiMapper {
                 continue
             }
             
-            // If it's a digit or keycap base character, check if followed by variation/keycap modifier
+            // if it's a digit or keycap base character, check if followed by variation/keycap modifier
             if (codePoint == 0x23 || codePoint == 0x2A || (codePoint in 0x30..0x39)) {
                 if (i + charCount < text.length) {
                     val nextCp = text.codePointAt(i + charCount)

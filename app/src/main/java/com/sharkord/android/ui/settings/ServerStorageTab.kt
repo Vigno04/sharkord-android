@@ -382,7 +382,7 @@ fun StorageSizeControl(
         Text(description, color = pText, fontSize = 12.sp)
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Slider logic using unitDivider
+        // slider logic using unitDivider
         val safeMaxBytes = maxOf(minBytes + unitDivider, maxBytes)
         val minUnit = (minBytes / unitDivider).toFloat()
         val maxUnit = (safeMaxBytes / unitDivider).toFloat()

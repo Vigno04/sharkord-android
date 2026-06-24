@@ -4,7 +4,6 @@ import com.sharkord.android.R
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 
-
 internal enum class EmojiCategory(
     val key: String,
     @StringRes val title: Int,

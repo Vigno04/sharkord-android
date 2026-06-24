@@ -64,12 +64,9 @@ private val altRegex = Regex("""alt=["']([^"']+)["']""")
 private val srcRegex = Regex("""src=["']([^"']+)["']""")
 private val tokenRegex = Regex("""\[\[EMOJI\|(.*?)\|(.*?)\]\]""")
 
-/**
- * Renders a single chat message in the message list.
- *
- * Groups consecutive messages from the same author (compact mode) to mirror
- * Discord's visual style — only the first message in a run shows the avatar + name.
- */
+// renders a single chat message in the message list
+// groups consecutive messages from the same author (compact mode) to mirror
+// discord's visual style — only the first message in a run shows the avatar + name
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun MessageItem(
@@ -94,13 +91,13 @@ fun MessageItem(
 
     val author = users.find { it.id == message.userId }
 
-    // Show the avatar + author header only when this is the first message in a consecutive run
+    // show the avatar + author header only when this is the first message in a consecutive run
     val showHeader = previousMessage == null
         || previousMessage.userId != message.userId
         || (message.createdAt - previousMessage.createdAt) > TimeUnit.MINUTES.toMillis(5)
         || message.replyTo != null
 
-    // Resolve author's top-role color
+    // resolve author's top-role color
     val nameColor = remember(author, roles) {
         val authorRoleIds = author?.roleIds ?: emptyList()
         val topRole = roles
@@ -114,7 +111,7 @@ fun MessageItem(
         }
     }
 
-    // Pre-process HTML to preserve custom emojis as tokens before stripping tags
+    // pre-process HTML to preserve custom emojis as tokens before stripping tags
     val preProcessedHtml = remember(message.content) {
         val raw = message.content ?: ""
         imgRegex.replace(raw) { matchResult ->
@@ -211,7 +208,7 @@ fun MessageItem(
                 onClick = {}
             )
     ) {
-        // If it is a reply, render the curved connection line and original message preview
+        // if it is a reply, render the curved connection line and original message preview
         if (message.replyTo != null) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -220,7 +217,7 @@ fun MessageItem(
                     .clickable { onReplyClick(message.replyTo.id) }
                     .padding(start = 12.dp, top = 6.dp, bottom = 2.dp)
             ) {
-                // Curved connecting thread
+                // curved connecting thread
                 Canvas(
                     modifier = Modifier
                         .width(36.dp)
@@ -240,7 +237,7 @@ fun MessageItem(
 
                 Spacer(modifier = Modifier.width(4.dp))
 
-                // Resolve target author for the reply preview
+                // resolve target author for the reply preview
                 val replyAuthor = users.find { it.id == message.replyTo.userId }
 
                 Box(
@@ -319,7 +316,7 @@ fun MessageItem(
                 ),
             verticalAlignment = Alignment.Top
         ) {
-            // Left column: avatar or spacer
+            // left column: avatar or spacer
             if (showHeader) {
                 Box(
                     modifier = Modifier
@@ -345,7 +342,7 @@ fun MessageItem(
                             strokeWidth = 2.dp
                         )
                         else -> {
-                            // Empty (no avatar) or Failure — show initials
+                            // empty (no avatar) or Failure — show initials
                             val initials = getInitials(author?.name ?: "?")
                             val bgColor = getUsernameColor(author?.name ?: "?")
                             Box(
@@ -363,13 +360,13 @@ fun MessageItem(
                     }
                 }
             } else {
-                // Compact mode — reserve the same width as the avatar column so text aligns
+                // compact mode — reserve the same width as the avatar column so text aligns
                 Spacer(modifier = Modifier.width(40.dp))
             }
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Right column: header (name + time) and content
+            // right column: header (name + time) and content
             Column(modifier = Modifier.weight(1f)) {
                 if (showHeader) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -404,7 +401,7 @@ fun MessageItem(
                     )
                 }
 
-                // Edited indicator
+                // edited indicator
                 if (message.editedAt != null) {
                     Text(
                         text = "(edited)",
@@ -414,7 +411,7 @@ fun MessageItem(
                     )
                 }
 
-                // Media & File attachments: display photos/audios inline or generic chips
+                // media & File attachments: display photos/audios inline or generic chips
                 if (message.files.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(6.dp))
                     message.files.forEach { file ->
@@ -518,11 +515,11 @@ fun MessageItem(
                                                 )
                                             }
                                             else -> {
-                                                // Fallback background or nothing
+                                                // fallback background or nothing
                                             }
                                         }
 
-                                        // Play icon overlay ALWAYS visible when not playing
+                                        // play icon overlay ALWAYS visible when not playing
                                         Box(
                                             modifier = Modifier
                                                 .size(48.dp)
@@ -652,221 +649,9 @@ fun MessageItem(
     }
 }
 
-/**
- * Custom voice note / audio playback card interface.
- */
-@Composable
-fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
-    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
-    var isPlaying by remember { mutableStateOf(false) }
-    var duration by remember { mutableIntStateOf(0) }
-    var currentPosition by remember { mutableIntStateOf(0) }
-    var isPrepared by remember { mutableStateOf(false) }
 
-    DisposableEffect(audioUrl) {
-        val player = MediaPlayer().apply {
-            try {
-                setAudioAttributes(
-                    android.media.AudioAttributes.Builder()
-                        .setUsage(android.media.AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build()
-                )
-                setDataSource(audioUrl)
-                setOnPreparedListener {
-                    duration = it.duration
-                    isPrepared = true
-                }
-                setOnCompletionListener {
-                    isPlaying = false
-                    currentPosition = 0
-                }
-                prepareAsync()
-            } catch (e: Exception) {
-                Log.e("AudioPlayer", "Error preparing player", e)
-            }
-        }
-        mediaPlayer = player
 
-        onDispose {
-            player.release()
-            mediaPlayer = null
-        }
-    }
-
-    // Playback progress loop
-    LaunchedEffect(isPlaying) {
-        if (isPlaying) {
-            while (isPlaying && mediaPlayer != null) {
-                currentPosition = mediaPlayer?.currentPosition ?: 0
-                delay(200)
-            }
-        }
-    }
-
-    val playPauseAction = {
-        val player = mediaPlayer
-        if (player != null && isPrepared) {
-            if (isPlaying) {
-                player.pause()
-                isPlaying = false
-            } else {
-                player.start()
-                isPlaying = true
-            }
-        }
-    }
-
-    val formatTime = { ms: Int ->
-        val seconds = (ms / 1000) % 60
-        val minutes = (ms / (1000 * 60)) % 60
-        String.format("%d:%02d", minutes, seconds)
-    }
-
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val sensorManager = remember { context.getSystemService(android.content.Context.SENSOR_SERVICE) as android.hardware.SensorManager }
-    val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager }
-    val powerManager = remember { context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager }
-    val proximitySensor = remember { sensorManager.getDefaultSensor(android.hardware.Sensor.TYPE_PROXIMITY) }
-
-    val wakeLock = remember {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-            powerManager.newWakeLock(android.os.PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "Sharkord:AudioPlayerProximity")
-        } else {
-            null
-        }
-    }
-
-    var isNear by remember { mutableStateOf(false) }
-
-    val onPausePlayback = rememberUpdatedState {
-        val player = mediaPlayer
-        if (player != null && isPrepared && isPlaying) {
-            player.pause()
-            isPlaying = false
-        }
-    }
-
-    val sensorEventListener = remember {
-        object : android.hardware.SensorEventListener {
-            override fun onSensorChanged(event: android.hardware.SensorEvent?) {
-                if (event?.sensor?.type == android.hardware.Sensor.TYPE_PROXIMITY) {
-                    val distance = event.values[0]
-                    val maxRange = proximitySensor?.maximumRange ?: 5f
-                    val near = distance < maxRange && distance < 5f
-                    if (isNear != near) {
-                        isNear = near
-                        if (near) {
-                            audioManager.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
-                            audioManager.isSpeakerphoneOn = false
-                        } else {
-                            audioManager.mode = android.media.AudioManager.MODE_NORMAL
-                            audioManager.isSpeakerphoneOn = true
-                            onPausePlayback.value()
-                        }
-                    }
-                }
-            }
-            override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
-        }
-    }
-
-    DisposableEffect(isPlaying) {
-        if (isPlaying) {
-            proximitySensor?.let {
-                sensorManager.registerListener(sensorEventListener, it, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
-            }
-            try {
-                wakeLock?.takeIf { !it.isHeld }?.acquire()
-            } catch (e: Exception) {
-                Log.e("AudioPlayer", "WakeLock acquire failed", e)
-            }
-        } else {
-            sensorManager.unregisterListener(sensorEventListener)
-            try {
-                wakeLock?.takeIf { it.isHeld }?.release()
-            } catch (e: Exception) {
-                Log.e("AudioPlayer", "WakeLock release failed", e)
-            }
-            audioManager.mode = android.media.AudioManager.MODE_NORMAL
-            audioManager.isSpeakerphoneOn = true
-            isNear = false
-        }
-        onDispose {
-            sensorManager.unregisterListener(sensorEventListener)
-            try {
-                wakeLock?.takeIf { it.isHeld }?.release()
-            } catch (e: Exception) {
-                Log.e("AudioPlayer", "WakeLock release failed", e)
-            }
-            audioManager.mode = android.media.AudioManager.MODE_NORMAL
-            audioManager.isSpeakerphoneOn = true
-            isNear = false
-        }
-    }
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth(0.9f)
-            .background(Color(0xFF242424), RoundedCornerShape(12.dp))
-            .padding(start = 14.dp, end = 14.dp, top = 16.dp, bottom = 8.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = playPauseAction, 
-                enabled = isPrepared,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = Color(0xFF5B9BD5),
-                    modifier = Modifier.size(30.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Slider(
-                value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
-                onValueChange = { ratio ->
-                    val player = mediaPlayer
-                    if (player != null && isPrepared) {
-                        val newPos = (ratio * duration).toInt()
-                        player.seekTo(newPos)
-                        currentPosition = newPos
-                    }
-                },
-                colors = SliderDefaults.colors(
-                    thumbColor = Color(0xFF5B9BD5),
-                    activeTrackColor = Color(0xFF5B9BD5),
-                    inactiveTrackColor = Color(0xFF4A4A4A)
-                ),
-                modifier = Modifier.weight(1f).height(18.dp)
-            )
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 48.dp, top = 4.dp), // 36dp (button) + 12dp (spacer) = 48dp
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = formatTime(currentPosition),
-                color = Color(0xFF9E9E9E),
-                fontSize = 11.sp
-            )
-            Text(
-                text = formatTime(duration),
-                color = Color(0xFF9E9E9E),
-                fontSize = 11.sp
-            )
-        }
-    }
-}
-
-// Helpers
+// helpers
 
 private fun formatTimestamp(epochMs: Long): String {
     val now = System.currentTimeMillis()
@@ -902,10 +687,8 @@ private fun getFileIcon(fileName: String, mimeType: String?): String {
     }
 }
 
-/**
- * Returns initials from a display name, mirroring the web app's getInitialsFromName():
- * single-word names -> first letter; multi-word -> first letter of first two words.
- */
+// returns initials from a display name, mirroring the web app's getInitialsFromName():
+// single-word names -> first letter; multi-word -> first letter of first two words
 private fun getInitials(name: String): String {
     val words = name.trim().split(" ").filter { it.isNotEmpty() }
     return when {
@@ -915,7 +698,7 @@ private fun getInitials(name: String): String {
     }
 }
 
-/** Stable deterministic background color for a user's avatar based on their name. */
+// stable deterministic background color for a user's avatar based on their name
 private fun getUsernameColor(name: String): Color {
     val palette = listOf(
         Color(0xFF5865F2), // Discord blurple

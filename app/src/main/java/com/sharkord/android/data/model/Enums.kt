@@ -1,8 +1,6 @@
 package com.sharkord.android.data.model
 
-/**
- * User online status, matching the server's UserStatus enum.
- */
+// user online status, matching the server's UserStatus enum
 enum class UserStatus(val value: String) {
     ONLINE("online"),
     IDLE("idle"),
@@ -15,9 +13,7 @@ enum class UserStatus(val value: String) {
     }
 }
 
-/**
- * Channel type, matching the server's ChannelType enum.
- */
+// channel type, matching the server's ChannelType enum
 enum class ChannelType(val value: String) {
     TEXT("TEXT"),
     VOICE("VOICE");
@@ -29,26 +25,24 @@ enum class ChannelType(val value: String) {
     }
 }
 
-/**
- * Server-side event names used for tRPC subscriptions.
- * Matches the server's ServerEvents enum in packages/shared/src/events.ts.
- */
+// server-side event names used for tRPC subscriptions
+// matches the server's ServerEvents enum in packages/shared/src/events.ts
 object ServerEvent {
-    // Messages
+    // messages
     const val NEW_MESSAGE = "newMessage"
     const val MESSAGE_UPDATE = "messageUpdate"
     const val MESSAGE_DELETE = "messageDelete"
     const val MESSAGE_TYPING = "messageTyping"
     const val THREAD_REPLY_COUNT_UPDATE = "threadReplyCountUpdate"
 
-    // Users
+    // users
     const val USER_JOIN = "userJoin"
     const val USER_LEAVE = "userLeave"
     const val USER_CREATE = "userCreate"
     const val USER_UPDATE = "userUpdate"
     const val USER_DELETE = "userDelete"
 
-    // Channels
+    // channels
     const val CHANNEL_CREATE = "channelCreate"
     const val CHANNEL_UPDATE = "channelUpdate"
     const val CHANNEL_DELETE = "channelDelete"
@@ -56,29 +50,29 @@ object ServerEvent {
     const val CHANNEL_READ_STATES_UPDATE = "channelReadStatesUpdate"
     const val CHANNEL_READ_STATES_DELTA = "channelReadStatesDelta"
 
-    // Voice
+    // voice
     const val USER_JOIN_VOICE = "userJoinVoice"
     const val USER_LEAVE_VOICE = "userLeaveVoice"
     const val USER_VOICE_STATE_UPDATE = "userVoiceStateUpdate"
 
-    // Emojis
+    // emojis
     const val EMOJI_CREATE = "emojiCreate"
     const val EMOJI_UPDATE = "emojiUpdate"
     const val EMOJI_DELETE = "emojiDelete"
 
-    // Roles
+    // roles
     const val ROLE_CREATE = "roleCreate"
     const val ROLE_UPDATE = "roleUpdate"
     const val ROLE_DELETE = "roleDelete"
 
-    // Server
+    // server
     const val SERVER_SETTINGS_UPDATE = "serverSettingsUpdate"
 
-    // Categories
+    // categories
     const val CATEGORY_CREATE = "categoryCreate"
     const val CATEGORY_UPDATE = "categoryUpdate"
     const val CATEGORY_DELETE = "categoryDelete"
 
-    // DMs
+    // dMs
     const val DM_CONVERSATION_OPEN = "dmConversationOpen"
 }

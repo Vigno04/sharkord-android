@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -116,7 +117,7 @@ fun CustomVideoPlayer(
             }
         }
         exoPlayer.addListener(listener)
-        // Initialize state
+        // initialize state
         isPlaying = exoPlayer.isPlaying
         isPrepared = exoPlayer.playbackState == Player.STATE_READY
         duration = exoPlayer.duration.coerceAtLeast(0)
@@ -201,7 +202,7 @@ fun CustomVideoPlayer(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Overlay Controls
+        // overlay Controls
         AnimatedVisibility(
             visible = showControls || !isPlaying,
             enter = fadeIn(),
@@ -277,8 +278,8 @@ fun CustomVideoPlayer(
                                 modifier = Modifier.size(24.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Fullscreen,
-                                    contentDescription = "Fullscreen",
+                                    imageVector = if (isOverlayActive) Icons.Default.Close else Icons.Default.Fullscreen,
+                                    contentDescription = if (isOverlayActive) "Exit Fullscreen" else "Fullscreen",
                                     tint = Color.White
                                 )
                             }

@@ -82,7 +82,7 @@ class ChannelSettingsViewModel(private val channelId: Int) : ViewModel() {
 
     fun updatePermissions(roleId: Int?, userId: Int?, isCreate: Boolean, permissions: List<String>) {
         viewModelScope.launch {
-            // Optimistic Update
+            // optimistic Update
             val oldRolePerms = _uiState.value.rolePermissions
             val oldUserPerms = _uiState.value.userPermissions
 
@@ -106,7 +106,7 @@ class ChannelSettingsViewModel(private val channelId: Int) : ViewModel() {
             if (result.isSuccess) {
                 loadPermissions() // Reload to get fresh state
             } else {
-                // Revert
+                // revert
                 _uiState.update { it.copy(rolePermissions = oldRolePerms, userPermissions = oldUserPerms, errorMessage = result.exceptionOrNull()?.message ?: "Failed to update permissions") }
             }
         }
@@ -114,7 +114,7 @@ class ChannelSettingsViewModel(private val channelId: Int) : ViewModel() {
 
     fun deletePermissions(roleId: Int?, userId: Int?) {
         viewModelScope.launch {
-            // Optimistic Update
+            // optimistic Update
             val oldRolePerms = _uiState.value.rolePermissions
             val oldUserPerms = _uiState.value.userPermissions
 
@@ -129,7 +129,7 @@ class ChannelSettingsViewModel(private val channelId: Int) : ViewModel() {
             if (result.isSuccess) {
                 loadPermissions() // Reload to get fresh state
             } else {
-                // Revert
+                // revert
                 _uiState.update { it.copy(rolePermissions = oldRolePerms, userPermissions = oldUserPerms, errorMessage = result.exceptionOrNull()?.message ?: "Failed to delete permissions") }
             }
         }
