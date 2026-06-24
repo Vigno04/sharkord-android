@@ -41,6 +41,23 @@ class MainActivity : FragmentActivity() {
             }
         }
     }
+
+    override fun onPause() {
+        super.onPause()
+        val isCallGoing = if (com.sharkord.android.data.network.SharkordClient.isVoiceEngineInitialized) {
+            com.sharkord.android.data.network.SharkordClient.voiceEngine.isConnected.value
+        } else false
+
+        if (!isCallGoing) {
+            com.sharkord.android.data.network.SharkordClient.webSocket.pauseConnection()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // force immediate reconnect if we were disconnected (e.g., from network loss or screen off)
+        com.sharkord.android.data.network.SharkordClient.webSocket.resumeConnection()
+    }
 }
 
 @Composable

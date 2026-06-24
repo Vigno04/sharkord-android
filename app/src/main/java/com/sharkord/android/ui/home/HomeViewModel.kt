@@ -94,6 +94,7 @@ class HomeViewModel : ViewModel() {
     
     private var typingJob: Job? = null
     private var preDeafenMicMuted: Boolean = false
+    private var hasPlayedDisconnectSound = false
 
     // connection state directly from the WebSocket manager
     val connectionState: StateFlow<ConnectionState>
@@ -193,6 +194,10 @@ class HomeViewModel : ViewModel() {
     private fun handleConnectionStateChange(state: ConnectionState) {
         when (state) {
             is ConnectionState.Connected -> {
+                if (hasPlayedDisconnectSound) {
+                    com.sharkord.android.audio.SoundEngine.playSound(com.sharkord.android.audio.SoundType.SERVER_RECONNECTED)
+                }
+                hasPlayedDisconnectSound = false
                 // cancel any pending reconnect banner — the connection recovered
                 reconnectBannerJob?.cancel()
                 reconnectBannerJob = null
@@ -223,6 +228,11 @@ class HomeViewModel : ViewModel() {
             }
 
             is ConnectionState.Error -> {
+                if (!hasPlayedDisconnectSound && _uiState.value.serverData != null) {
+                    com.sharkord.android.audio.SoundEngine.playSound(com.sharkord.android.audio.SoundType.SERVER_DISCONNECTED)
+                    hasPlayedDisconnectSound = true
+                }
+                
                 val attempts = _uiState.value.reconnectAttempts + 1
                 _uiState.update {
                     it.copy(
@@ -257,9 +267,8 @@ class HomeViewModel : ViewModel() {
             }
             
             is ConnectionState.Disconnected -> {
-                if (_uiState.value.serverData != null) {
-                    com.sharkord.android.audio.SoundEngine.playSound(com.sharkord.android.audio.SoundType.SERVER_DISCONNECTED)
-                }
+                // we don't play the disconnect sound here anymore, since this state
+                // is used for expected disconnects (closing app, going to background)
             }
 
             is ConnectionState.JoinPending -> {
