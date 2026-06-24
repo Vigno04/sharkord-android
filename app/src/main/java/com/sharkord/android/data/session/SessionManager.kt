@@ -124,6 +124,27 @@ class SessionManager(context: Context) {
         get() = prefs.getInt(KEY_SCREEN_SHARE_FPS, 30)
         set(value) = prefs.edit().putInt(KEY_SCREEN_SHARE_FPS, value).apply()
 
+    fun getVideoCodec(supportedCodecs: List<String>): String {
+        val saved = prefs.getString(KEY_VIDEO_CODEC, null)
+        if (saved != null && supportedCodecs.contains(saved)) {
+            return saved
+        }
+        
+        // default compression to quality priority
+        val preferenceOrder = listOf("AV1", "VP9", "H264", "VP8")
+        for (pref in preferenceOrder) {
+            if (supportedCodecs.contains(pref)) {
+                return pref
+            }
+        }
+        
+        return supportedCodecs.firstOrNull() ?: "VP8"
+    }
+
+    fun setVideoCodec(value: String) {
+        prefs.edit().putString(KEY_VIDEO_CODEC, value).apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "sharkord_prefs"
         private const val KEY_TOKEN = "login_token"
@@ -145,5 +166,6 @@ class SessionManager(context: Context) {
         private const val KEY_MIRROR_FRONT_CAMERA = "mirror_front_camera"
         private const val KEY_SCREEN_SHARE_RESOLUTION = "screen_share_resolution"
         private const val KEY_SCREEN_SHARE_FPS = "screen_share_fps"
+        private const val KEY_VIDEO_CODEC = "video_codec"
     }
 }

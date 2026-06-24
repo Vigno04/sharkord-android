@@ -164,12 +164,21 @@ class VideoEngine(
             if (!formats.isNullOrEmpty()) {
                 var bestFormat = formats[0]
                 var minDiff = Long.MAX_VALUE
+                var bestFpsDiff = Int.MAX_VALUE
                 val targetPixels = targetWidth.toLong() * targetHeight.toLong()
+                
                 for (format in formats) {
                     val pixels = format.width.toLong() * format.height.toLong()
                     val diff = Math.abs(pixels - targetPixels)
+                    val formatMaxFps = format.framerate.max / 1000
+                    val fpsDiff = Math.abs(formatMaxFps - finalFps)
+                    
                     if (diff < minDiff) {
                         minDiff = diff
+                        bestFpsDiff = fpsDiff
+                        bestFormat = format
+                    } else if (diff == minDiff && fpsDiff < bestFpsDiff) {
+                        bestFpsDiff = fpsDiff
                         bestFormat = format
                     }
                 }
@@ -185,6 +194,8 @@ class VideoEngine(
         }
 
         videoCapturer?.startCapture(finalWidth, finalHeight, finalFps)
+        
+        localVideoSource?.adaptOutputFormat(finalWidth, finalHeight, finalFps)
 
         localVideoTrack = factory.createVideoTrack("ARDAMSv0", localVideoSource)
         localVideoTrack?.setEnabled(true)
@@ -197,10 +208,17 @@ class VideoEngine(
         }
 
         try {
+            val encodings = listOf(
+                org.webrtc.RtpParameters.Encoding("r0", true, 1.0).apply {
+                    maxFramerate = finalFps
+                    maxBitrateBps = 100_000_000 // 100 Mbps (effectively unlimited, controlled by BWE)
+                }
+            )
+
             videoProducer = sendTransport.produce(
                 producerListener,
                 localVideoTrack,
-                null,
+                encodings,
                 null,
                 null,
                 """{"kind":"video"}"""
@@ -335,7 +353,7 @@ class VideoEngine(
         })
         
         screenSurfaceTextureHelper = SurfaceTextureHelper.create("ScreenCaptureThread", eglBaseContext)
-        screenVideoSource = factory.createVideoSource(true)
+        screenVideoSource = factory.createVideoSource(false)
         screenCapturer?.initialize(screenSurfaceTextureHelper, activeContext, screenVideoSource?.capturerObserver)
         
         val displayMetrics = activeContext.resources.displayMetrics
@@ -357,10 +375,17 @@ class VideoEngine(
         }
 
         try {
+            val encodings = listOf(
+                org.webrtc.RtpParameters.Encoding("r0", true, 1.0).apply {
+                    maxFramerate = fps
+                    maxBitrateBps = 100_000_000 // 100 Mbps (effectively unlimited, controlled by BWE)
+                }
+            )
+
             screenProducer = sendTransport.produce(
                 producerListener,
                 screenVideoTrack,
-                null,
+                encodings,
                 null,
                 null,
                 """{"kind":"screen"}"""

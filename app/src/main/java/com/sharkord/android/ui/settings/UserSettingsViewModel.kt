@@ -52,6 +52,9 @@ class UserSettingsViewModel : ViewModel() {
     var mirrorFrontCamera = MutableStateFlow(true)
     var screenShareResolution = MutableStateFlow("1280x720")
     var screenShareFps = MutableStateFlow(30)
+    
+    var videoCodec = MutableStateFlow("VP8")
+    var availableVideoCodecs = MutableStateFlow<List<String>>(emptyList())
 
     init {
         maxDiskCacheMb.value = SharkordClient.session.maxDiskCacheMb
@@ -67,6 +70,15 @@ class UserSettingsViewModel : ViewModel() {
         mirrorFrontCamera.value = SharkordClient.session.mirrorFrontCamera
         screenShareResolution.value = SharkordClient.session.screenShareResolution
         screenShareFps.value = SharkordClient.session.screenShareFps
+        
+        val codecs = if (SharkordClient.isVoiceEngineInitialized) {
+            SharkordClient.voiceEngine.supportedVideoCodecs
+        } else {
+            listOf("VP8", "VP9", "H264")
+        }
+        availableVideoCodecs.value = codecs
+        videoCodec.value = SharkordClient.session.getVideoCodec(codecs)
+        
         loadUser()
     }
 
@@ -196,6 +208,11 @@ class UserSettingsViewModel : ViewModel() {
     fun saveScreenShareFps(value: Int) {
         screenShareFps.value = value
         SharkordClient.session.screenShareFps = value
+    }
+
+    fun saveVideoCodec(value: String) {
+        videoCodec.value = value
+        SharkordClient.session.setVideoCodec(value)
     }
 
     fun uploadAvatar(context: Context, uri: Uri) {

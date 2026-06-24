@@ -96,6 +96,20 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
     val cameraEnabled: Boolean get() = videoEngine.cameraEnabled
     val isScreenSharing: Boolean get() = videoEngine.screenShareEnabled
 
+    val supportedVideoCodecs: List<String> by lazy {
+        try {
+            val factory = DefaultVideoEncoderFactory(eglBase.eglBaseContext, true, true)
+            factory.supportedCodecs.map { 
+                var name = it.name.uppercase()
+                if (name.startsWith("AV1")) name = "AV1"
+                if (name.startsWith("H264")) name = "H264"
+                name
+            }.distinct()
+        } catch (e: Exception) {
+            listOf("VP8", "VP9", "H264")
+        }
+    }
+
     // subscription IDs
     private var onNewProducerSubId: Int? = null
     private var onProducerClosedSubId: Int? = null
@@ -220,6 +234,26 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                         }
                     }
                     actualCaps.add("headerExtensions", filteredExts)
+                }
+
+                if (actualCaps.has("codecs")) {
+                    val preferredCodec = SharkordClient.session.getVideoCodec(supportedVideoCodecs)
+                    val codecs = actualCaps.getAsJsonArray("codecs")
+                    val prioritizedCodecs = com.google.gson.JsonArray()
+                    val otherCodecs = com.google.gson.JsonArray()
+                    
+                    for (i in 0 until codecs.size()) {
+                        val codec = codecs.get(i).asJsonObject
+                        val mimeType = codec.get("mimeType")?.asString ?: ""
+                        if (mimeType.equals("video/$preferredCodec", ignoreCase = true)) {
+                            prioritizedCodecs.add(codec)
+                        } else {
+                            otherCodecs.add(codec)
+                        }
+                    }
+                    
+                    prioritizedCodecs.addAll(otherCodecs)
+                    actualCaps.add("codecs", prioritizedCodecs)
                 }
 
                 val rtpCapsStr = actualCaps.toString()
