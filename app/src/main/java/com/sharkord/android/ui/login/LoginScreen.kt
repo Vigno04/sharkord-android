@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,6 +39,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sharkord.android.R
 import com.sharkord.android.data.network.SharkordClient
 import com.sharkord.android.ui.components.rememberAsyncImagePainter
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 
 @Composable
 fun LoginScreen(
@@ -65,7 +69,7 @@ fun LoginScreen(
     val accentColor = Color(0xFFE8E8E8)
 
     // render a premium full-screen splash screen immediately during auto-login transitions
-    if (hasSavedSession || viewModel.isAutoLoggingIn) {
+    if (!viewModel.hideSplashScreen && (hasSavedSession || viewModel.isAutoLoggingIn)) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -115,7 +119,89 @@ fun LoginScreen(
                 )
             }
         }
+
+        if (viewModel.showBiometricLaunchPrompt) {
+            LaunchedEffect(Unit) {
+                val activity = context as? FragmentActivity
+                if (activity != null) {
+                    val executor = ContextCompat.getMainExecutor(activity)
+                    val biometricPrompt = BiometricPrompt(activity, executor,
+                        object : BiometricPrompt.AuthenticationCallback() {
+                            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                                super.onAuthenticationError(errorCode, errString)
+                                viewModel.onBiometricLaunchCancel()
+                            }
+
+                            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                                super.onAuthenticationSucceeded(result)
+                                viewModel.onBiometricLaunchSuccess()
+                            }
+                        }
+                    )
+                    val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                        .setTitle("Sblocco Applicazione")
+                        .setSubtitle("Conferma l'identità per aprire Sharkord")
+                        .setNegativeButtonText("Annulla")
+                        .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK)
+                        .build()
+                    biometricPrompt.authenticate(promptInfo)
+                } else {
+                    viewModel.onBiometricLaunchCancel()
+                }
+            }
+        }
+        
         return
+    }
+
+    if (viewModel.showBiometricSavePrompt) {
+        AlertDialog(
+            onDismissRequest = { viewModel.onBiometricSaveAnswer(false) },
+            title = { Text("Abilita Impronta Digitale", color = foregroundText) },
+            text = { Text("Vuoi accedere a Sharkord con l'impronta digitale la prossima volta?", color = primaryText) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.onBiometricSaveAnswer(true) }) {
+                    Text("Sì", color = accentColor)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.onBiometricSaveAnswer(false) }) {
+                    Text("No", color = Color.Gray)
+                }
+            },
+            containerColor = cardColor
+        )
+    }
+
+    if (viewModel.showBiometricLaunchPrompt) {
+        LaunchedEffect(Unit) {
+            val activity = context as? FragmentActivity
+            if (activity != null) {
+                val executor = ContextCompat.getMainExecutor(activity)
+                val biometricPrompt = BiometricPrompt(activity, executor,
+                    object : BiometricPrompt.AuthenticationCallback() {
+                        override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                            super.onAuthenticationError(errorCode, errString)
+                            viewModel.onBiometricLaunchCancel()
+                        }
+
+                        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                            super.onAuthenticationSucceeded(result)
+                            viewModel.onBiometricLaunchSuccess()
+                        }
+                    }
+                )
+                val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                    .setTitle("Sblocco Applicazione")
+                    .setSubtitle("Conferma l'identità per aprire Sharkord")
+                    .setNegativeButtonText("Annulla")
+                    .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK)
+                    .build()
+                biometricPrompt.authenticate(promptInfo)
+            } else {
+                viewModel.onBiometricLaunchCancel()
+            }
+        }
     }
 
     Box(
@@ -382,31 +468,85 @@ fun LoginScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                         }
 
-                        // login Button
-                        Button(
-                            onClick = { viewModel.onLoginClick(context, onLoginSuccess) },
-                            enabled = !viewModel.isLoading,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = primaryText,
-                                contentColor = bgColor
-                            ),
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp)
+                        // login Button Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            if (viewModel.isLoading) {
-                                CircularProgressIndicator(
-                                    color = bgColor,
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.5.dp
-                                )
-                            } else {
-                                Text(
-                                    text = stringResource(id = R.string.connect_connectBtn),
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                            Button(
+                                onClick = { viewModel.onLoginClick(context, onLoginSuccess) },
+                                enabled = !viewModel.isLoading,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = primaryText,
+                                    contentColor = bgColor
+                                ),
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(56.dp)
+                            ) {
+                                if (viewModel.isLoading) {
+                                    CircularProgressIndicator(
+                                        color = bgColor,
+                                        modifier = Modifier.size(24.dp),
+                                        strokeWidth = 2.5.dp
+                                    )
+                                } else {
+                                    Text(
+                                        text = stringResource(id = R.string.connect_connectBtn),
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            if (SharkordClient.session.hasBiometricCredentials() && viewModel.isBiometricSupported(context)) {
+                                Spacer(modifier = Modifier.width(12.dp))
+                                IconButton(
+                                    onClick = {
+                                        val activity = context as? FragmentActivity
+                                        if (activity != null) {
+                                            val executor = ContextCompat.getMainExecutor(activity)
+                                            val biometricPrompt = BiometricPrompt(activity, executor,
+                                                object : BiometricPrompt.AuthenticationCallback() {
+                                                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                                                        super.onAuthenticationError(errorCode, errString)
+                                                        if (errorCode != BiometricPrompt.ERROR_USER_CANCELED && errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
+                                                            viewModel.errorMessage = errString.toString()
+                                                        }
+                                                    }
+
+                                                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                                                        super.onAuthenticationSucceeded(result)
+                                                        val creds = SharkordClient.session.getBiometricCredentials()
+                                                        if (creds != null) {
+                                                            viewModel.identity = creds.first
+                                                            viewModel.password = creds.second
+                                                            viewModel.onLoginClick(context, onLoginSuccess, isBiometric = true)
+                                                        }
+                                                    }
+                                                }
+                                            )
+                                            val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                                                .setTitle("Accedi con Impronta")
+                                                .setSubtitle("Usa l'impronta per accedere a Sharkord")
+                                                .setNegativeButtonText("Annulla")
+                                                .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK)
+                                                .build()
+                                            biometricPrompt.authenticate(promptInfo)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .background(cardColor, RoundedCornerShape(16.dp))
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Fingerprint,
+                                        contentDescription = "Login with Fingerprint",
+                                        tint = accentColor,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
                             }
                         }
                     }

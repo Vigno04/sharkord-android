@@ -33,6 +33,10 @@ class LoginViewModel : ViewModel() {
     var errorMessage by mutableStateOf<String?>(null)
     var loginSuccess by mutableStateOf(false)
 
+    var showBiometricSavePrompt by mutableStateOf(false)
+    var showBiometricLaunchPrompt by mutableStateOf(false)
+    var pendingSuccessAction: (() -> Unit)? = null
+
     var currentStep by mutableStateOf(LoginStep.URL)
     var serverLogoUrl by mutableStateOf<String?>(null)
     var serverName by mutableStateOf("Sharkord")
@@ -41,6 +45,8 @@ class LoginViewModel : ViewModel() {
     // tracks whether we are currently performing an automatic login transition
     var isAutoLoggingIn by mutableStateOf(false)
         private set
+        
+    var hideSplashScreen by mutableStateOf(false)
 
     // called once on first composition to restore saved state and
     // optionally trigger auto-login
@@ -56,7 +62,13 @@ class LoginViewModel : ViewModel() {
             isAutoLoggingIn = true
             serverUrl = SharkordClient.currentServerUrl ?: ""
             fetchServerDetails(serverUrl)
-            onAutoLoginSuccess()
+
+            if (SharkordClient.session.alwaysRequireBiometrics && SharkordClient.session.hasBiometricCredentials() && isBiometricSupported(context)) {
+                pendingSuccessAction = onAutoLoginSuccess
+                showBiometricLaunchPrompt = true
+            } else {
+                onAutoLoginSuccess()
+            }
             return
         }
 
@@ -140,7 +152,7 @@ class LoginViewModel : ViewModel() {
     }
 
     // step 2: User taps "Connect" with identity + password
-    fun onLoginClick(context: Context, onSuccess: () -> Unit) {
+    fun onLoginClick(context: Context, onSuccess: () -> Unit, isBiometric: Boolean = false) {
         if (serverUrl.isBlank() || identity.isBlank() || password.isBlank()) {
             errorMessage = context.getString(R.string.settings_errorBadge)
             return
@@ -159,13 +171,54 @@ class LoginViewModel : ViewModel() {
                 onSuccess = {
                     isLoading = false
                     loginSuccess = true
-                    onSuccess()
+                    
+                    if (!isBiometric && !SharkordClient.session.hasBiometricCredentials() && isBiometricSupported(context)) {
+                        pendingSuccessAction = onSuccess
+                        showBiometricSavePrompt = true
+                    } else {
+                        onSuccess()
+                    }
                 },
                 onFailure = { error ->
                     isLoading = false
-                    errorMessage = error.message ?: context.getString(R.string.settings_errorBadge)
+                    if (isBiometric) {
+                        errorMessage = "Credenziali scadute o errate. Effettua il login manualmente."
+                        SharkordClient.session.clearBiometricCredentials()
+                        password = ""
+                    } else {
+                        errorMessage = error.message ?: context.getString(R.string.settings_errorBadge)
+                    }
                 }
             )
         }
+    }
+
+    fun onBiometricSaveAnswer(save: Boolean) {
+        if (save) {
+            SharkordClient.session.saveBiometricCredentials(identity, password)
+        }
+        showBiometricSavePrompt = false
+        pendingSuccessAction?.invoke()
+        pendingSuccessAction = null
+    }
+
+    fun onBiometricLaunchSuccess() {
+        showBiometricLaunchPrompt = false
+        pendingSuccessAction?.invoke()
+        pendingSuccessAction = null
+    }
+
+    fun onBiometricLaunchCancel() {
+        showBiometricLaunchPrompt = false
+        pendingSuccessAction = null
+        SharkordClient.session.clearSession()
+        isAutoLoggingIn = false
+        hideSplashScreen = true
+        currentStep = LoginStep.CREDENTIALS
+    }
+
+    fun isBiometricSupported(context: Context): Boolean {
+        val biometricManager = androidx.biometric.BiometricManager.from(context)
+        return biometricManager.canAuthenticate(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK) == androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS
     }
 }

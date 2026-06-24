@@ -11,6 +11,19 @@ class SessionManager(context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    private val securePrefs: SharedPreferences by lazy {
+        val masterKey = androidx.security.crypto.MasterKey.Builder(context.applicationContext)
+            .setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        androidx.security.crypto.EncryptedSharedPreferences.create(
+            context.applicationContext,
+            "secret_biometric_prefs",
+            masterKey,
+            androidx.security.crypto.EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+
     // read
 
     val token: String?
@@ -22,8 +35,13 @@ class SessionManager(context: Context) {
     val serverLogoUrl: String?
         get() = prefs.getString(KEY_SERVER_LOGO_URL, null)
 
-    val autoLogin: Boolean
+    var autoLogin: Boolean
         get() = prefs.getBoolean(KEY_AUTO_LOGIN, false)
+        set(value) = prefs.edit().putBoolean(KEY_AUTO_LOGIN, value).apply()
+
+    var alwaysRequireBiometrics: Boolean
+        get() = prefs.getBoolean(KEY_ALWAYS_REQUIRE_BIOMETRICS, false)
+        set(value) = prefs.edit().putBoolean(KEY_ALWAYS_REQUIRE_BIOMETRICS, value).apply()
 
     // write
 
@@ -59,6 +77,36 @@ class SessionManager(context: Context) {
             remove(KEY_TOKEN)
             remove(KEY_SERVER_LOGO_URL)
             putBoolean(KEY_AUTO_LOGIN, false)
+            apply()
+        }
+    }
+
+    // biometric auth
+    fun saveBiometricCredentials(identity: String, pass: String) {
+        securePrefs.edit().apply {
+            putString(KEY_BIO_IDENTITY, identity)
+            putString(KEY_BIO_PASSWORD, pass)
+            apply()
+        }
+    }
+
+    fun getBiometricCredentials(): Pair<String, String>? {
+        val identity = securePrefs.getString(KEY_BIO_IDENTITY, null)
+        val pass = securePrefs.getString(KEY_BIO_PASSWORD, null)
+        if (identity != null && pass != null) {
+            return Pair(identity, pass)
+        }
+        return null
+    }
+
+    fun hasBiometricCredentials(): Boolean {
+        return securePrefs.contains(KEY_BIO_IDENTITY) && securePrefs.contains(KEY_BIO_PASSWORD)
+    }
+
+    fun clearBiometricCredentials() {
+        securePrefs.edit().apply {
+            remove(KEY_BIO_IDENTITY)
+            remove(KEY_BIO_PASSWORD)
             apply()
         }
     }
@@ -152,6 +200,9 @@ class SessionManager(context: Context) {
         private const val KEY_SERVER_LOGO_URL = "server_logo_url"
         private const val KEY_AUTO_LOGIN = "auto_login"
         private const val KEY_MAX_DISK_CACHE_MB = "max_disk_cache_mb"
+        private const val KEY_BIO_IDENTITY = "bio_identity"
+        private const val KEY_BIO_PASSWORD = "bio_password"
+        private const val KEY_ALWAYS_REQUIRE_BIOMETRICS = "always_require_biometrics"
 
         // device settings keys
         private const val KEY_DEFAULT_AUDIO_ROUTE = "default_audio_route"

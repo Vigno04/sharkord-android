@@ -63,7 +63,7 @@ fun UserSettingsScreen(
     val foregroundText = Color(0xFFFAFAFA)
     val accentColor = Color(0xFF5865F2)
     
-    val tabs = listOf("Profile", "Devices", "Password", "Notifications", "App Settings", "Others")
+    val tabs = listOf("Profile", "Devices", "Password", "Notifications", "App Settings")
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val coroutineScope = rememberCoroutineScope()
 
@@ -155,7 +155,6 @@ fun UserSettingsScreen(
                             2 -> PasswordTabContent(viewModel, cardColor, foregroundText, primaryText, accentColor)
                             3 -> NotificationsTabContent(cardColor, foregroundText, primaryText, accentColor)
                             4 -> AppSettingsTabContent(viewModel, cardColor, foregroundText, primaryText, accentColor)
-                            5 -> OthersTabContent(cardColor, foregroundText, primaryText, accentColor)
                         }
                     }
                 }
@@ -414,6 +413,20 @@ fun ProfileTabContent(
                 Spacer(modifier = Modifier.width(8.dp))
             }
             Text("Save Changes")
+        }
+    }
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    SettingsSection(title = "DANGER ZONE", cardColor = cardColor, foregroundText = foregroundText) {
+        Text("Delete Account", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
+        Text("This action is irreversible.", color = primaryText, fontSize = 14.sp)
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = { /*TODO*/ },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+        ) {
+            Text("Delete Account", color = Color.White)
         }
     }
 }
@@ -912,12 +925,48 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
 @Composable
 fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregroundText: Color, primaryText: Color, accentColor: Color) {
     val maxDiskCacheMb by viewModel.maxDiskCacheMb.collectAsState()
+    val autoLogin by viewModel.autoLogin.collectAsState()
+    val alwaysRequireBiometrics by viewModel.alwaysRequireBiometrics.collectAsState()
+    val hasBiometrics by viewModel.hasBiometrics.collectAsState()
 
     val displaySize = if (maxDiskCacheMb >= 1024) {
         String.format(java.util.Locale.US, "%.1f GB", maxDiskCacheMb / 1024f)
     } else {
         "${maxDiskCacheMb} MB"
     }
+
+    SettingsSection(title = "SECURITY & ACCESS", cardColor = cardColor, foregroundText = foregroundText) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Automatic Login", color = foregroundText)
+                Text("Remember credentials and bypass login screen.", color = primaryText, fontSize = 12.sp)
+            }
+            Switch(checked = autoLogin, onCheckedChange = { viewModel.saveAutoLogin(it) }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Require biometrics on launch", color = foregroundText)
+                Text("Ask for fingerprint/face on every launch if auto-login is active.", color = primaryText, fontSize = 12.sp)
+            }
+            Switch(checked = alwaysRequireBiometrics, onCheckedChange = { viewModel.saveAlwaysRequireBiometrics(it) }, enabled = hasBiometrics, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
+        }
+        
+        if (hasBiometrics) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = { viewModel.removeBiometrics() },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Remove Saved Biometrics", color = Color.White)
+            }
+        }
+    }
+
+    Spacer(modifier = Modifier.height(16.dp))
 
     SettingsSection(title = "STORAGE PREFERENCES", cardColor = cardColor, foregroundText = foregroundText) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -939,21 +988,6 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
             ),
             modifier = Modifier.fillMaxWidth()
         )
-    }
-}
-
-@Composable
-fun OthersTabContent(cardColor: Color, foregroundText: Color, primaryText: Color, accentColor: Color) {
-    SettingsSection(title = "DANGER ZONE", cardColor = cardColor, foregroundText = foregroundText) {
-        Text("Delete Account", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
-        Text("This action is irreversible.", color = primaryText, fontSize = 14.sp)
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = { /*TODO*/ },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
-        ) {
-            Text("Delete Account", color = Color.White)
-        }
     }
 }
 

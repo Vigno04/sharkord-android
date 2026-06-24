@@ -2,8 +2,8 @@ package com.sharkord.android
 
 import android.os.Bundle
 import android.view.WindowManager
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -21,7 +21,7 @@ import com.sharkord.android.ui.login.LoginScreen
 import com.sharkord.android.ui.settings.UserSettingsScreen
 import com.sharkord.android.ui.theme.SharkordTheme
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

@@ -38,6 +38,9 @@ class UserSettingsViewModel : ViewModel() {
 
     // app Settings
     var maxDiskCacheMb = MutableStateFlow(250)
+    var autoLogin = MutableStateFlow(false)
+    var alwaysRequireBiometrics = MutableStateFlow(false)
+    var hasBiometrics = MutableStateFlow(false)
 
     // devices Settings
     var defaultAudioRoute = MutableStateFlow("None")
@@ -58,6 +61,10 @@ class UserSettingsViewModel : ViewModel() {
 
     init {
         maxDiskCacheMb.value = SharkordClient.session.maxDiskCacheMb
+        autoLogin.value = SharkordClient.session.autoLogin
+        alwaysRequireBiometrics.value = SharkordClient.session.alwaysRequireBiometrics
+        hasBiometrics.value = SharkordClient.session.hasBiometricCredentials()
+        
         defaultAudioRoute.value = SharkordClient.session.defaultAudioRoute
         echoCancellation.value = SharkordClient.session.echoCancellation
         noiseSuppression.value = SharkordClient.session.noiseSuppression
@@ -148,6 +155,23 @@ class UserSettingsViewModel : ViewModel() {
     fun saveMaxDiskCacheMb(value: Int) {
         maxDiskCacheMb.value = value
         SharkordClient.session.maxDiskCacheMb = value
+    }
+
+    fun saveAutoLogin(value: Boolean) {
+        autoLogin.value = value
+        SharkordClient.session.autoLogin = value
+    }
+
+    fun saveAlwaysRequireBiometrics(value: Boolean) {
+        alwaysRequireBiometrics.value = value
+        SharkordClient.session.alwaysRequireBiometrics = value
+    }
+
+    fun removeBiometrics() {
+        SharkordClient.session.clearBiometricCredentials()
+        hasBiometrics.value = false
+        alwaysRequireBiometrics.value = false
+        SharkordClient.session.alwaysRequireBiometrics = false
     }
 
     fun saveDefaultAudioRoute(value: String) {

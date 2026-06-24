@@ -108,7 +108,7 @@ object ImageCacheManager {
 
     // loads an image from the network or returns a cached one if it was loaded recently
     suspend fun loadImage(url: String): ImageCacheEntry? {
-        if (url.isBlank()) return null
+        if (url.isBlank() || !url.startsWith("http", ignoreCase = true)) return null
 
         if (!hasTrimmedDiskCache) {
             hasTrimmedDiskCache = true
@@ -211,7 +211,7 @@ object ImageCacheManager {
 
     // extracts and caches a thumbnail frame from a remote video
     suspend fun loadVideoThumbnail(videoUrl: String): Bitmap? {
-        if (videoUrl.isBlank()) return null
+        if (videoUrl.isBlank() || !videoUrl.startsWith("http", ignoreCase = true)) return null
         
         val cached = cache.get(videoUrl)
         if (cached != null) {
