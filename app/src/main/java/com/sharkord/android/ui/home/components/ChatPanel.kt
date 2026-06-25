@@ -460,7 +460,7 @@ fun ChatPanel(
                                             viewModel.downloadAndOpenFile(context, file)
                                         }
                                     },
-                                    onMediaLongClick = { file -> viewModel.downloadFile(context, file) }
+                                    onMediaLongClick = { _ -> showMenuMessage = message }
                                 )
                             }
 

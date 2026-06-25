@@ -38,7 +38,8 @@ fun ServerHeader(
     onDirectMessagesClick: () -> Unit = {},
     onServerClick: () -> Unit = {},
     isServerSheetOpen: Boolean = false,
-    totalUnreadDMs: Int = 0
+    totalUnreadDMs: Int = 0,
+    isDmsListSelected: Boolean = false
 ) {
     // stack the header, search bar, and direct message bar vertically
     Column(
@@ -135,10 +136,12 @@ fun ServerHeader(
         Spacer(modifier = Modifier.height(8.dp))
 
         // direct Messages trigger bar (to implement)
+        val dmBgColor = if (isDmsListSelected) Color.White.copy(alpha = 0.1f) else Color.Transparent
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(8.dp))
+                .background(dmBgColor)
                 .clickable { onDirectMessagesClick() }
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically

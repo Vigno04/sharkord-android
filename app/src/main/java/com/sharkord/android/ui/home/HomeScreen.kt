@@ -1,4 +1,4 @@
-package com.sharkord.android.ui.home
+﻿package com.sharkord.android.ui.home
 
 import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.animation.core.Animatable
@@ -132,18 +132,45 @@ fun HomeScreen(
                 val screenWidthPx = remember(screenWidthDp) { with(density) { screenWidthDp.toPx() } }
                 
                 // track dynamic swipe-to-dismiss offset of the Channels List in pixels
-                val swipeOffset = remember { Animatable(if (uiState.activePanel == HomePanel.SERVER) 0f else -screenWidthPx) }
+                val serverSwipeOffset = remember { Animatable(if (uiState.activePanel == HomePanel.SERVER_LIST) 0f else -screenWidthPx) }
+                val dmsSwipeOffset = remember { Animatable(if (uiState.activePanel == HomePanel.SERVER_LIST || uiState.activePanel == HomePanel.DMS_LIST) 0f else -screenWidthPx) }
                 val voiceSwipeOffset = remember { Animatable(if (uiState.isViewingVoiceChat) -screenWidthPx else 0f) }
                 val coroutineScope = rememberCoroutineScope()
                 val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
 
                 // programmatic panel transitions
                 LaunchedEffect(uiState.activePanel) {
-                    if (uiState.activePanel == HomePanel.SERVER) {
-                        keyboardController?.hide()
-                        swipeOffset.animateTo(0f)
-                    } else {
-                        swipeOffset.animateTo(-screenWidthPx)
+                    when (uiState.activePanel) {
+                        HomePanel.SERVER_LIST -> {
+                            keyboardController?.hide()
+                            coroutineScope.launch { 
+                                kotlinx.coroutines.delay(10)
+                                serverSwipeOffset.animateTo(0f) 
+                            }
+                            if (uiState.isDmsListSelected) dmsSwipeOffset.snapTo(0f) else dmsSwipeOffset.snapTo(-screenWidthPx)
+                        }
+                        HomePanel.DMS_LIST -> {
+                            keyboardController?.hide()
+                            dmsSwipeOffset.snapTo(0f)
+                            coroutineScope.launch { 
+                                kotlinx.coroutines.delay(10)
+                                serverSwipeOffset.animateTo(-screenWidthPx) 
+                            }
+                        }
+                        HomePanel.SERVER_CHAT -> {
+                            dmsSwipeOffset.snapTo(-screenWidthPx)
+                            coroutineScope.launch { 
+                                kotlinx.coroutines.delay(25)
+                                serverSwipeOffset.animateTo(-screenWidthPx) 
+                            }
+                        }
+                        HomePanel.DM_CHAT -> {
+                            serverSwipeOffset.snapTo(-screenWidthPx)
+                            coroutineScope.launch { 
+                                kotlinx.coroutines.delay(25)
+                                dmsSwipeOffset.animateTo(-screenWidthPx) 
+                            }
+                        }
                     }
                 }
 
@@ -157,10 +184,19 @@ fun HomeScreen(
 
                 // handle screen orientation/width changes
                 LaunchedEffect(screenWidthPx) {
-                    if (uiState.activePanel == HomePanel.SERVER) {
-                        swipeOffset.snapTo(0f)
-                    } else {
-                        swipeOffset.snapTo(-screenWidthPx)
+                    when (uiState.activePanel) {
+                        HomePanel.SERVER_LIST -> {
+                            serverSwipeOffset.snapTo(0f)
+                            if (uiState.isDmsListSelected) dmsSwipeOffset.snapTo(0f) else dmsSwipeOffset.snapTo(-screenWidthPx)
+                        }
+                        HomePanel.DMS_LIST -> {
+                            serverSwipeOffset.snapTo(-screenWidthPx)
+                            dmsSwipeOffset.snapTo(0f)
+                        }
+                        HomePanel.SERVER_CHAT, HomePanel.DM_CHAT -> {
+                            serverSwipeOffset.snapTo(-screenWidthPx)
+                            dmsSwipeOffset.snapTo(-screenWidthPx)
+                        }
                     }
                     
                     if (uiState.isViewingVoiceChat) {
@@ -170,25 +206,30 @@ fun HomeScreen(
                     }
                 }
 
-                // close DM list when pressing back button
-                BackHandler(enabled = uiState.activePanel == HomePanel.SERVER && uiState.isDmsListOpen) {
-                    viewModel.closeDmsList()
-                }
-
                 // close voice chat when pressing back button
                 BackHandler(enabled = uiState.isViewingVoiceChat) {
                     viewModel.setViewingVoiceChat(false)
                 }
 
                 // go back to server list when pressing back button in chat
-                BackHandler(enabled = uiState.activePanel == HomePanel.CHAT && !uiState.isViewingVoiceChat) {
-                    viewModel.setPanel(HomePanel.SERVER)
+                BackHandler(enabled = uiState.activePanel == HomePanel.SERVER_CHAT && !uiState.isViewingVoiceChat) {
+                    viewModel.setPanel(HomePanel.SERVER_LIST)
+                }
+
+                BackHandler(enabled = uiState.activePanel == HomePanel.DMS_LIST) {
+                    viewModel.exitDmsListToServer()
+                }
+
+                BackHandler(enabled = uiState.activePanel == HomePanel.DM_CHAT && !uiState.isViewingVoiceChat) {
+                    viewModel.setPanel(HomePanel.DMS_LIST)
                 }
 
                 Box(modifier = Modifier.fillMaxSize()) {
-                    // chat Panel
-                    if (uiState.selectedChannelId != null) {
-                        val activeChannel = data.channels.find { it.id == uiState.selectedChannelId }
+                    // LAYER 1: CHAT PANEL (BOTTOM)
+                    val activeChannelId = if (uiState.isDmsListSelected) uiState.selectedDmChannelId else uiState.selectedServerChannelId
+                    val isDmSelected = uiState.isDmsListSelected
+                    if (activeChannelId != null) {
+                        val activeChannel = data.channels.find { it.id == activeChannelId }
                         val isDm = activeChannel?.isDm == true
                         val otherUser = if (isDm && activeChannel != null) {
                             val parts = activeChannel.name.removePrefix("DM - ").split(":")
@@ -201,9 +242,9 @@ fun HomeScreen(
                         } else {
                             activeChannel?.name ?: ""
                         }
-                        
+
                         if (activeChannel?.isVoice == true) {
-                            val channelUsers = data.voiceMap?.get(uiState.selectedChannelId!!.toString())?.users ?: emptyMap()
+                            val channelUsers = data.voiceMap?.get(activeChannelId.toString())?.users ?: emptyMap()
                             val currentState = channelUsers[data.ownUserId.toString()]
                             val isMuted = currentState?.micMuted ?: true
                             val isDeafened = currentState?.soundMuted ?: true
@@ -212,7 +253,7 @@ fun HomeScreen(
                                 ActivityResultContracts.RequestMultiplePermissions()
                             ) { results ->
                                 if (results[Manifest.permission.RECORD_AUDIO] == true) {
-                                    voiceViewModel.joinVoiceChannel(uiState.selectedChannelId!!, context, displayName)
+                                    voiceViewModel.joinVoiceChannel(activeChannelId, context, displayName)
                                 }
                             }
                             
@@ -227,7 +268,7 @@ fun HomeScreen(
                             Box(modifier = Modifier.fillMaxSize()) {
                                 // chat Panel (underneath)
                                 ChatPanel(
-                                    channelId = uiState.selectedChannelId!!,
+                                    channelId = activeChannelId,
                                     targetMessageId = uiState.selectedMessageId,
                                     jumpTrigger = uiState.jumpTrigger,
                                     channelName = displayName,
@@ -236,14 +277,14 @@ fun HomeScreen(
                                     users = data.users,
                                     roles = data.roles ?: emptyList(),
                                     customEmojis = data.emojis ?: emptyList(),
-                                    isActive = uiState.activePanel == HomePanel.CHAT && uiState.isViewingVoiceChat,
+                                    isActive = (uiState.activePanel == HomePanel.SERVER_CHAT || uiState.activePanel == HomePanel.DM_CHAT) && uiState.isViewingVoiceChat,
                                     onBackClick = {
                                         viewModel.setViewingVoiceChat(false)
                                     },
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .pointerInput(uiState.activePanel) {
-                                            if (uiState.activePanel == HomePanel.CHAT) {
+                                            if (uiState.activePanel == HomePanel.SERVER_CHAT || uiState.activePanel == HomePanel.DM_CHAT) {
                                                 detectHorizontalDragGestures(
                                                     onDragEnd = {
                                                         coroutineScope.launch {
@@ -291,7 +332,7 @@ fun HomeScreen(
                                             } else null
                                         }
                                     } else emptyList(),
-                                    isConnected = voiceUiState.activeVoiceChannelId == uiState.selectedChannelId,
+                                    isConnected = voiceUiState.activeVoiceChannelId == activeChannelId,
                                     isConnectingToVoice = voiceUiState.isConnectingToVoice,
                                     isMuted = isMuted,
                                     isDeafened = isDeafened,
@@ -310,16 +351,16 @@ fun HomeScreen(
                                         val toRequest = neededPermissions.filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
                                         
                                         if (toRequest.isEmpty()) {
-                                            voiceViewModel.joinVoiceChannel(uiState.selectedChannelId!!, context, displayName)
+                                            voiceViewModel.joinVoiceChannel(activeChannelId, context, displayName)
                                         } else {
                                             permissionLauncher.launch(toRequest.toTypedArray())
                                         }
                                     },
                                     onToggleMicClick = { _ -> 
-                                        voiceViewModel.toggleMic(uiState.selectedChannelId!!, isMuted, isDeafened) 
+                                        voiceViewModel.toggleMic(activeChannelId, isMuted, isDeafened) 
                                     },
                                     onToggleDeafenClick = { _ ->
-                                        voiceViewModel.toggleDeafen(uiState.selectedChannelId!!, isMuted, isDeafened)
+                                        voiceViewModel.toggleDeafen(activeChannelId, isMuted, isDeafened)
                                     },
                                     onToggleCameraClick = {
                                         val neededPermissions = mutableListOf(Manifest.permission.CAMERA)
@@ -342,8 +383,9 @@ fun HomeScreen(
                                     },
                                     onBackClick = {
                                         coroutineScope.launch {
-                                            swipeOffset.animateTo(0f)
-                                            viewModel.setPanel(HomePanel.SERVER)
+                                            serverSwipeOffset.animateTo(0f)
+                                            dmsSwipeOffset.animateTo(0f)
+                                            viewModel.setPanel(if (isDmSelected) HomePanel.DMS_LIST else HomePanel.SERVER_LIST)
                                         }
                                     },
                                     modifier = Modifier
@@ -360,15 +402,16 @@ fun HomeScreen(
                                             )
                                         }
                                         .pointerInput(uiState.activePanel) {
-                                            if (uiState.activePanel == HomePanel.CHAT) {
+                                            if (uiState.activePanel == HomePanel.SERVER_CHAT || uiState.activePanel == HomePanel.DM_CHAT) {
                                                 detectHorizontalDragGestures(
                                                     onDragEnd = {
                                                         coroutineScope.launch {
-                                                            if (swipeOffset.value > -screenWidthPx * 2 / 3 && swipeOffset.value != -screenWidthPx) {
-                                                                swipeOffset.animateTo(0f)
-                                                                viewModel.setPanel(HomePanel.SERVER)
-                                                            } else if (swipeOffset.value > -screenWidthPx) {
-                                                                swipeOffset.animateTo(-screenWidthPx)
+                                                            val offsetToCheck = if (isDmSelected) dmsSwipeOffset else serverSwipeOffset
+                                                            if (offsetToCheck.value > -screenWidthPx * 2 / 3 && offsetToCheck.value != -screenWidthPx) {
+                                                                offsetToCheck.animateTo(0f)
+                                                                viewModel.setPanel(if (isDmSelected) HomePanel.DMS_LIST else HomePanel.SERVER_LIST)
+                                                            } else if (offsetToCheck.value > -screenWidthPx) {
+                                                                offsetToCheck.animateTo(-screenWidthPx)
                                                             } else if (voiceSwipeOffset.value < -screenWidthPx / 3 && voiceSwipeOffset.value != 0f) {
                                                                 voiceSwipeOffset.animateTo(-screenWidthPx)
                                                                 viewModel.setViewingVoiceChat(true)
@@ -379,23 +422,25 @@ fun HomeScreen(
                                                     },
                                                     onDragCancel = {
                                                         coroutineScope.launch {
-                                                            swipeOffset.animateTo(-screenWidthPx)
+                                                            serverSwipeOffset.animateTo(-screenWidthPx)
+                                                            dmsSwipeOffset.animateTo(-screenWidthPx)
                                                             voiceSwipeOffset.animateTo(0f)
                                                         }
                                                     },
                                                     onHorizontalDrag = { change, dragAmount ->
                                                         change.consume()
                                                         coroutineScope.launch {
-                                                            if (swipeOffset.value > -screenWidthPx) {
-                                                                val newOffset = (swipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
-                                                                swipeOffset.snapTo(newOffset)
+                                                            val activeOffset = if (isDmSelected) dmsSwipeOffset else serverSwipeOffset
+                                                            if (activeOffset.value > -screenWidthPx) {
+                                                                val newOffset = (activeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                                                activeOffset.snapTo(newOffset)
                                                             } else if (voiceSwipeOffset.value < 0f) {
                                                                 val newOffset = (voiceSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
                                                                 voiceSwipeOffset.snapTo(newOffset)
                                                             } else {
                                                                 if (dragAmount > 0) {
-                                                                    val newOffset = (swipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
-                                                                    swipeOffset.snapTo(newOffset)
+                                                                    val newOffset = (activeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                                                    activeOffset.snapTo(newOffset)
                                                                 } else {
                                                                     val newOffset = (voiceSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
                                                                     voiceSwipeOffset.snapTo(newOffset)
@@ -410,7 +455,7 @@ fun HomeScreen(
                             }
                         } else {
                             ChatPanel(
-                                channelId = uiState.selectedChannelId!!,
+                                channelId = activeChannelId,
                                 targetMessageId = uiState.selectedMessageId,
                                 jumpTrigger = uiState.jumpTrigger,
                                 channelName = displayName,
@@ -419,39 +464,43 @@ fun HomeScreen(
                                 users = data.users,
                                 roles = data.roles ?: emptyList(),
                                 customEmojis = data.emojis ?: emptyList(),
-                                isActive = uiState.activePanel == HomePanel.CHAT,
+                                isActive = uiState.activePanel == HomePanel.SERVER_CHAT || uiState.activePanel == HomePanel.DM_CHAT,
                                 onBackClick = {
                                     coroutineScope.launch {
-                                        swipeOffset.animateTo(0f)
-                                        viewModel.setPanel(HomePanel.SERVER)
+                                        val offsetToAnimate = if (isDmSelected) dmsSwipeOffset else serverSwipeOffset
+                                        offsetToAnimate.animateTo(0f)
+                                        viewModel.setPanel(if (isDmSelected) HomePanel.DMS_LIST else HomePanel.SERVER_LIST)
                                     }
                                 },
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .pointerInput(uiState.activePanel) {
-                                        if (uiState.activePanel == HomePanel.CHAT) {
+                                        if (uiState.activePanel == HomePanel.SERVER_CHAT || uiState.activePanel == HomePanel.DM_CHAT) {
                                             detectHorizontalDragGestures(
                                                 onDragEnd = {
                                                     coroutineScope.launch {
-                                                        if (swipeOffset.value > -screenWidthPx * 2 / 3) {
-                                                            swipeOffset.animateTo(0f)
-                                                            viewModel.setPanel(HomePanel.SERVER)
+                                                        val activeOffset = if (isDmSelected) dmsSwipeOffset else serverSwipeOffset
+                                                        if (activeOffset.value > -screenWidthPx * 2 / 3) {
+                                                            activeOffset.animateTo(0f)
+                                                            viewModel.setPanel(if (isDmSelected) HomePanel.DMS_LIST else HomePanel.SERVER_LIST)
                                                         } else {
-                                                            swipeOffset.animateTo(-screenWidthPx)
+                                                            activeOffset.animateTo(-screenWidthPx)
                                                         }
                                                     }
                                                 },
                                                 onDragCancel = {
                                                     coroutineScope.launch {
-                                                        swipeOffset.animateTo(-screenWidthPx)
+                                                        serverSwipeOffset.animateTo(-screenWidthPx)
+                                                        dmsSwipeOffset.animateTo(-screenWidthPx)
                                                     }
                                                 },
                                                 onHorizontalDrag = { change, dragAmount ->
                                                     change.consume()
                                                     coroutineScope.launch {
-                                                        if (dragAmount > 0 || swipeOffset.value > -screenWidthPx) {
-                                                            val newOffset = (swipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
-                                                            swipeOffset.snapTo(newOffset)
+                                                        val activeOffset = if (isDmSelected) dmsSwipeOffset else serverSwipeOffset
+                                                        if (dragAmount > 0 || activeOffset.value > -screenWidthPx) {
+                                                            val newOffset = (activeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                                            activeOffset.snapTo(newOffset)
                                                         }
                                                     }
                                                 }
@@ -462,8 +511,79 @@ fun HomeScreen(
                         }
                     }
 
-                    // server Channels list
-                    val channelsOffset = with(density) { swipeOffset.value.toDp() }
+                    // LAYER 2: DMS LIST PANEL (MIDDLE)
+                    val dmsOffsetDp = with(density) { dmsSwipeOffset.value.toDp() }
+                    Box(modifier = Modifier.fillMaxSize().offset(x = dmsOffsetDp)) {
+                        DmsListPanel(
+                            data = data,
+                            uiState = uiState,
+                            viewModel = viewModel,
+                            foregroundText = foregroundText,
+                            primaryText = primaryText,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .drawBehind {
+                                    val strokeWidth = 1.dp.toPx()
+                                    val x = size.width - strokeWidth / 2
+                                    drawLine(
+                                        color = Color.Black.copy(alpha = 0.6f),
+                                        start = Offset(x, 0f),
+                                        end = Offset(x, size.height),
+                                        strokeWidth = strokeWidth
+                                    )
+                                }
+                                .pointerInput(uiState.activePanel) {
+                                    if (uiState.activePanel == HomePanel.DMS_LIST) {
+                                        detectHorizontalDragGestures(
+                                            onDragEnd = {
+                                                coroutineScope.launch {
+                                                    if (dmsSwipeOffset.value < -screenWidthPx / 3) {
+                                                        // swipe left to open selected DM chat (if one is selected)
+                                                        if (uiState.selectedDmChannelId != null) {
+                                                            dmsSwipeOffset.animateTo(-screenWidthPx)
+                                                            viewModel.setPanel(HomePanel.DM_CHAT)
+                                                        } else {
+                                                            dmsSwipeOffset.animateTo(0f)
+                                                        }
+                                                    } else if (serverSwipeOffset.value > -screenWidthPx * 2 / 3) {
+                                                        // swipe right to go back to Server list
+                                                        serverSwipeOffset.animateTo(0f)
+                                                        viewModel.exitDmsListToServer()
+                                                    } else {
+                                                        // return to current DMS list position
+                                                        dmsSwipeOffset.animateTo(0f)
+                                                        serverSwipeOffset.animateTo(-screenWidthPx)
+                                                    }
+                                                }
+                                            },
+                                            onDragCancel = {
+                                                coroutineScope.launch {
+                                                    dmsSwipeOffset.animateTo(0f)
+                                                    serverSwipeOffset.animateTo(-screenWidthPx)
+                                                }
+                                            },
+                                            onHorizontalDrag = { change, dragAmount ->
+                                                change.consume()
+                                                coroutineScope.launch {
+                                                    if (dragAmount > 0) {
+                                                        // drag right -> bring server list in
+                                                        val newOffset = (serverSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                                        serverSwipeOffset.snapTo(newOffset)
+                                                    } else if (dragAmount < 0 && uiState.selectedDmChannelId != null) {
+                                                        // drag left -> move dms list out to reveal chat
+                                                        val newOffset = (dmsSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                                        dmsSwipeOffset.snapTo(newOffset)
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                        )
+                    }
+
+                    // LAYER 3: SERVER LIST PANEL (TOP)
+                    val channelsOffset = with(density) { serverSwipeOffset.value.toDp() }
 
                     Column(
                         modifier = Modifier
@@ -484,26 +604,30 @@ fun HomeScreen(
                                 detectHorizontalDragGestures(
                                     onDragEnd = {
                                         coroutineScope.launch {
-                                            if (swipeOffset.value < -screenWidthPx / 3) {
-                                                // complete swipe back to chat panel
-                                                swipeOffset.animateTo(-screenWidthPx)
-                                                viewModel.setPanel(HomePanel.CHAT)
+                                            if (serverSwipeOffset.value < -screenWidthPx / 3) {
+                                                // complete swipe back to chat or dm panel
+                                                serverSwipeOffset.animateTo(-screenWidthPx)
+                                                if (uiState.isDmsListSelected) {
+                                                    viewModel.setPanel(HomePanel.DMS_LIST)
+                                                } else {
+                                                    viewModel.setPanel(HomePanel.SERVER_CHAT)
+                                                }
                                             } else {
                                                 // return to current server panel position
-                                                swipeOffset.animateTo(0f)
+                                                serverSwipeOffset.animateTo(0f)
                                             }
                                         }
                                     },
                                     onDragCancel = {
                                         coroutineScope.launch {
-                                            swipeOffset.animateTo(0f)
+                                            serverSwipeOffset.animateTo(0f)
                                         }
                                     },
                                     onHorizontalDrag = { change, dragAmount ->
                                         change.consume()
                                         coroutineScope.launch {
-                                            val newOffset = (swipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
-                                            swipeOffset.snapTo(newOffset)
+                                            val newOffset = (serverSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                            serverSwipeOffset.snapTo(newOffset)
                                         }
                                     }
                                 )
@@ -581,81 +705,6 @@ fun HomeScreen(
                                 .weight(1f),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            if (uiState.isDmsListOpen) {
-                                // DM LIST VIEW
-                                item(key = "dm-header") {
-                                    Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 16.dp, horizontal = 4.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(6.dp))
-                                                    .clickable { viewModel.closeDmsList() }
-                                                    .padding(4.dp)
-                                            ) {
-                                                Text(
-                                                    text = "◀",
-                                                    color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
-                                                    fontSize = 14.sp
-                                                )
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text(
-                                                    text = "DIRECT MESSAGES",
-                                                    color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
-                                                    fontSize = 13.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    letterSpacing = 1.sp
-                                                )
-                                            }
-                                            androidx.compose.material3.IconButton(
-                                                onClick = { viewModel.showMembersSheet(true) },
-                                                modifier = Modifier.size(24.dp)
-                                            ) {
-                                                Icon(
-                                                    Icons.Default.Add,
-                                                    contentDescription = "New DM",
-                                                    tint = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                                if (dmChannels.isNotEmpty()) {
-                                    items(dmChannels, key = { "dm-${it.id}" }) { channel ->
-                                        Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                                            val parts = channel.name.removePrefix("DM - ").split(":")
-                                            val otherUserId = parts.firstOrNull { it != data.ownUserId.toString() }?.toIntOrNull()
-                                            val otherUser = data.users.find { it.id == otherUserId }
-
-                                            DmChannelItem(
-                                                channelName = channel.name,
-                                                user = otherUser,
-                                                isSelected = uiState.selectedChannelId == channel.id,
-                                                onSelect = { viewModel.selectChannel(channel.id) },
-                                                foregroundText = foregroundText,
-                                                primaryText = primaryText,
-                                                unreadCount = uiState.readStates[channel.id] ?: 0
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    item {
-                                        Box(
-                                            modifier = Modifier.fillMaxWidth().padding(32.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text("No Direct Messages yet.", color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f), fontSize = 14.sp)
-                                        }
-                                    }
-                                }
-                            } else {
                             // server Banner
                             item {
                                 val logoState =
@@ -714,7 +763,8 @@ fun HomeScreen(
                                     onDirectMessagesClick = { viewModel.openDmsList() },
                                     onServerClick = { viewModel.showServerSheet() },
                                     isServerSheetOpen = uiState.showServerSheet,
-                                    totalUnreadDMs = totalUnreadDMs
+                                    totalUnreadDMs = totalUnreadDMs,
+                                    isDmsListSelected = uiState.isDmsListSelected
                                 )
                             }
 
@@ -724,7 +774,7 @@ fun HomeScreen(
                                     Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                                     ChannelItem(
                                             channel = channel,
-                                            isSelected = uiState.selectedChannelId == channel.id,
+                                            isSelected = uiState.selectedServerChannelId == channel.id && !uiState.isDmsListSelected,
                                             onSelect = {
                                                 if (!channel.isVoice) viewModel.selectChannel(channel.id)
                                             },
@@ -743,7 +793,7 @@ fun HomeScreen(
                                     Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                                     ChannelItem(
                                             channel = channel,
-                                            isSelected = uiState.selectedChannelId == channel.id,
+                                            isSelected = uiState.selectedServerChannelId == channel.id && !uiState.isDmsListSelected,
                                             onSelect = {
                                                 viewModel.selectChannel(channel.id)
                                             },
@@ -787,7 +837,7 @@ fun HomeScreen(
                                             channels = catChannels,
                                             isCollapsed = isCollapsed,
                                             hasManageChannels = hasManageChannels,
-                                            selectedChannelId = uiState.selectedChannelId,
+                                            selectedChannelId = if (uiState.isDmsListSelected) null else uiState.selectedServerChannelId,
                                             onToggleCategory = { viewModel.toggleCategory(category.id) },
                                             onAddChannelClick = { viewModel.showAddChannelDialog(category.id) },
                                             onChannelSelect = { channelId ->
@@ -808,8 +858,6 @@ fun HomeScreen(
                                     }
                                 }
                             }
-                            }
-
                             // bottom spacer
                             item {
                                 Spacer(modifier = Modifier.height(96.dp))
@@ -997,4 +1045,6 @@ fun HomeScreen(
     } // closes Box(78)
 } // closes HomeScreen
 }
+
+
 

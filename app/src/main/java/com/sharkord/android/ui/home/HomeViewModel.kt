@@ -25,7 +25,7 @@ import com.sharkord.android.data.model.UnifiedFileResult
 import com.sharkord.android.data.model.SearchResults
 
 enum class HomePanel {
-    SERVER, CHAT
+    SERVER_LIST, SERVER_CHAT, DMS_LIST, DM_CHAT
 }
 
 // UI state for the home screen
@@ -33,7 +33,9 @@ enum class HomePanel {
 data class HomeUiState(
     val isLoading: Boolean = true,
     val serverData: JoinServerData? = null,
-    val selectedChannelId: Int? = null,
+    val selectedServerChannelId: Int? = null,
+    val selectedDmChannelId: Int? = null,
+    val isDmsListSelected: Boolean = false,
     val selectedMessageId: Int? = null,
     val jumpTrigger: Long = 0L,
     val collapsedCategories: Set<Int> = emptySet(),
@@ -46,12 +48,11 @@ data class HomeUiState(
     val searchQuery: String = "",
     val isSearching: Boolean = false,
     val searchResults: List<UnifiedSearchResult>? = null,
-    val activePanel: HomePanel = HomePanel.SERVER,
+    val activePanel: HomePanel = HomePanel.SERVER_LIST,
     val showAddChannelDialog: Boolean = false,
     val addChannelCategoryId: Int? = null,
     val showAddCategoryDialog: Boolean = false,
     val showDeleteChannelDialogForId: Int? = null,
-    val isDmsListOpen: Boolean = false,
     val membersSheetFilterDms: Boolean = false,
     val readStates: Map<Int, Int> = emptyMap(),
     val isViewingVoiceChat: Boolean = false
@@ -187,9 +188,11 @@ class HomeViewModel : ViewModel() {
                         reconnectAttempts = 0,
                         serverData = data,
                         readStates = initialReadStates,
-                        selectedChannelId = it.selectedChannelId
+                        selectedServerChannelId = it.selectedServerChannelId
                             ?: restoredVoiceChannelId
-                            ?: data.channels.firstOrNull { ch -> !ch.isVoice && !ch.isDm }?.id
+                            ?: data.channels.firstOrNull { ch -> !ch.isVoice && !ch.isDm }?.id,
+                        selectedDmChannelId = it.selectedDmChannelId,
+                        isDmsListSelected = it.isDmsListSelected
                     )
                 }
             }
@@ -272,10 +275,15 @@ class HomeViewModel : ViewModel() {
                     state.copy(
                         serverData = data.copy(channels = newChannels),
                         // if the active channel was deleted, fall back to the first available one
-                        selectedChannelId = if (state.selectedChannelId == event.channelId) {
+                        selectedServerChannelId = if (state.selectedServerChannelId == event.channelId) {
                             newChannels.firstOrNull { !it.isVoice && !it.isDm }?.id
                         } else {
-                            state.selectedChannelId
+                            state.selectedServerChannelId
+                        },
+                        selectedDmChannelId = if (state.selectedDmChannelId == event.channelId) {
+                            null
+                        } else {
+                            state.selectedDmChannelId
                         }
                     )
                 }
@@ -512,7 +520,8 @@ class HomeViewModel : ViewModel() {
                 is ServerEvent.ChannelReadStateUpdate -> {
                     Log.d(TAG, "[EVENT] channels.onReadStateUpdate: channelId=${event.channelId}, count=${event.count}")
                     // if the channel is actively viewed, ignore updates and instantly mark as read
-                    if (state.selectedChannelId == event.channelId && state.activePanel == HomePanel.CHAT) {
+                    if ((state.selectedServerChannelId == event.channelId && state.activePanel == HomePanel.SERVER_CHAT) || 
+                        (state.selectedDmChannelId == event.channelId && state.activePanel == HomePanel.DM_CHAT)) {
                         viewModelScope.launch { repository.markChannelAsRead(event.channelId) }
                         return@update state
                     }
@@ -523,7 +532,8 @@ class HomeViewModel : ViewModel() {
 
                 is ServerEvent.ChannelReadStateDelta -> {
                     Log.d(TAG, "[EVENT] channels.onReadStateDelta: channelId=${event.channelId}, delta=${event.delta}")
-                    if (state.selectedChannelId == event.channelId && state.activePanel == HomePanel.CHAT) {
+                    if ((state.selectedServerChannelId == event.channelId && state.activePanel == HomePanel.SERVER_CHAT) || 
+                        (state.selectedDmChannelId == event.channelId && state.activePanel == HomePanel.DM_CHAT)) {
                         viewModelScope.launch { repository.markChannelAsRead(event.channelId) }
                         return@update state
                     }
@@ -553,17 +563,32 @@ class HomeViewModel : ViewModel() {
     // UI Actions
 
     fun selectChannel(channelId: Int, messageId: Int? = null, navigateToChat: Boolean = true) {
-        _uiState.update { 
-            val newReadStates = it.readStates.toMutableMap()
-            newReadStates[channelId] = 0
+        val channel = _uiState.value.serverData?.channels?.find { it.id == channelId }
+        val isDm = channel?.isDm == true
 
-            it.copy(
-                selectedChannelId = channelId, 
-                selectedMessageId = messageId, 
-                activePanel = if (navigateToChat) HomePanel.CHAT else it.activePanel,
-                jumpTrigger = if (messageId != null) System.currentTimeMillis() else it.jumpTrigger,
-                readStates = newReadStates
-            ) 
+        _uiState.update { state ->
+            if (isDm) {
+                state.copy(
+                    selectedDmChannelId = channelId,
+                    selectedMessageId = messageId,
+                    activePanel = if (navigateToChat) HomePanel.DM_CHAT else state.activePanel,
+                    jumpTrigger = if (messageId != null) System.currentTimeMillis() else state.jumpTrigger,
+                    readStates = if (navigateToChat) {
+                        state.readStates.toMutableMap().apply { put(channelId, 0) }
+                    } else state.readStates
+                )
+            } else {
+                state.copy(
+                    selectedServerChannelId = channelId,
+                    selectedMessageId = messageId,
+                    isDmsListSelected = false,
+                    activePanel = if (navigateToChat) HomePanel.SERVER_CHAT else state.activePanel,
+                    jumpTrigger = if (messageId != null) System.currentTimeMillis() else state.jumpTrigger,
+                    readStates = if (navigateToChat) {
+                        state.readStates.toMutableMap().apply { put(channelId, 0) }
+                    } else state.readStates
+                )
+            }
         }
         
         // notify the server that we have read the channel
@@ -575,9 +600,11 @@ class HomeViewModel : ViewModel() {
     fun setPanel(panel: HomePanel) {
         _uiState.update { state ->
             var newReadStates = state.readStates
-            if (panel == HomePanel.CHAT && state.selectedChannelId != null) {
+            if ((panel == HomePanel.SERVER_CHAT && state.selectedServerChannelId != null) || 
+                (panel == HomePanel.DM_CHAT && state.selectedDmChannelId != null)) {
                 newReadStates = state.readStates.toMutableMap().apply {
-                    put(state.selectedChannelId, 0)
+                    state.selectedServerChannelId?.let { put(it, 0) }
+                    state.selectedDmChannelId?.let { put(it, 0) }
                 }
             }
             state.copy(
@@ -586,8 +613,14 @@ class HomeViewModel : ViewModel() {
             )
         }
 
-        if (panel == HomePanel.CHAT) {
-            _uiState.value.selectedChannelId?.let { channelId ->
+        if (panel == HomePanel.SERVER_CHAT) {
+            _uiState.value.selectedServerChannelId?.let { channelId ->
+                viewModelScope.launch {
+                    repository.markChannelAsRead(channelId)
+                }
+            }
+        } else if (panel == HomePanel.DM_CHAT) {
+            _uiState.value.selectedDmChannelId?.let { channelId ->
                 viewModelScope.launch {
                     repository.markChannelAsRead(channelId)
                 }
@@ -644,11 +677,11 @@ class HomeViewModel : ViewModel() {
     }
 
     fun openDmsList() {
-        _uiState.update { it.copy(isDmsListOpen = true) }
+        _uiState.update { it.copy(activePanel = HomePanel.DMS_LIST, isDmsListSelected = true) }
     }
 
-    fun closeDmsList() {
-        _uiState.update { it.copy(isDmsListOpen = false) }
+    fun exitDmsListToServer() {
+        _uiState.update { it.copy(activePanel = HomePanel.SERVER_LIST) }
     }
 
     fun setSearchQuery(query: String) {
