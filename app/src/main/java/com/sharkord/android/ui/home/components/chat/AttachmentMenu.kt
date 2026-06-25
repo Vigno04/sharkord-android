@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components.chat
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,7 +21,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.sharkord.android.ui.home.components.ChatColors
 
 @Composable
 fun AttachmentMenu(
@@ -30,7 +30,7 @@ fun AttachmentMenu(
     onLocationClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val cardColor = ChatColors.CardColor
+    val cardColor = SharkordTheme.colors.cardColor
     
     Row(
         modifier = modifier
@@ -74,7 +74,7 @@ private fun AttachmentMenuItem(
     onClick: () -> Unit,
     color: Color
 ) {
-    val textPrimary = ChatColors.TextPrimary
+    val textPrimary = SharkordTheme.colors.primaryText
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,

@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -242,7 +243,7 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxWidth(0.9f)
-            .background(Color(0xFF242424), RoundedCornerShape(12.dp))
+            .background(SharkordTheme.colors.cardColor, RoundedCornerShape(12.dp))
             .padding(start = 14.dp, end = 14.dp, top = 16.dp, bottom = 8.dp)
     ) {
         Row(
@@ -257,7 +258,7 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = Color(0xFF5B9BD5),
+                    tint = SharkordTheme.colors.accentColor,
                     modifier = Modifier.size(30.dp)
                 )
             }
@@ -273,9 +274,9 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
                     }
                 },
                 colors = SliderDefaults.colors(
-                    thumbColor = Color(0xFF5B9BD5),
-                    activeTrackColor = Color(0xFF5B9BD5),
-                    inactiveTrackColor = Color(0xFF4A4A4A)
+                    thumbColor = SharkordTheme.colors.accentColor,
+                    activeTrackColor = SharkordTheme.colors.accentColor,
+                    inactiveTrackColor = SharkordTheme.colors.primaryText.copy(alpha = 0.2f)
                 ),
                 modifier = Modifier.weight(1f).height(18.dp)
             )
@@ -288,12 +289,12 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
         ) {
             Text(
                 text = formatTime(currentPosition),
-                color = Color(0xFF9E9E9E),
+                color = SharkordTheme.colors.primaryText.copy(alpha = 0.5f),
                 fontSize = 11.sp
             )
             Text(
                 text = formatTime(duration),
-                color = Color(0xFF9E9E9E),
+                color = SharkordTheme.colors.primaryText.copy(alpha = 0.5f),
                 fontSize = 11.sp
             )
         }

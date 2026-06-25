@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.settings
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import android.content.Context
 import android.net.Uri
 import android.os.Environment
@@ -59,11 +60,11 @@ fun UserSettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    val bgColor = Color(0xFF1C1C1C)
-    val cardColor = Color(0xFF2B2B2B)
-    val primaryText = Color(0xFFE8E8E8)
-    val foregroundText = Color(0xFFFAFAFA)
-    val accentColor = Color(0xFF5865F2)
+    val bgColor = SharkordTheme.colors.bgColor
+    val cardColor = SharkordTheme.colors.cardColor
+    val primaryText = SharkordTheme.colors.primaryText
+    val foregroundText = SharkordTheme.colors.foregroundText
+    val accentColor = SharkordTheme.colors.accentColor
     
     val tabs = listOf("Profile", "Call Settings", "Password", "Notifications", "App Settings")
     val pagerState = rememberPagerState(pageCount = { tabs.size })
@@ -118,7 +119,7 @@ fun UserSettingsScreen(
                 ) {
                     Text(
                         text = "Changing settings will take effect when re entering a new chanel",
-                        color = Color.White,
+                        color = SharkordTheme.colors.foregroundText,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -138,7 +139,7 @@ fun UserSettingsScreen(
                         )
                     }
                 },
-                divider = { Divider(color = Color.White.copy(alpha = 0.1f)) }
+                divider = { Divider(color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f)) }
             ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
@@ -294,7 +295,7 @@ fun ProfileTabContent(
                 modifier = Modifier
                     .size(80.dp)
                     .clip(CircleShape)
-                    .background(Color.DarkGray)
+                    .background(SharkordTheme.colors.cardColor)
                     .clickable { showAvatarPicker = true },
                 contentAlignment = Alignment.Center
             ) {
@@ -308,13 +309,13 @@ fun ProfileTabContent(
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    Text(stringResource(R.string.settings_noAvatar), color = Color.Gray, fontSize = 10.sp)
+                    Text(stringResource(R.string.settings_noAvatar), color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f), fontSize = 10.sp)
                 }
                 Box(
                     modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.CameraAlt, contentDescription = "Change Avatar", tint = Color.White)
+                    Icon(Icons.Default.CameraAlt, contentDescription = "Change Avatar", tint = SharkordTheme.colors.foregroundText)
                 }
             }
             
@@ -327,9 +328,9 @@ fun ProfileTabContent(
                     .clip(RoundedCornerShape(8.dp))
                     .background(
                         try { Color(android.graphics.Color.parseColor(bannerColor)) } 
-                        catch (e: Exception) { Color.DarkGray }
+                        catch (e: Exception) { SharkordTheme.colors.cardColor }
                     )
-                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                    .border(1.dp, SharkordTheme.colors.dividerColor, RoundedCornerShape(8.dp))
                     .clickable { showBannerPicker = true },
                 contentAlignment = Alignment.Center
             ) {
@@ -347,7 +348,7 @@ fun ProfileTabContent(
                     modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Image, contentDescription = "Change Banner", tint = Color.White)
+                    Icon(Icons.Default.Image, contentDescription = "Change Banner", tint = SharkordTheme.colors.foregroundText)
                 }
             }
         }
@@ -436,7 +437,7 @@ fun ProfileTabContent(
             enabled = !uiState.isSavingProfile
         ) {
             if (uiState.isSavingProfile) {
-                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White)
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = SharkordTheme.colors.foregroundText)
                 Spacer(modifier = Modifier.width(8.dp))
             }
             Text(stringResource(R.string.common_saveChanges))
@@ -453,7 +454,7 @@ fun ProfileTabContent(
             onClick = { /*TODO*/ },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
         ) {
-            Text(stringResource(R.string.settings_deleteAccount), color = Color.White)
+            Text(stringResource(R.string.settings_deleteAccount), color = SharkordTheme.colors.foregroundText)
         }
     }
 }
@@ -866,7 +867,7 @@ fun PasswordTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foreg
             enabled = !uiState.isSavingPassword && current.isNotEmpty() && new.isNotEmpty() && confirm.isNotEmpty()
         ) {
             if (uiState.isSavingPassword) {
-                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White)
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = SharkordTheme.colors.foregroundText)
                 Spacer(modifier = Modifier.width(8.dp))
             }
             Text(stringResource(R.string.settings_updatePasswordBtn))
@@ -892,7 +893,7 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
             }
             Switch(checked = allMessages, onCheckedChange = { allMessages = it }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
         }
-        Divider(modifier = Modifier.padding(vertical = 12.dp), color = Color.White.copy(alpha = 0.1f))
+        Divider(modifier = Modifier.padding(vertical = 12.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
         
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
@@ -901,7 +902,7 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
             }
             Switch(checked = mentionsOnly, onCheckedChange = { mentionsOnly = it }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
         }
-        Divider(modifier = Modifier.padding(vertical = 12.dp), color = Color.White.copy(alpha = 0.1f))
+        Divider(modifier = Modifier.padding(vertical = 12.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
         
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
@@ -910,7 +911,7 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
             }
             Switch(checked = dmNotifications, onCheckedChange = { dmNotifications = it }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
         }
-        Divider(modifier = Modifier.padding(vertical = 12.dp), color = Color.White.copy(alpha = 0.1f))
+        Divider(modifier = Modifier.padding(vertical = 12.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
         
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
@@ -920,7 +921,7 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
             Switch(checked = repliesNotifications, onCheckedChange = { repliesNotifications = it }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
         }
         
-        Divider(modifier = Modifier.padding(vertical = 16.dp), color = Color.White.copy(alpha = 0.1f))
+        Divider(modifier = Modifier.padding(vertical = 16.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
         
         Text(stringResource(R.string.settings_syncFrequency), color = foregroundText, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
@@ -989,7 +990,7 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(stringResource(R.string.settings_removeBiometrics), color = Color.White)
+                Text(stringResource(R.string.settings_removeBiometrics), color = SharkordTheme.colors.foregroundText)
             }
         }
     }
@@ -1096,7 +1097,7 @@ fun SettingsSection(title: String, cardColor: Color, foregroundText: Color, cont
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = title,
-            color = Color.Gray,
+            color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)

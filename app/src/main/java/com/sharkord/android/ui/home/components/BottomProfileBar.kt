@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -50,10 +51,10 @@ fun BottomProfileBar(
                 .height(72.dp)
                 .padding(start = 20.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFF232428))
+                .background(SharkordTheme.colors.bgColor)
                 .border(
                     1.dp,
-                    Color.White.copy(alpha = 0.05f),
+                    SharkordTheme.colors.dividerColor,
                     RoundedCornerShape(16.dp)
                 )
         ) {
@@ -77,14 +78,14 @@ fun BottomProfileBar(
                     Icon(
                         Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
-                        tint = Color.Gray,
+                        tint = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                         modifier = Modifier.size(16.dp)
                     )
                 }
                 // online label (to implement)
                 Text(
                     text = stringResource(id = R.string.common_online),
-                    color = Color.Gray,
+                    color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                     fontSize = 14.sp
                 )
             }
@@ -104,7 +105,7 @@ fun BottomProfileBar(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(CircleShape)
-                    .background(Color.DarkGray),
+                    .background(SharkordTheme.colors.cardColor),
                 contentAlignment = Alignment.Center
             ) {
                 avatarPainter?.let {
@@ -123,7 +124,7 @@ fun BottomProfileBar(
                     .clip(CircleShape)
                     .background(Color(0xFF23A559))
                     .align(Alignment.BottomEnd)
-                    .border(2.5.dp, Color(0xFF232428), CircleShape)
+                    .border(2.5.dp, SharkordTheme.colors.bgColor, CircleShape)
             )
         }
     }

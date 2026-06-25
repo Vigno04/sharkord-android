@@ -399,6 +399,8 @@
     <string name="settings_comingSoon">%1$s Settings coming soon...</string>
     <string name="settings_commandArgs">Args...</string>
     <string name="settings_commandsBtn">Commands</string>
+    <string name="settings_compressMediaDesc">Compress camera photos and videos before uploading them to save data and time.</string>
+    <string name="settings_compressMediaLabel">Compress before sending</string>
     <string name="settings_confirmNewPasswordLabel">Confirm New Password</string>
     <string name="settings_copyInviteLink">Copy Invite Link</string>
     <string name="settings_createInviteBtn">Create Invite</string>
@@ -461,10 +463,6 @@
     <string name="settings_dmNotificationsLabel">Direct Messages</string>
     <string name="settings_echoCancellationLabel">Echo Cancellation</string>
     <string name="settings_editEmojiTitle">Edit Emoji</string>
-    <string name="settings_compressMediaLabel">Compress before sending</string>
-    <string name="settings_compressMediaDesc">Compress camera photos and videos before uploading them to save data and time.</string>
-    <string name="settings_mediaCodecLabel">Media Codec</string>
-    <string name="settings_mediaQualityLabel">Media Quality</string>
     <string name="settings_editPermissionsFor">EDIT PERMISSIONS FOR %1$s</string>
     <string name="settings_editRoleTitle">Edit Role</string>
     <string name="settings_emojiCreated">Emoji created</string>
@@ -586,6 +584,8 @@
     <string name="settings_maxFilesPerMessageDesc">Maximum number of attachments allowed on a single message. Extra files are ignored.</string>
     <string name="settings_maxFilesPerMessageLabel">Max files per message</string>
     <string name="settings_maxUsesLabel">Maximum Uses (0 for unlimited):</string>
+    <string name="settings_mediaCodecLabel">Media Codec</string>
+    <string name="settings_mediaQualityLabel">Media Quality</string>
     <string name="settings_mentionsOnlyDesc">Send a notification only when mentioned. Ignored if \'All Messages\' is enabled.</string>
     <string name="settings_mentionsOnlyLabel">Mentions Only</string>
     <string name="settings_microphoneLabel">Microphone</string>

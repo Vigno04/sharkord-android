@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -101,10 +102,10 @@ fun SearchPanel(
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(focusRequester),
-                    placeholder = { Text(stringResource(R.string.topbar_searchContent), color = Color.Gray) },
+                    placeholder = { Text(stringResource(R.string.topbar_searchContent), color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f)) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF5865F2),
+                        focusedBorderColor = SharkordTheme.colors.accentColor,
                         unfocusedBorderColor = cardColor,
                         focusedContainerColor = cardColor,
                         unfocusedContainerColor = cardColor,
@@ -114,12 +115,12 @@ fun SearchPanel(
                     ),
                     shape = RoundedCornerShape(24.dp),
                     leadingIcon = {
-                        Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray)
+                        Icon(Icons.Default.Search, contentDescription = null, tint = SharkordTheme.colors.primaryText.copy(alpha = 0.6f))
                     },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
                             IconButton(onClick = { onQueryChange("") }) {
-                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.common_close), tint = Color.Gray)
+                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.common_close), tint = SharkordTheme.colors.primaryText.copy(alpha = 0.6f))
                             }
                         }
                     },
@@ -136,12 +137,12 @@ fun SearchPanel(
                 if (isSearching && searchResults == null) {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center),
-                        color = Color(0xFF5865F2)
+                        color = SharkordTheme.colors.accentColor
                     )
                 } else if (searchResults?.isEmpty() == true) {
                     Text(
                         text = stringResource(R.string.dialogs_noResults),
-                        color = Color.Gray,
+                        color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                         modifier = Modifier.align(Alignment.Center)
                     )
                 } else if (!searchResults.isNullOrEmpty()) {
@@ -230,7 +231,7 @@ private fun MessageResultContent(
         )
         Text(
             text = dateFormatter.format(Date(result.createdAt)),
-            color = Color.Gray,
+            color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
             fontSize = 12.sp
         )
     }
@@ -243,7 +244,7 @@ private fun MessageResultContent(
             modifier = Modifier
                 .size(20.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF3A3A3A)),
+                .background(SharkordTheme.colors.cardColor),
             contentAlignment = Alignment.Center
         ) {
             val avatarUrl = author?.avatar?.name?.let { name ->
@@ -259,7 +260,7 @@ private fun MessageResultContent(
                 )
                 else -> Text(
                     text = (author?.name ?: "?").take(1).uppercase(),
-                    color = Color.White,
+                    color = SharkordTheme.colors.foregroundText,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -306,14 +307,14 @@ private fun FileResultContent(
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = dateFormatter.format(Date(result.createdAt)),
-            color = Color.Gray,
+            color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
             fontSize = 12.sp
         )
     }
     Spacer(modifier = Modifier.height(4.dp))
     Text(
         text = result.item.file.originalName ?: result.item.file.name,
-        color = Color(0xFF5865F2), // Accent color
+        color = SharkordTheme.colors.accentColor, // Accent color
         fontSize = 14.sp,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis

@@ -397,6 +397,8 @@
     <string name="settings_comingSoon">Impostazioni %1$s in arrivo...</string>
     <string name="settings_commandArgs">Argomenti...</string>
     <string name="settings_commandsBtn">Comandi</string>
+    <string name="settings_compressMediaDesc">Comprimi le foto e i video della fotocamera prima di caricarli per risparmiare dati e tempo.</string>
+    <string name="settings_compressMediaLabel">Comprimi prima di inviare</string>
     <string name="settings_confirmNewPasswordLabel">Conferma nuova password</string>
     <string name="settings_copyInviteLink">Copia link invito</string>
     <string name="settings_createInviteBtn">Crea invito</string>
@@ -439,10 +441,10 @@
     <string name="settings_detailLocation">Posizione</string>
     <string name="settings_detailUserId">ID Utente</string>
     <string name="settings_detailsTitle">Dettagli</string>
-    <string name="settings_deviceSettingsSaved">Impostazioni dispositivi salvate</string>
-    <string name="settings_devicesDesc">Gestisci i tuoi dispositivi periferici e le relative impostazioni.</string>
-    <string name="settings_devicesTab">Dispositivi</string>
-    <string name="settings_devicesTitle">Dispositivi</string>
+    <string name="settings_deviceSettingsSaved">Impostazioni chiamate salvate</string>
+    <string name="settings_devicesDesc">Gestisci le impostazioni delle chiamate e dei media.</string>
+    <string name="settings_devicesTab">Impostazioni Chiamate</string>
+    <string name="settings_devicesTitle">Impostazioni Chiamate</string>
     <string name="settings_directMessagesDesc">Consenti agli utenti di scambiarsi messaggi diretti. Se disabilitato, potranno comunicare solo nei canali.</string>
     <string name="settings_directMessagesEnabledDesc">Consenti agli utenti di inviarsi messaggi diretti. Se disabilitato, potranno comunicare solo nei canali.</string>
     <string name="settings_directMessagesEnabledLabel">Messaggi diretti</string>
@@ -580,6 +582,8 @@
     <string name="settings_maxFilesPerMessageDesc">Numero massimo di allegati consentiti in un singolo messaggio. I file extra vengono ignorati.</string>
     <string name="settings_maxFilesPerMessageLabel">Numero massimo file per messaggio</string>
     <string name="settings_maxUsesLabel">Usi massimi (0 per illimitati):</string>
+    <string name="settings_mediaCodecLabel">Codec Media</string>
+    <string name="settings_mediaQualityLabel">Qualità Media</string>
     <string name="settings_mentionsOnlyDesc">Invia una notifica solo quando vieni menzionato. Ignorato se e attivo \'Tutti i messaggi\'.</string>
     <string name="settings_mentionsOnlyLabel">Solo menzioni</string>
     <string name="settings_microphoneLabel">Microfono</string>

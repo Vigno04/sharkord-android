@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.settings
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -49,11 +50,11 @@ fun ServerSettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    val bgColor = Color(0xFF1C1C1C)
-    val cardColor = Color(0xFF2B2B2B)
-    val primaryText = Color(0xFFE8E8E8)
-    val foregroundText = Color(0xFFFAFAFA)
-    val accentColor = Color(0xFF5865F2)
+    val bgColor = SharkordTheme.colors.bgColor
+    val cardColor = SharkordTheme.colors.cardColor
+    val primaryText = SharkordTheme.colors.primaryText
+    val foregroundText = SharkordTheme.colors.foregroundText
+    val accentColor = SharkordTheme.colors.accentColor
     
     val data = uiState.serverData
     val userRoles = data?.roles?.filter { role ->
@@ -125,7 +126,7 @@ fun ServerSettingsScreen(
                         )
                     }
                 },
-                divider = { HorizontalDivider(color = Color.White.copy(alpha = 0.1f)) }
+                divider = { HorizontalDivider(color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f)) }
             ) {
                 tabs.forEachIndexed { index, titleRes ->
                     Tab(
@@ -286,7 +287,7 @@ fun ServerGeneralTab(
                     modifier = Modifier
                         .size(80.dp)
                         .clip(CircleShape)
-                        .background(Color.DarkGray)
+                        .background(SharkordTheme.colors.cardColor)
                         .clickable { showAvatarPicker = true },
                     contentAlignment = Alignment.Center
                 ) {
@@ -300,13 +301,13 @@ fun ServerGeneralTab(
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
-                        Text(stringResource(R.string.settings_noLogo), color = Color.Gray, fontSize = 10.sp)
+                        Text(stringResource(R.string.settings_noLogo), color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f), fontSize = 10.sp)
                     }
                     Box(
                         modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.CameraAlt, contentDescription = "Change Logo", tint = Color.White)
+                        Icon(Icons.Default.CameraAlt, contentDescription = "Change Logo", tint = SharkordTheme.colors.foregroundText)
                     }
                 }
                 
@@ -426,7 +427,7 @@ fun ServerGeneralTab(
                 enabled = !uiState.isLoading
             ) {
                 if (uiState.isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White)
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = SharkordTheme.colors.foregroundText)
                     Spacer(modifier = Modifier.width(8.dp))
                 }
                 Text(stringResource(R.string.common_saveChanges))

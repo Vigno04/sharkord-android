@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.settings
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -141,7 +142,7 @@ fun ServerPluginsTab(
                     )
                 }
             },
-            divider = { HorizontalDivider(color = Color.White.copy(alpha = 0.1f)) }
+            divider = { HorizontalDivider(color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f)) }
         ) {
             tabs.forEachIndexed { index, titleRes ->
                 Tab(
@@ -373,10 +374,10 @@ fun PluginItemRow(
                             modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp))
                         )
                     } else {
-                        Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(Color.Gray))
+                        Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(SharkordTheme.colors.cardColor))
                     }
                 } else {
-                    Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(Color.DarkGray))
+                    Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(SharkordTheme.colors.cardColor))
                 }
                 
                 Spacer(modifier = Modifier.width(16.dp))
@@ -389,13 +390,13 @@ fun PluginItemRow(
             
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (plugin.loadError != null) {
-                    Badge(containerColor = Color.Red, contentColor = Color.White) {
+                    Badge(containerColor = Color.Red, contentColor = SharkordTheme.colors.foregroundText) {
                         Text(stringResource(R.string.common_error))
                     }
                 } else {
                     Badge(
-                        containerColor = if (plugin.enabled) accentColor else Color.DarkGray,
-                        contentColor = Color.White
+                        containerColor = if (plugin.enabled) accentColor else SharkordTheme.colors.cardColor,
+                        contentColor = SharkordTheme.colors.foregroundText
                     ) {
                         Text(if (plugin.enabled) stringResource(R.string.common_enabled) else stringResource(R.string.common_disabled))
                     }
@@ -433,13 +434,13 @@ fun PluginItemRow(
                     onClick = onOpenCommands,
                     enabled = plugin.enabled
                 ) {
-                    Icon(Icons.Default.Terminal, contentDescription = "Commands", tint = if (plugin.enabled) primaryText else Color.Gray)
+                    Icon(Icons.Default.Terminal, contentDescription = "Commands", tint = if (plugin.enabled) primaryText else SharkordTheme.colors.primaryText.copy(alpha = 0.6f))
                 }
                 IconButton(
                     onClick = onOpenSettings,
                     enabled = plugin.enabled
                 ) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = if (plugin.enabled) primaryText else Color.Gray)
+                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = if (plugin.enabled) primaryText else SharkordTheme.colors.primaryText.copy(alpha = 0.6f))
                 }
                 IconButton(onClick = { showRemoveDialog = true }) {
                     Icon(Icons.Default.Delete, contentDescription = "Remove", tint = Color.Red)
@@ -489,7 +490,7 @@ fun MarketplaceItemRow(
                         modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp))
                     )
                 } else {
-                    Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(Color.DarkGray))
+                    Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(SharkordTheme.colors.cardColor))
                 }
                 
                 Spacer(modifier = Modifier.width(16.dp))
@@ -519,7 +520,7 @@ fun MarketplaceItemRow(
                     Button(
                         onClick = { },
                         enabled = false,
-                        colors = ButtonDefaults.buttonColors(disabledContainerColor = Color.DarkGray, disabledContentColor = Color.LightGray)
+                        colors = ButtonDefaults.buttonColors(disabledContainerColor = SharkordTheme.colors.cardColor, disabledContentColor = SharkordTheme.colors.primaryText.copy(alpha = 0.5f))
                     ) {
                         Text(stringResource(R.string.settings_pluginStatusInstalled))
                     }
@@ -577,10 +578,10 @@ fun PluginDetailsSheet(
                             modifier = Modifier.size(64.dp).clip(RoundedCornerShape(8.dp))
                         )
                     } else {
-                        Box(modifier = Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)).background(Color.Gray))
+                        Box(modifier = Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)).background(SharkordTheme.colors.cardColor))
                     }
                 } else {
-                    Box(modifier = Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)).background(Color.DarkGray))
+                    Box(modifier = Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)).background(SharkordTheme.colors.cardColor))
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
@@ -601,7 +602,7 @@ fun PluginDetailsSheet(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     val allChips = tags + categories
                     allChips.forEach { tag ->
-                        Badge(containerColor = Color.DarkGray, contentColor = primaryText) {
+                        Badge(containerColor = SharkordTheme.colors.cardColor, contentColor = primaryText) {
                             Text(tag, modifier = Modifier.padding(4.dp))
                         }
                     }
@@ -626,7 +627,7 @@ fun PluginDetailsSheet(
                                 modifier = Modifier.height(200.dp).width(300.dp).clip(RoundedCornerShape(8.dp))
                             )
                         } else {
-                            Box(modifier = Modifier.height(200.dp).width(300.dp).clip(RoundedCornerShape(8.dp)).background(Color.Gray))
+                            Box(modifier = Modifier.height(200.dp).width(300.dp).clip(RoundedCornerShape(8.dp)).background(SharkordTheme.colors.cardColor))
                         }
                     }
                 }
@@ -681,7 +682,7 @@ fun PluginDetailsSheet(
                     Button(
                         onClick = { },
                         enabled = false,
-                        colors = ButtonDefaults.buttonColors(disabledContainerColor = Color.DarkGray, disabledContentColor = Color.LightGray),
+                        colors = ButtonDefaults.buttonColors(disabledContainerColor = SharkordTheme.colors.cardColor, disabledContentColor = SharkordTheme.colors.primaryText.copy(alpha = 0.5f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(stringResource(R.string.settings_pluginStatusInstalled))

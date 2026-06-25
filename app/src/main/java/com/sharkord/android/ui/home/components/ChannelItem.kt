@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -60,13 +61,13 @@ fun ChannelItem(
     isDragging: Boolean = false,
     foregroundText: Color,
     primaryText: Color,
-    cardColor: Color = Color(0xFF2B2B2B),
+    cardColor: Color = SharkordTheme.colors.cardColor,
     unreadCount: Int = 0,
     voiceUsers: List<VoiceUserDisplay> = emptyList()
 ) {
     val icon = if (channel.isVoice) Icons.Default.VolumeUp else Icons.Default.Tag
     val bg = if (isSelected || isDragging) Color.White.copy(alpha = 0.08f) else Color.Transparent
-    val tint = if (isSelected) foregroundText else Color.Gray
+    val tint = if (isSelected) foregroundText else SharkordTheme.colors.primaryText.copy(alpha = 0.6f)
     val textWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
 
     var menuExpanded by remember { mutableStateOf(false) }
@@ -158,13 +159,13 @@ fun ChannelItem(
                     modifier = Modifier
                         .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
                         .clip(androidx.compose.foundation.shape.CircleShape)
-                        .background(Color(0xFFE3E5E8)) // Snow/porcelain color
+                        .background(SharkordTheme.colors.primaryText) // Snow/porcelain color
                         .padding(horizontal = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = unreadCount.toString(),
-                        color = Color(0xFF2B2B2B), // Dark text for contrast
+                        color = SharkordTheme.colors.cardColor, // Dark text for contrast
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -193,7 +194,7 @@ fun ChannelItem(
                             modifier = Modifier
                                 .size(24.dp)
                                 .clip(CircleShape)
-                                .background(Color.Gray),
+                                .background(SharkordTheme.colors.cardColor),
                             contentAlignment = Alignment.Center
                         ) {
                             if (avatarPainter != null) {
@@ -206,7 +207,7 @@ fun ChannelItem(
                             } else {
                                 Text(
                                     text = voiceUser.user.name.take(1).uppercase(),
-                                    color = Color.White,
+                                    color = SharkordTheme.colors.foregroundText,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -228,7 +229,7 @@ fun ChannelItem(
                             Icon(
                                 Icons.AutoMirrored.Filled.ScreenShare,
                                 contentDescription = "Screen Share Active",
-                                tint = Color(0xFF5865F2),
+                                tint = SharkordTheme.colors.accentColor,
                                 modifier = Modifier.size(16.dp).padding(end = 4.dp)
                             )
                         }
@@ -236,7 +237,7 @@ fun ChannelItem(
                             Icon(
                                 Icons.Default.Videocam,
                                 contentDescription = "Camera Active",
-                                tint = Color(0xFF5865F2),
+                                tint = SharkordTheme.colors.accentColor,
                                 modifier = Modifier.size(16.dp).padding(end = 4.dp)
                             )
                         }

@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -73,12 +74,12 @@ fun ChatPanel(
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
-    val bgColor = ChatColors.BgColor
-    val cardColor = ChatColors.CardColor
-    val textPrimary = ChatColors.TextPrimary
-    val textSecondary = ChatColors.TextSecondary
-    val textMuted = ChatColors.TextMuted
-    val accentColor = ChatColors.AccentColor
+    val bgColor = SharkordTheme.colors.bgColor
+    val cardColor = SharkordTheme.colors.cardColor
+    val textPrimary = SharkordTheme.colors.primaryText
+    val textSecondary = SharkordTheme.colors.primaryText.copy(alpha = 0.5f)
+    val textMuted = SharkordTheme.colors.primaryText.copy(alpha = 0.5f)
+    val accentColor = SharkordTheme.colors.accentColor
 
     val uiState by viewModel.uiState.collectAsState()
     val listState = remember(channelId) { androidx.compose.foundation.lazy.LazyListState() }
@@ -499,14 +500,14 @@ fun ChatPanel(
                             } else {
                                 stringResource(id = R.string.chat_newMessagesPlural, unreadNewCount)
                             },
-                            color = Color.White,
+                            color = SharkordTheme.colors.foregroundText,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowDown,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = SharkordTheme.colors.foregroundText,
                             modifier = Modifier.size(16.dp)
                         )
                     }

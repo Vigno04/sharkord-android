@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.login
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -62,11 +63,11 @@ fun LoginScreen(
         viewModel.initialize(context, onLoginSuccess)
     }
     
-    val bgColor = Color(0xFF1C1C1C)
-    val cardColor = Color(0xFF2B2B2B)
-    val primaryText = Color(0xFFE8E8E8)
-    val foregroundText = Color(0xFFFAFAFA)
-    val accentColor = Color(0xFFE8E8E8)
+    val bgColor = SharkordTheme.colors.bgColor
+    val cardColor = SharkordTheme.colors.cardColor
+    val primaryText = SharkordTheme.colors.primaryText
+    val foregroundText = SharkordTheme.colors.foregroundText
+    val accentColor = SharkordTheme.colors.accentColor
 
     // render a premium full-screen splash screen immediately during auto-login transitions
     if (!viewModel.hideSplashScreen && (hasSavedSession || viewModel.isAutoLoggingIn)) {
@@ -113,7 +114,7 @@ fun LoginScreen(
                 }
                 Text(
                     text = "Connecting to $hostName...",
-                    color = Color.Gray,
+                    color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -166,7 +167,7 @@ fun LoginScreen(
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.onBiometricSaveAnswer(false) }) {
-                    Text("No", color = Color.Gray)
+                    Text("No", color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f))
                 }
             },
             containerColor = cardColor
@@ -274,7 +275,7 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = desc,
-                        color = Color.Gray,
+                        color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                         fontSize = 14.sp,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 24.dp)
@@ -317,7 +318,7 @@ fun LoginScreen(
                             value = viewModel.serverUrl,
                             onValueChange = { viewModel.serverUrl = it },
                             label = { Text(stringResource(id = R.string.sidebar_server)) },
-                            placeholder = { Text("https://demo.sharkord.com", color = Color.Gray.copy(alpha = 0.5f)) },
+                            placeholder = { Text("https://demo.sharkord.com", color = SharkordTheme.colors.primaryText.copy(alpha = 0.5f)) },
                             leadingIcon = { Icon(Icons.Default.Share, contentDescription = null, tint = primaryText) },
                             colors = TextFieldDefaults.colors(
                                 focusedTextColor = foregroundText,
@@ -325,9 +326,9 @@ fun LoginScreen(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent,
                                 focusedLabelColor = accentColor,
-                                unfocusedLabelColor = Color.Gray,
+                                unfocusedLabelColor = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                                 focusedIndicatorColor = accentColor,
-                                unfocusedIndicatorColor = Color.Gray.copy(alpha = 0.5f)
+                                unfocusedIndicatorColor = SharkordTheme.colors.primaryText.copy(alpha = 0.6f).copy(alpha = 0.5f)
                             ),
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
@@ -391,9 +392,9 @@ fun LoginScreen(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent,
                                 focusedLabelColor = accentColor,
-                                unfocusedLabelColor = Color.Gray,
+                                unfocusedLabelColor = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                                 focusedIndicatorColor = accentColor,
-                                unfocusedIndicatorColor = Color.Gray.copy(alpha = 0.5f)
+                                unfocusedIndicatorColor = SharkordTheme.colors.primaryText.copy(alpha = 0.6f).copy(alpha = 0.5f)
                             ),
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
@@ -415,9 +416,9 @@ fun LoginScreen(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent,
                                 focusedLabelColor = accentColor,
-                                unfocusedLabelColor = Color.Gray,
+                                unfocusedLabelColor = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                                 focusedIndicatorColor = accentColor,
-                                unfocusedIndicatorColor = Color.Gray.copy(alpha = 0.5f)
+                                unfocusedIndicatorColor = SharkordTheme.colors.primaryText.copy(alpha = 0.6f).copy(alpha = 0.5f)
                             ),
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
@@ -440,7 +441,7 @@ fun LoginScreen(
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = foregroundText,
                                     checkedTrackColor = accentColor.copy(alpha = 0.6f),
-                                    uncheckedThumbColor = Color.Gray,
+                                    uncheckedThumbColor = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                                     uncheckedTrackColor = Color.Black.copy(alpha = 0.3f)
                                 )
                             )

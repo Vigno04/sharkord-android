@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -77,7 +78,7 @@ fun HomeScreen(
     }
 
     // theme colors
-    val colors = com.sharkord.android.ui.theme.LocalSharkordColors.current
+    val colors = SharkordTheme.colors
     val bgColor = colors.bgColor
     val cardColor = colors.cardColor
     val primaryText = colors.primaryText
@@ -103,7 +104,7 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = stringResource(id = R.string.connect_loggingInAutomatically),
-                        color = Color.LightGray,
+                        color = SharkordTheme.colors.primaryText.copy(alpha = 0.8f),
                         fontSize = 14.sp,
                         textAlign = TextAlign.Center
                     )
@@ -600,13 +601,13 @@ fun HomeScreen(
                                             ) {
                                                 Text(
                                                     text = "◀",
-                                                    color = Color.Gray,
+                                                    color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                                                     fontSize = 14.sp
                                                 )
                                                 Spacer(modifier = Modifier.width(8.dp))
                                                 Text(
                                                     text = "DIRECT MESSAGES",
-                                                    color = Color.Gray,
+                                                    color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                                                     fontSize = 13.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     letterSpacing = 1.sp
@@ -619,7 +620,7 @@ fun HomeScreen(
                                                 Icon(
                                                     Icons.Default.Add,
                                                     contentDescription = "New DM",
-                                                    tint = Color.Gray,
+                                                    tint = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                                                     modifier = Modifier.size(16.dp)
                                                 )
                                             }
@@ -650,7 +651,7 @@ fun HomeScreen(
                                             modifier = Modifier.fillMaxWidth().padding(32.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text("No Direct Messages yet.", color = Color.Gray, fontSize = 14.sp)
+                                            Text("No Direct Messages yet.", color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f), fontSize = 14.sp)
                                         }
                                     }
                                 }
@@ -666,7 +667,7 @@ fun HomeScreen(
                                     )
                                 } else {
                                     Brush.horizontalGradient(
-                                        colors = listOf(Color(0xFF2C3E50), Color(0xFF1A252F)) // Sleek premium dark gradient
+                                        colors = listOf(SharkordTheme.colors.cardColor, SharkordTheme.colors.cardColor) // Sleek premium dark gradient
                                     )
                                 }
 

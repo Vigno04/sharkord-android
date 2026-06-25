@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components.chat
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
@@ -67,7 +68,6 @@ import com.sharkord.android.data.model.User
 import com.sharkord.android.ui.components.AsyncImageState
 import com.sharkord.android.ui.components.rememberAsyncImageState
 import com.sharkord.android.ui.home.ChatUiState
-import com.sharkord.android.ui.home.components.ChatColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -90,11 +90,11 @@ fun ChatInputBar(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val cardColor = ChatColors.CardColor
-    val textPrimary = ChatColors.TextPrimary
-    val textSecondary = ChatColors.TextSecondary
-    val textMuted = ChatColors.TextMuted
-    val accentColor = ChatColors.AccentColor
+    val cardColor = SharkordTheme.colors.cardColor
+    val textPrimary = SharkordTheme.colors.primaryText
+    val textSecondary = SharkordTheme.colors.primaryText.copy(alpha = 0.5f)
+    val textMuted = SharkordTheme.colors.primaryText.copy(alpha = 0.5f)
+    val accentColor = SharkordTheme.colors.accentColor
     val keyboardController = LocalSoftwareKeyboardController.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -316,7 +316,7 @@ fun ChatInputBar(
                                     modifier = Modifier
                                         .size(36.dp)
                                         .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0xFF2B2B2B)),
+                                        .background(SharkordTheme.colors.cardColor),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     when (imgState) {
@@ -356,7 +356,7 @@ fun ChatInputBar(
                                     Icon(
                                         imageVector = Icons.Default.PlayArrow,
                                         contentDescription = null,
-                                        tint = Color.White.copy(alpha = 0.85f),
+                                        tint = SharkordTheme.colors.foregroundText.copy(alpha = 0.85f),
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -432,7 +432,7 @@ fun ChatInputBar(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            color = Color(0xFF242424),
+                            color = SharkordTheme.colors.cardColor,
                             shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                         )
                         .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -483,7 +483,7 @@ fun ChatInputBar(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            color = Color(0xFF242424),
+                            color = SharkordTheme.colors.cardColor,
                             shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                         )
                         .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -808,7 +808,7 @@ fun TypingDotsWave() {
                 modifier = Modifier
                     .size(6.dp)
                     .graphicsLayer { translationY = -animatable.value * 8.dp.toPx() }
-                    .background(Color.Gray, CircleShape)
+                    .background(SharkordTheme.colors.primaryText.copy(alpha = 0.6f), CircleShape)
             )
         }
     }

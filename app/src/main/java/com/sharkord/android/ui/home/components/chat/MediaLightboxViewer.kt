@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components.chat
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -90,10 +91,10 @@ fun MediaLightboxViewer(
                         )
                     }
                     is AsyncImageState.Loading -> {
-                        CircularProgressIndicator(color = Color.White)
+                        CircularProgressIndicator(color = SharkordTheme.colors.foregroundText)
                     }
                     else -> {
-                        Text(text = stringResource(id = R.string.chat_failedLoadImage), color = Color.White)
+                        Text(text = stringResource(id = R.string.chat_failedLoadImage), color = SharkordTheme.colors.foregroundText)
                     }
                 }
             }
@@ -113,7 +114,7 @@ fun MediaLightboxViewer(
             }
         } else {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = stringResource(id = R.string.chat_unsupportedMediaType), color = Color.White, fontSize = 16.sp)
+                Text(text = stringResource(id = R.string.chat_unsupportedMediaType), color = SharkordTheme.colors.foregroundText, fontSize = 16.sp)
             }
         }
 
@@ -134,12 +135,12 @@ fun MediaLightboxViewer(
                     .clip(CircleShape)
                     .background(Color.Black.copy(alpha = 0.5f))
             ) {
-                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                Icon(Icons.Default.Close, contentDescription = "Close", tint = SharkordTheme.colors.foregroundText)
             }
 
             Text(
                 text = file.displayName,
-                color = Color.White,
+                color = SharkordTheme.colors.foregroundText,
                 fontSize = 14.sp,
                 maxLines = 1,
                 modifier = Modifier
@@ -153,7 +154,7 @@ fun MediaLightboxViewer(
                     .clip(CircleShape)
                     .background(Color.Black.copy(alpha = 0.5f))
             ) {
-                Icon(Icons.Default.Download, contentDescription = "Download", tint = Color.White)
+                Icon(Icons.Default.Download, contentDescription = "Download", tint = SharkordTheme.colors.foregroundText)
             }
         }
     }

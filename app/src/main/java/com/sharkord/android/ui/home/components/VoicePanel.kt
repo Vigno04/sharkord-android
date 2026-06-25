@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -83,7 +84,7 @@ fun VoicePanel(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-val colors = LocalSharkordColors.current
+val colors = SharkordTheme.colors
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -453,7 +454,7 @@ val colors = LocalSharkordColors.current
         }
 
 
-            VerticalDivider(color = colors.cardColor, modifier = Modifier.fillMaxHeight(), thickness = 1.dp)
+            VerticalDivider(color = colors.dividerColor, modifier = Modifier.fillMaxHeight(), thickness = 1.dp)
 
         // main Content - Users Grid
         Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
@@ -547,7 +548,7 @@ val colors = LocalSharkordColors.current
         }
 
 
-            VerticalDivider(color = colors.cardColor, modifier = Modifier.fillMaxHeight(), thickness = 1.dp)
+            VerticalDivider(color = colors.dividerColor, modifier = Modifier.fillMaxHeight(), thickness = 1.dp)
 
         // bottom Controls
         Box(
@@ -630,7 +631,7 @@ val colors = LocalSharkordColors.current
                     FloatingActionButton(
                         onClick = onDisconnectClick,
                         containerColor = Color(0xFFED4245),
-                        contentColor = Color.White,
+                        contentColor = SharkordTheme.colors.foregroundText,
                         shape = CircleShape,
                         modifier = Modifier.size(64.dp)
                     ) {
@@ -646,9 +647,9 @@ val colors = LocalSharkordColors.current
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF23A559))
                 ) {
                     if (isConnectingToVoice) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                        CircularProgressIndicator(color = SharkordTheme.colors.foregroundText, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                     } else {
-                        Icon(Icons.Default.Phone, contentDescription = "Join Voice", tint = Color.White)
+                        Icon(Icons.Default.Phone, contentDescription = "Join Voice", tint = SharkordTheme.colors.foregroundText)
                     }
                 }
             }
@@ -858,7 +859,7 @@ val colors = LocalSharkordColors.current
         }
 
 
-        HorizontalDivider(color = colors.cardColor, thickness = 1.dp)
+        HorizontalDivider(color = colors.dividerColor, thickness = 1.dp)
 
         // main Content - Users Grid
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -1032,7 +1033,7 @@ val colors = LocalSharkordColors.current
                     FloatingActionButton(
                         onClick = onDisconnectClick,
                         containerColor = Color(0xFFED4245),
-                        contentColor = Color.White,
+                        contentColor = SharkordTheme.colors.foregroundText,
                         shape = CircleShape,
                         modifier = Modifier.size(64.dp)
                     ) {
@@ -1047,7 +1048,7 @@ val colors = LocalSharkordColors.current
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF23A559))
                 ) {
                     if (isConnectingToVoice) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                        CircularProgressIndicator(color = SharkordTheme.colors.foregroundText, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Connecting...", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     } else {

@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.settings
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -80,7 +81,7 @@ fun PluginLogsSheet(
                     items(logs) { log ->
                         val logColor = when (log.type) {
                             "error" -> Color.Red
-                            "debug" -> Color.Gray
+                            "debug" -> SharkordTheme.colors.primaryText.copy(alpha = 0.6f)
                             else -> accentColor
                         }
                         val icon = when (log.type) {
@@ -93,7 +94,7 @@ fun PluginLogsSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(Color.DarkGray.copy(alpha = 0.3f))
+                                .background(SharkordTheme.colors.cardColor.copy(alpha = 0.3f))
                                 .padding(8.dp),
                             verticalAlignment = Alignment.Top
                         ) {
@@ -203,7 +204,7 @@ fun CommandItemView(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(Color.DarkGray.copy(alpha = 0.3f))
+            .background(SharkordTheme.colors.cardColor.copy(alpha = 0.3f))
             .padding(16.dp)
     ) {
         Row(
@@ -350,7 +351,7 @@ fun SettingItemView(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(Color.DarkGray.copy(alpha = 0.3f))
+            .background(SharkordTheme.colors.cardColor.copy(alpha = 0.3f))
             .padding(16.dp)
     ) {
         Text(text = definition.name, color = foregroundText, fontWeight = FontWeight.Bold, fontSize = 16.sp)

@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components.chat
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -87,7 +88,7 @@ fun CameraCaptureScreen(
     } else {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Camera and Audio permissions are required.", color = Color.White)
+                Text("Camera and Audio permissions are required.", color = SharkordTheme.colors.foregroundText)
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(onClick = { 
                     permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO))
@@ -96,7 +97,7 @@ fun CameraCaptureScreen(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 TextButton(onClick = onClose) {
-                    Text("Close", color = Color.Gray)
+                    Text("Close", color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f))
                 }
             }
         }
@@ -210,7 +211,7 @@ private fun CameraPreviewContent(
             onClick = onClose,
             modifier = Modifier.align(Alignment.TopStart).padding(top = 32.dp, start = 16.dp)
         ) {
-            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+            Icon(Icons.Default.Close, contentDescription = "Close", tint = SharkordTheme.colors.foregroundText)
         }
 
         // Flip Camera button
@@ -224,7 +225,7 @@ private fun CameraPreviewContent(
             },
             modifier = Modifier.align(Alignment.TopEnd).padding(top = 32.dp, end = 16.dp)
         ) {
-            Icon(Icons.Default.FlipCameraAndroid, contentDescription = "Flip Camera", tint = Color.White)
+            Icon(Icons.Default.FlipCameraAndroid, contentDescription = "Flip Camera", tint = SharkordTheme.colors.foregroundText)
         }
 
         // Recording Indicator
@@ -236,7 +237,7 @@ private fun CameraPreviewContent(
                     .background(Color.Red.copy(alpha = 0.8f), RoundedCornerShape(12.dp))
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
-                Text("RECORDING", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("RECORDING", color = SharkordTheme.colors.foregroundText, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -401,7 +402,7 @@ private fun CameraPreviewContent(
         
         Text(
             text = "Tap for photo, hold for video",
-            color = Color.White,
+            color = SharkordTheme.colors.foregroundText,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp)
         )
         
@@ -416,9 +417,9 @@ private fun CameraPreviewContent(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = Color.White)
+                    CircularProgressIndicator(color = SharkordTheme.colors.foregroundText)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Compressing video...", color = Color.White)
+                    Text("Compressing video...", color = SharkordTheme.colors.foregroundText)
                 }
             }
         }

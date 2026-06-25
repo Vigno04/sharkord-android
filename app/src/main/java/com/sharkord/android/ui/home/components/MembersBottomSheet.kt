@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -38,7 +39,7 @@ fun MembersBottomSheet(
     onDismissRequest: () -> Unit,
     onMessageClick: (Int) -> Unit
 ) {
-    val colors = com.sharkord.android.ui.theme.LocalSharkordColors.current
+    val colors = SharkordTheme.colors
     val cardColor = colors.cardColor
     val primaryText = colors.primaryText
     val foregroundText = colors.foregroundText
@@ -57,7 +58,7 @@ fun MembersBottomSheet(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
             )
-            Divider(color = Color.White.copy(alpha = 0.05f))
+            Divider(color = SharkordTheme.colors.foregroundText.copy(alpha = 0.05f))
 
             if (users.isEmpty()) {
                 Box(
@@ -68,7 +69,7 @@ fun MembersBottomSheet(
                 ) {
                     Text(
                         text = "Wow, so empty. So many friends",
-                        color = Color.Gray,
+                        color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                         fontSize = 14.sp
                     )
                 }
@@ -121,7 +122,7 @@ fun MembersBottomSheet(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape)
-                                .background(Color.DarkGray),
+                                .background(SharkordTheme.colors.cardColor),
                             contentAlignment = Alignment.Center
                         ) {
                             if (avatarPainter != null) {
@@ -134,7 +135,7 @@ fun MembersBottomSheet(
                             } else {
                                 Text(
                                     text = user.name.take(1).uppercase(),
-                                    color = Color.White,
+                                    color = SharkordTheme.colors.foregroundText,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -151,7 +152,7 @@ fun MembersBottomSheet(
                             if (user.id == ownUserId) {
                                 Text(
                                     text = stringResource(id = R.string.common_you),
-                                    color = Color.Gray,
+                                    color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                                     fontSize = 12.sp
                                 )
                             }
@@ -170,7 +171,7 @@ fun MembersBottomSheet(
                             )
                         }
                     }
-                    Divider(color = Color.White.copy(alpha = 0.02f))
+                    Divider(color = SharkordTheme.colors.foregroundText.copy(alpha = 0.02f))
                 }
             }
         }

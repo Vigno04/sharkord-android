@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.settings
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -153,7 +154,7 @@ fun UserItemRow(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(Color.DarkGray)
+                .background(SharkordTheme.colors.cardColor)
         ) {
             val serverUrl = com.sharkord.android.data.network.SharkordClient.currentServerUrl
             val avatarUrl = user.avatar?.name?.let { name ->
@@ -170,7 +171,7 @@ fun UserItemRow(
             } else {
                 Text(
                     text = user.name.firstOrNull()?.toString()?.uppercase() ?: "?",
-                    color = Color.White,
+                    color = SharkordTheme.colors.foregroundText,
                     modifier = Modifier.align(Alignment.Center)
                 )
             }

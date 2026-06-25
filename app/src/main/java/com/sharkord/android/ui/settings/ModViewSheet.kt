@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.settings
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -58,7 +59,7 @@ fun ModViewSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        containerColor = Color(0xFF313338),
+        containerColor = SharkordTheme.colors.bgColor,
         dragHandle = null
     ) {
         Column(
@@ -73,20 +74,20 @@ fun ModViewSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (screen == ModViewScreen.MAIN) {
-                    Text(stringResource(R.string.settings_moderateUserMenu), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.settings_moderateUserMenu), color = SharkordTheme.colors.foregroundText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 } else {
                     IconButton(onClick = { viewModel.setModViewScreen(ModViewScreen.MAIN) }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SharkordTheme.colors.foregroundText)
                     }
                 }
                 IconButton(onClick = onDismissRequest) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray)
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = SharkordTheme.colors.primaryText.copy(alpha = 0.6f))
                 }
             }
 
             if (isLoading || data == null) {
                 Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color(0xFF5865F2))
+                    CircularProgressIndicator(color = SharkordTheme.colors.accentColor)
                 }
             } else {
                 when (screen) {
@@ -116,11 +117,11 @@ private fun ModViewMainContent(
         ModViewHeader(data, uiState, viewModel, onDismissRequest)
         
         Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-            HorizontalDivider(color = Color.DarkGray, modifier = Modifier.padding(vertical = 16.dp))
+            HorizontalDivider(color = SharkordTheme.colors.dividerColor, modifier = Modifier.padding(vertical = 16.dp))
             ModViewServerActivity(data, viewModel)
-            HorizontalDivider(color = Color.DarkGray, modifier = Modifier.padding(vertical = 16.dp))
+            HorizontalDivider(color = SharkordTheme.colors.dividerColor, modifier = Modifier.padding(vertical = 16.dp))
             ModViewStorage(data)
-            HorizontalDivider(color = Color.DarkGray, modifier = Modifier.padding(vertical = 16.dp))
+            HorizontalDivider(color = SharkordTheme.colors.dividerColor, modifier = Modifier.padding(vertical = 16.dp))
             ModViewDetails(data.user, data)
         }
     }
@@ -238,12 +239,12 @@ private fun ModViewHeader(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = wipeData, onCheckedChange = { wipeData = it })
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.settings_wipeAllDataLabel), color = Color.White)
+                        Text(stringResource(R.string.settings_wipeAllDataLabel), color = SharkordTheme.colors.foregroundText)
                     }
                     if (wipeData) {
                         Text(stringResource(R.string.settings_wipeAllDataDesc1), color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
                     } else {
-                        Text(stringResource(R.string.settings_wipeAllDataDesc2), color = Color.Gray, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                        Text(stringResource(R.string.settings_wipeAllDataDesc2), color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f), fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
                     }
                 }
             },
@@ -269,7 +270,7 @@ private fun ModViewHeader(
                 try {
                     Color(android.graphics.Color.parseColor(user.bannerColor ?: "#2B2B2B"))
                 } catch (e: Exception) {
-                    Color(0xFF2B2B2B)
+                    SharkordTheme.colors.cardColor
                 }
             )
     ) {
@@ -290,42 +291,42 @@ private fun ModViewHeader(
         Column(modifier = Modifier.fillMaxWidth()) {
             Spacer(modifier = Modifier.height(56.dp))
 
-            Text(user.name, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Text(user.name, color = SharkordTheme.colors.foregroundText, fontSize = 24.sp, fontWeight = FontWeight.Bold)
             if (!user.identity.isNullOrEmpty()) {
-                Text(user.identity, color = Color.Gray, fontSize = 14.sp)
+                Text(user.identity, color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f), fontSize = 14.sp)
             }
-            Text(stringResource(R.string.settings_joinedDate, joinDate), color = Color.Gray, fontSize = 12.sp)
+            Text(stringResource(R.string.settings_joinedDate, joinDate), color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f), fontSize = 12.sp)
 
             Spacer(modifier = Modifier.height(12.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
                 Button(
                     onClick = { showKickDialog = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2B2D31)),
+                    colors = ButtonDefaults.buttonColors(containerColor = SharkordTheme.colors.cardColor),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     modifier = Modifier.height(32.dp)
                 ) {
-                    Icon(Icons.Default.PersonRemove, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.LightGray)
+                    Icon(Icons.Default.PersonRemove, contentDescription = null, modifier = Modifier.size(16.dp), tint = SharkordTheme.colors.primaryText.copy(alpha = 0.8f))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringResource(R.string.common_kick), color = Color.LightGray, fontSize = 12.sp)
+                    Text(stringResource(R.string.common_kick), color = SharkordTheme.colors.primaryText.copy(alpha = 0.8f), fontSize = 12.sp)
                 }
                 Button(
                     onClick = {
                         if (user.banned) viewModel.unbanUser(user.id) else showBanDialog = true
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2B2D31)),
+                    colors = ButtonDefaults.buttonColors(containerColor = SharkordTheme.colors.cardColor),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     modifier = Modifier.height(32.dp)
                 ) {
-                    Icon(Icons.Default.Gavel, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.LightGray)
+                    Icon(Icons.Default.Gavel, contentDescription = null, modifier = Modifier.size(16.dp), tint = SharkordTheme.colors.primaryText.copy(alpha = 0.8f))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(if (user.banned) stringResource(R.string.common_unban) else stringResource(R.string.common_ban), color = Color.LightGray, fontSize = 12.sp)
+                    Text(if (user.banned) stringResource(R.string.common_unban) else stringResource(R.string.common_ban), color = SharkordTheme.colors.primaryText.copy(alpha = 0.8f), fontSize = 12.sp)
                 }
                 Button(
                     onClick = {
                         showDeleteUserDialog = true
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2B2D31)),
+                    colors = ButtonDefaults.buttonColors(containerColor = SharkordTheme.colors.cardColor),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     modifier = Modifier.height(32.dp)
                 ) {
@@ -337,7 +338,7 @@ private fun ModViewHeader(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text(stringResource(R.string.settings_rolesSectionTitle), color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Text(stringResource(R.string.settings_rolesSectionTitle), color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
             Spacer(modifier = Modifier.height(8.dp))
             
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
@@ -345,26 +346,26 @@ private fun ModViewHeader(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(4.dp))
-                            .background(Color(0xFF2B2D31))
+                            .background(SharkordTheme.colors.cardColor)
                             .clickable { viewModel.removeUserRole(user.id, role.id) }
                             .padding(horizontal = 8.dp, vertical = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(role.name, color = Color.White, fontSize = 12.sp)
+                        Text(role.name, color = SharkordTheme.colors.foregroundText, fontSize = 12.sp)
                     }
                 }
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0xFF2B2D31))
+                        .background(SharkordTheme.colors.cardColor)
                         .clickable { showAssignRoleDialog = true }
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(12.dp))
+                        Icon(Icons.Default.Add, contentDescription = null, tint = SharkordTheme.colors.primaryText.copy(alpha = 0.8f), modifier = Modifier.size(12.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(stringResource(R.string.settings_assignRoleTitle), color = Color.LightGray, fontSize = 12.sp)
+                        Text(stringResource(R.string.settings_assignRoleTitle), color = SharkordTheme.colors.primaryText.copy(alpha = 0.8f), fontSize = 12.sp)
                     }
                 }
             }
@@ -376,7 +377,7 @@ private fun ModViewHeader(
                 .offset(y = (-40).dp)
                 .size(80.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF313338))
+                .background(SharkordTheme.colors.bgColor)
                 .padding(4.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -384,7 +385,7 @@ private fun ModViewHeader(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(CircleShape)
-                    .background(Color.DarkGray)
+                    .background(SharkordTheme.colors.cardColor)
             ) {
                 val serverUrl = com.sharkord.android.data.network.SharkordClient.currentServerUrl
                 val avatarUrl = user.avatar?.name?.let { "$serverUrl/public/${android.net.Uri.encode(it)}" }
@@ -399,7 +400,7 @@ private fun ModViewHeader(
                 } else {
                     Text(
                         text = user.name.firstOrNull()?.toString()?.uppercase() ?: "?",
-                        color = Color.White,
+                        color = SharkordTheme.colors.foregroundText,
                         fontSize = 32.sp,
                         modifier = Modifier.align(Alignment.Center)
                     )
@@ -411,7 +412,7 @@ private fun ModViewHeader(
 
 @Composable
 private fun ModViewServerActivity(data: ModViewData, viewModel: ServerSettingsViewModel) {
-    Text(stringResource(R.string.settings_serverActivityTitle), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+    Text(stringResource(R.string.settings_serverActivityTitle), color = SharkordTheme.colors.foregroundText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
     Spacer(modifier = Modifier.height(12.dp))
     
     Row(
@@ -444,18 +445,18 @@ private fun ActivityStatBox(title: String, value: String, modifier: Modifier = M
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFF2B2D31))
+            .background(SharkordTheme.colors.cardColor)
             .padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(value, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Text(title, color = Color.Gray, fontSize = 12.sp)
+        Text(value, color = SharkordTheme.colors.foregroundText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(title, color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f), fontSize = 12.sp)
     }
 }
 
 @Composable
 private fun ModViewStorage(data: ModViewData) {
-    Text(stringResource(R.string.settings_storageTitle), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+    Text(stringResource(R.string.settings_storageTitle), color = SharkordTheme.colors.foregroundText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
     Spacer(modifier = Modifier.height(12.dp))
     
     val unlimitedText = stringResource(R.string.common_unlimited)
@@ -466,30 +467,30 @@ private fun ModViewStorage(data: ModViewData) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFF2B2D31))
+            .background(SharkordTheme.colors.cardColor)
             .padding(16.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(stringResource(R.string.settings_usedSpace), color = Color.Gray, fontSize = 14.sp)
-            Text("$usedSpaceStr / $totalSpace", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.settings_usedSpace), color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f), fontSize = 14.sp)
+            Text("$usedSpaceStr / $totalSpace", color = SharkordTheme.colors.foregroundText, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }
         
         Spacer(modifier = Modifier.height(12.dp))
         LinearProgressIndicator(
             progress = { if (data.storage.quota == 0L) 0f else (data.storage.usedStorage.toFloat() / data.storage.quota.toFloat()).coerceIn(0f, 1f) },
             modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
-            color = Color(0xFF5865F2),
-            trackColor = Color(0xFF1E1F22)
+            color = SharkordTheme.colors.accentColor,
+            trackColor = SharkordTheme.colors.bgColor
         )
     }
 }
 
 @Composable
 private fun ModViewDetails(user: User, data: ModViewData) {
-    Text(stringResource(R.string.settings_detailsTitle), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+    Text(stringResource(R.string.settings_detailsTitle), color = SharkordTheme.colors.foregroundText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
     Spacer(modifier = Modifier.height(12.dp))
     
     val unknownText = stringResource(R.string.common_unknown)
@@ -512,7 +513,7 @@ private fun ModViewDetails(user: User, data: ModViewData) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFF2B2D31))
+            .background(SharkordTheme.colors.cardColor)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -529,8 +530,8 @@ private fun DetailRow(label: String, value: String) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, color = Color.Gray, fontSize = 14.sp)
-        Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        Text(label, color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f), fontSize = 14.sp)
+        Text(value, color = SharkordTheme.colors.foregroundText, fontSize = 14.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -538,7 +539,7 @@ private fun DetailRow(label: String, value: String) {
 private fun ModViewMessages(data: ModViewData) {
     if (data.messages.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-            Text(stringResource(R.string.settings_noMessagesFound), color = Color.Gray)
+            Text(stringResource(R.string.settings_noMessagesFound), color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f))
         }
     } else {
         LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
@@ -548,10 +549,10 @@ private fun ModViewMessages(data: ModViewData) {
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF2B2D31))
+                        .background(SharkordTheme.colors.cardColor)
                         .padding(12.dp)
                 ) {
-                    Text(message.content, color = Color.White, fontSize = 14.sp)
+                    Text(message.content, color = SharkordTheme.colors.foregroundText, fontSize = 14.sp)
                 }
             }
         }
@@ -563,7 +564,7 @@ private fun ModViewLinks(data: ModViewData) {
     val messagesWithLinks = data.messages.filter { it.content.contains("http") }
     if (messagesWithLinks.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-            Text(stringResource(R.string.settings_noLinksFound), color = Color.Gray)
+            Text(stringResource(R.string.settings_noLinksFound), color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f))
         }
     } else {
         LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
@@ -573,10 +574,10 @@ private fun ModViewLinks(data: ModViewData) {
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF2B2D31))
+                        .background(SharkordTheme.colors.cardColor)
                         .padding(12.dp)
                 ) {
-                    Text(message.content, color = Color.White, fontSize = 14.sp)
+                    Text(message.content, color = SharkordTheme.colors.foregroundText, fontSize = 14.sp)
                 }
             }
         }
@@ -587,7 +588,7 @@ private fun ModViewLinks(data: ModViewData) {
 private fun ModViewFiles(data: ModViewData) {
     if (data.files.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-            Text(stringResource(R.string.settings_noFilesFound), color = Color.Gray)
+            Text(stringResource(R.string.settings_noFilesFound), color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f))
         }
     } else {
         LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
@@ -597,11 +598,11 @@ private fun ModViewFiles(data: ModViewData) {
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF2B2D31))
+                        .background(SharkordTheme.colors.cardColor)
                         .padding(12.dp)
                 ) {
-                    Text(file.name ?: stringResource(R.string.common_unknownFile), color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text("${formatBytes((file.size ?: 0).toLong())} • ${file.mimeType ?: stringResource(R.string.common_unknownType)}", color = Color.Gray, fontSize = 12.sp)
+                    Text(file.name ?: stringResource(R.string.common_unknownFile), color = SharkordTheme.colors.foregroundText, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("${formatBytes((file.size ?: 0).toLong())} • ${file.mimeType ?: stringResource(R.string.common_unknownType)}", color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f), fontSize = 12.sp)
                 }
             }
         }

@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -95,7 +96,7 @@ fun AddChannelDialog(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = foregroundText,
                         unfocusedTextColor = foregroundText,
-                        focusedBorderColor = Color(0xFF5865F2),
+                        focusedBorderColor = SharkordTheme.colors.accentColor,
                         unfocusedBorderColor = cardColor,
                         focusedContainerColor = cardColor,
                         unfocusedContainerColor = cardColor
@@ -121,12 +122,12 @@ fun AddChannelDialog(
                             }
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF5865F2),
-                            disabledContainerColor = Color(0xFF5865F2).copy(alpha = 0.5f)
+                            containerColor = SharkordTheme.colors.accentColor,
+                            disabledContainerColor = SharkordTheme.colors.accentColor.copy(alpha = 0.5f)
                         ),
                         enabled = channelName.isNotBlank()
                     ) {
-                        Text("Create", color = Color.White)
+                        Text("Create", color = SharkordTheme.colors.foregroundText)
                     }
                 }
             }
@@ -143,7 +144,7 @@ private fun TypeOption(
     foregroundText: Color,
     modifier: Modifier = Modifier
 ) {
-    val backgroundColor = if (isSelected) Color(0xFF5865F2).copy(alpha = 0.2f) else cardColor
+    val backgroundColor = if (isSelected) SharkordTheme.colors.accentColor.copy(alpha = 0.2f) else cardColor
 
     Box(
         modifier = modifier

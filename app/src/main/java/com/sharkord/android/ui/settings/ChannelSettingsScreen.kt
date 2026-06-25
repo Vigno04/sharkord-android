@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.settings
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -29,9 +30,9 @@ fun ChannelSettingsScreen(
     
     val uiState by viewModel.uiState.collectAsState()
 
-    val bgColor = Color(0xFF1C1C1C)
-    val foregroundText = Color(0xFFFAFAFA)
-    val accentColor = Color(0xFF5865F2)
+    val bgColor = SharkordTheme.colors.bgColor
+    val foregroundText = SharkordTheme.colors.foregroundText
+    val accentColor = SharkordTheme.colors.accentColor
 
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf(R.string.settings_tabGeneral, R.string.settings_tabPermissions)
@@ -78,7 +79,7 @@ fun ChannelSettingsScreen(
                             onClick = { selectedTabIndex = index },
                             text = { Text(stringResource(titleRes)) },
                             selectedContentColor = accentColor,
-                            unselectedContentColor = Color(0xFFE8E8E8)
+                            unselectedContentColor = SharkordTheme.colors.primaryText
                         )
                     }
                 }
@@ -101,10 +102,10 @@ fun GeneralTabContent(
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
 
-    val cardColor = Color(0xFF2B2B2B)
-    val primaryText = Color(0xFFE8E8E8)
-    val foregroundText = Color(0xFFFAFAFA)
-    val accentColor = Color(0xFF5865F2)
+    val cardColor = SharkordTheme.colors.cardColor
+    val primaryText = SharkordTheme.colors.primaryText
+    val foregroundText = SharkordTheme.colors.foregroundText
+    val accentColor = SharkordTheme.colors.accentColor
 
     var name by remember { mutableStateOf(uiState.channel?.name ?: "") }
     var topic by remember { mutableStateOf(uiState.channel?.description ?: "") }
@@ -195,7 +196,7 @@ fun GeneralTabContent(
                 enabled = !uiState.isSaving && name.isNotBlank()
             ) {
                 if (uiState.isSaving) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White)
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = SharkordTheme.colors.foregroundText)
                     Spacer(modifier = Modifier.width(8.dp))
                 }
                 Text(stringResource(R.string.common_saveChanges))
@@ -212,10 +213,10 @@ fun PermissionsTabContent(
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
 
-    val cardColor = Color(0xFF2B2B2B)
-    val primaryText = Color(0xFFE8E8E8)
-    val foregroundText = Color(0xFFFAFAFA)
-    val accentColor = Color(0xFF5865F2)
+    val cardColor = SharkordTheme.colors.cardColor
+    val primaryText = SharkordTheme.colors.primaryText
+    val foregroundText = SharkordTheme.colors.foregroundText
+    val accentColor = SharkordTheme.colors.accentColor
 
     if (uiState.channel?.private == false) {
         Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
@@ -291,7 +292,7 @@ fun PermissionsTabContent(
                 }
 
                 Box {
-                    Button(onClick = { showAddRoleDropdown = true }, colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)) {
+                    Button(onClick = { showAddRoleDropdown = true }, colors = ButtonDefaults.buttonColors(containerColor = SharkordTheme.colors.primaryText.copy(alpha = 0.6f))) {
                         Text("+ " + androidx.compose.ui.res.stringResource(id = com.sharkord.android.R.string.common_add))
                     }
                     DropdownMenu(expanded = showAddRoleDropdown, onDismissRequest = { showAddRoleDropdown = false }) {
@@ -339,7 +340,7 @@ fun PermissionsTabContent(
                 }
 
                 Box {
-                    Button(onClick = { showAddUserDropdown = true }, colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)) {
+                    Button(onClick = { showAddUserDropdown = true }, colors = ButtonDefaults.buttonColors(containerColor = SharkordTheme.colors.primaryText.copy(alpha = 0.6f))) {
                         Text("+ " + androidx.compose.ui.res.stringResource(id = com.sharkord.android.R.string.common_add))
                     }
                     DropdownMenu(expanded = showAddUserDropdown, onDismissRequest = { showAddUserDropdown = false }) {
@@ -414,7 +415,7 @@ fun PermissionsTabContent(
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(androidx.compose.ui.res.stringResource(id = com.sharkord.android.R.string.common_deleteLabel), color = Color.White)
+                    Text(androidx.compose.ui.res.stringResource(id = com.sharkord.android.R.string.common_deleteLabel), color = SharkordTheme.colors.foregroundText)
                 }
             }
         }

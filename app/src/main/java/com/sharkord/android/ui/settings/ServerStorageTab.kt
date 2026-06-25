@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.settings
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -46,7 +47,7 @@ fun formatSize(bytes: Long): String {
 fun ServerStorageTab(
     viewModel: ServerSettingsViewModel
 ) {
-    val colors = com.sharkord.android.ui.theme.LocalSharkordColors.current
+    val colors = SharkordTheme.colors
     val cardColor = colors.cardColor
     val primaryText = colors.primaryText
     val foregroundText = colors.foregroundText
@@ -251,7 +252,7 @@ fun ServerStorageTab(
                 enabled = !uiState.isLoading
             ) {
                 if (uiState.isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White)
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = SharkordTheme.colors.foregroundText)
                     Spacer(modifier = Modifier.width(8.dp))
                 }
                 Text("Save Changes")
@@ -308,7 +309,7 @@ fun DiskMetricsCard(
             progress = { usagePercent },
             modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
             color = accentColor,
-            trackColor = Color.DarkGray
+            trackColor = SharkordTheme.colors.cardColor
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
@@ -349,8 +350,8 @@ fun AdminSwitch(
                 checkedTrackColor = accentColor.copy(alpha = 0.5f),
                 disabledCheckedThumbColor = accentColor.copy(alpha = 0.5f),
                 disabledCheckedTrackColor = accentColor.copy(alpha = 0.2f),
-                disabledUncheckedThumbColor = Color.Gray,
-                disabledUncheckedTrackColor = Color.DarkGray
+                disabledUncheckedThumbColor = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
+                disabledUncheckedTrackColor = SharkordTheme.colors.cardColor
             )
         )
     }
@@ -425,7 +426,7 @@ fun StorageSizeControl(
                     focusedIndicatorColor = accentColor,
                     disabledContainerColor = Color.Transparent,
                     disabledTextColor = fText,
-                    disabledIndicatorColor = Color.DarkGray
+                    disabledIndicatorColor = SharkordTheme.colors.cardColor
                 )
             )
         }
@@ -480,7 +481,7 @@ fun NumberWithPresetsControl(
                     focusedIndicatorColor = accentColor,
                     disabledContainerColor = Color.Transparent,
                     disabledTextColor = fText,
-                    disabledIndicatorColor = Color.DarkGray
+                    disabledIndicatorColor = SharkordTheme.colors.cardColor
                 )
             )
         }
@@ -555,7 +556,7 @@ fun DropdownSetting(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(4.dp))
-                .border(1.dp, if (enabled) primaryText else Color.DarkGray, RoundedCornerShape(4.dp))
+                .border(1.dp, if (enabled) primaryText else SharkordTheme.colors.dividerColor, RoundedCornerShape(4.dp))
                 .clickable(enabled = enabled) { expanded = true }
                 .padding(16.dp)
         ) {

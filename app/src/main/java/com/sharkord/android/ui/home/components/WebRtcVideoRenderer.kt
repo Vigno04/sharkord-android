@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -235,7 +236,7 @@ fun WebRtcVideoRenderer(
             ) {
                 Text(
                     text = "${videoWidth}x${videoHeight} @ ${frameRate}fps",
-                    color = Color.White,
+                    color = SharkordTheme.colors.foregroundText,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium
                 )

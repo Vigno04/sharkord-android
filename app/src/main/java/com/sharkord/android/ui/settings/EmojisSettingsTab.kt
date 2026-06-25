@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.settings
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -184,7 +185,7 @@ fun EmojiCard(
                     modifier = Modifier.size(48.dp)
                 )
             } else {
-                Box(modifier = Modifier.size(48.dp).background(Color.Gray))
+                Box(modifier = Modifier.size(48.dp).background(SharkordTheme.colors.cardColor))
             }
             
             Spacer(modifier = Modifier.height(8.dp))

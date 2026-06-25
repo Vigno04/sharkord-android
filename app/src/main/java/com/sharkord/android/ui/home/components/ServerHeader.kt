@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -87,7 +88,7 @@ fun ServerHeader(
                 // display the number of members in a gray subtext
                 Text(
                     text = stringResource(id = R.string.common_member_count, memberCount),
-                    color = Color.Gray,
+                    color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -108,14 +109,14 @@ fun ServerHeader(
                 Icon(
                     Icons.Default.Search,
                     contentDescription = stringResource(id = R.string.dialogs_searchTitle),
-                    tint = Color.Gray,
+                    tint = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 // search placeholder text
                 Text(
                     text = stringResource(id = R.string.dialogs_searchTitle),
-                    color = Color.Gray,
+                    color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                     fontSize = 15.sp
                 )
             }
@@ -145,13 +146,13 @@ fun ServerHeader(
             Icon(
                 Icons.Default.Sms,
                 contentDescription = null,
-                tint = Color.Gray,
+                tint = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = stringResource(id = R.string.sidebar_directMessages),
-                color = Color.LightGray,
+                color = SharkordTheme.colors.primaryText.copy(alpha = 0.8f),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.weight(1f)
@@ -162,13 +163,13 @@ fun ServerHeader(
                     modifier = Modifier
                         .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
                         .clip(androidx.compose.foundation.shape.CircleShape)
-                        .background(Color(0xFFE3E5E8)) // Snow/porcelain color
+                        .background(SharkordTheme.colors.primaryText) // Snow/porcelain color
                         .padding(horizontal = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = totalUnreadDMs.toString(),
-                        color = Color(0xFF2B2B2B), // Dark text for contrast
+                        color = SharkordTheme.colors.cardColor, // Dark text for contrast
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
