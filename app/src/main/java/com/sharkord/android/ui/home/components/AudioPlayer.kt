@@ -252,7 +252,7 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
         ) {
             IconButton(
                 onClick = playPauseAction, 
-                enabled = isPrepared,
+                enabled = exoPlayer == null || isPrepared,
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
