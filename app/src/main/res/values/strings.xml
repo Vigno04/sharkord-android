@@ -14,8 +14,10 @@
     <string name="chat_newMessagesPlural">%1$d new messages</string>
     <string name="chat_noAppFoundToOpenFile">No app found to open this file.</string>
     <string name="chat_openingFile">Opening %1$s...</string>
+    <string name="chat_preparingShare">Preparing to share...</string>
     <string name="chat_referencedMessageNotLoaded">Referenced message is not loaded yet</string>
     <string name="chat_severalPeopleAreTyping">Several people are typing</string>
+    <string name="chat_shareFile">Share %1$s</string>
     <string name="chat_slideToCancel">⬅ Slide to cancel</string>
     <string name="chat_someoneTyping">Someone</string>
     <string name="chat_unsupportedMediaType">Unsupported media type</string>

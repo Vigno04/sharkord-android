@@ -49,13 +49,13 @@ internal class EmojiRepositoryImpl(
         val emojis = ArrayList(this.emojis)
 
         val recentEmojis = this.getRecentEmojis()
-        recentEmojis.forEach { recentEmoji ->
-                emojis.add(0, recentEmoji.copy(
-                    id = "recent_${recentEmoji.id}",
-                    category = EmojiCategory.RECENT.key
-                )
+        val mappedRecentEmojis = recentEmojis.map { recentEmoji ->
+            recentEmoji.copy(
+                id = "recent_${recentEmoji.id}",
+                category = EmojiCategory.RECENT.key
             )
         }
+        emojis.addAll(0, mappedRecentEmojis)
 
         return emojis.filter {
             val categoryTitle = context.getString(EmojiCategory.findByKey(it.category)!!.title)
@@ -78,12 +78,12 @@ internal class EmojiRepositoryImpl(
         }
         recentEmojis.add(0, emoji)
 
-        // keep only last EmojiConstants.RECENT_EMOJI_LIMIT items
-        recentEmojis.takeLast(EmojiConstants.RECENT_EMOJI_LIMIT)
+        // keep only first EmojiConstants.RECENT_EMOJI_LIMIT items (since we add at 0)
+        val limitedRecent = recentEmojis.take(EmojiConstants.RECENT_EMOJI_LIMIT)
 
         // update shared preferences
         sharedPreferences.edit()
-            .putString(RECENT_EMOJIS_KEY, Gson().toJson(recentEmojis, listType))
+            .putString(RECENT_EMOJIS_KEY, Gson().toJson(limitedRecent, listType))
             .apply()
     }
 }

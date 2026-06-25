@@ -403,7 +403,7 @@ fun MessageItem(
                     val lineHeight = if (isEmojiOnly) 44.sp else 21.sp
                     Text(
                         text = annotatedContent,
-                        color = textSecondary,
+                        color = textPrimary,
                         fontSize = fontSize,
                         lineHeight = lineHeight,
                         inlineContent = inlineContentMap

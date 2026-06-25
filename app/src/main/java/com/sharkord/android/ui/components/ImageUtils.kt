@@ -66,7 +66,7 @@ object ImageCacheManager {
         return inSampleSize
     }
 
-    private fun getDiskCacheFile(url: String): java.io.File {
+    internal fun getDiskCacheFile(url: String): java.io.File {
         // use a simple hash to generate a safe filename
         val fileName = url.hashCode().toString() + ".img_cache"
         val cacheDir = java.io.File(SharkordClient.applicationContext.cacheDir, "images")

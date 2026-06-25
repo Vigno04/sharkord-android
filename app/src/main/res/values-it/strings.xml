@@ -14,8 +14,10 @@
     <string name="chat_newMessagesPlural">%1$d nuovi messaggi</string>
     <string name="chat_noAppFoundToOpenFile">Nessuna applicazione trovata per aprire questo file.</string>
     <string name="chat_openingFile">Apertura di %1$s...</string>
+    <string name="chat_preparingShare">Preparazione per la condivisione...</string>
     <string name="chat_referencedMessageNotLoaded">Il messaggio di riferimento non è ancora caricato</string>
     <string name="chat_severalPeopleAreTyping">Diverse persone stanno scrivendo</string>
+    <string name="chat_shareFile">Condividi %1$s</string>
     <string name="chat_slideToCancel">⬅ Scorri per annullare</string>
     <string name="chat_someoneTyping">Qualcuno</string>
     <string name="chat_unsupportedMediaType">Tipo di file multimediale non supportato</string>

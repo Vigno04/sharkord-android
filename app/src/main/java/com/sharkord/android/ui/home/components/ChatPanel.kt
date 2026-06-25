@@ -89,6 +89,7 @@ fun ChatPanel(
     val ownUserId = uiState.ownUserId
 
     var showMenuMessage by remember(channelId) { mutableStateOf<Message?>(null) }
+    var reactingToMessageId by remember(channelId) { mutableStateOf<Int?>(null) }
     var isEmojiPickerOpen by remember(channelId) { mutableStateOf(false) }
     var playingHighlightId by remember(channelId) { mutableStateOf<Int?>(null) }
     var isJumping by remember(channelId, jumpTrigger) { mutableStateOf(targetMessageId != null) }
@@ -607,11 +608,50 @@ fun ChatPanel(
                 canManage = uiState.canManageMessage(msg, roles, users),
                 onClose = { showMenuMessage = null },
                 onReactionClick = { emoji -> viewModel.toggleReaction(msg.id, emoji) },
+                onAddReactionClick = {
+                    reactingToMessageId = msg.id
+                    showMenuMessage = null
+                },
                 onReply = { viewModel.setReplyTarget(msg) },
                 onTogglePin = { viewModel.togglePin(msg.id) },
                 onEdit = { viewModel.setEditingMessage(msg) },
                 onDelete = { viewModel.submitDelete(msg.id) },
-                onDownloadFile = { file -> viewModel.downloadFile(context, file) }
+                onDownloadFile = { file -> viewModel.downloadFile(context, file) },
+                onShareFile = { file -> viewModel.shareFile(context, file) }
+            )
+        }
+
+        if (reactingToMessageId != null) {
+            com.sharkord.android.ui.emojipicker.presentation.EmojiPicker(
+                open = true,
+                colors = com.sharkord.android.ui.emojipicker.presentation.EmojiPickerDefaults.emojiPickerColors(
+                    backgroundColor = cardColor,
+                    textColor = textPrimary,
+                    searchBarBackgroundColor = bgColor,
+                    searchBarIconTint = textSecondary,
+                    searchBarTextColor = textPrimary,
+                    activeCategoryTint = accentColor,
+                    inactiveCategoryTint = textSecondary
+                ),
+                onClose = { reactingToMessageId = null },
+                onEmojiSelected = { emoji ->
+                    val reactionChar = emoji.emoji
+                    viewModel.toggleReaction(reactingToMessageId!!, reactionChar)
+                    val prefs = context.getSharedPreferences("emoji_reactions_prefs", android.content.Context.MODE_PRIVATE)
+                    val recentStr = prefs.getString("recent_reactions", null)
+                    val baseReactions = listOf("👍", "❤️", "😂", "🔥", "😮")
+                    val currentList: List<String> = if (recentStr != null) {
+                        com.google.gson.Gson().fromJson(recentStr, object : com.google.gson.reflect.TypeToken<List<String>>() {}.type)
+                    } else {
+                        baseReactions
+                    }
+                    val updatedList = currentList.toMutableList()
+                    updatedList.remove(reactionChar)
+                    updatedList.add(0, reactionChar)
+                    val limited = updatedList.take(15)
+                    prefs.edit().putString("recent_reactions", com.google.gson.Gson().toJson(limited)).apply()
+                    reactingToMessageId = null
+                }
             )
         }
 
@@ -621,7 +661,8 @@ fun ChatPanel(
             com.sharkord.android.ui.home.components.chat.MediaLightboxViewer(
                 file = viewingFile,
                 onClose = { viewModel.setViewingMediaFile(null) },
-                onDownload = { viewModel.downloadFile(context, viewingFile) }
+                onDownload = { viewModel.downloadFile(context, viewingFile) },
+                onShare = { viewModel.shareFile(context, viewingFile) }
             )
         }
     }

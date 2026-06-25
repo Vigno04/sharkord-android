@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,6 +38,7 @@ fun MediaLightboxViewer(
     file: FileInfo,
     onClose: () -> Unit,
     onDownload: () -> Unit,
+    onShare: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val extension = file.originalName?.substringAfterLast('.', "")?.lowercase() ?: ""
@@ -148,13 +150,24 @@ fun MediaLightboxViewer(
                     .padding(horizontal = 16.dp)
             )
 
-            IconButton(
-                onClick = onDownload,
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.5f))
-            ) {
-                Icon(Icons.Default.Download, contentDescription = "Download", tint = SharkordTheme.colors.foregroundText)
+            Row {
+                IconButton(
+                    onClick = onShare,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.5f))
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = "Share", tint = SharkordTheme.colors.foregroundText)
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = onDownload,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.5f))
+                ) {
+                    Icon(Icons.Default.Download, contentDescription = "Download", tint = SharkordTheme.colors.foregroundText)
+                }
             }
         }
     }

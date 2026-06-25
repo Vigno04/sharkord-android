@@ -13,6 +13,10 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Reply
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,11 +50,13 @@ fun MessageContextMenu(
     canManage: Boolean,
     onClose: () -> Unit,
     onReactionClick: (String) -> Unit,
+    onAddReactionClick: () -> Unit,
     onReply: () -> Unit,
     onTogglePin: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onDownloadFile: (com.sharkord.android.data.model.FileInfo) -> Unit = {},
+    onShareFile: (com.sharkord.android.data.model.FileInfo) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val headerColor = SharkordTheme.colors.bgColor
@@ -111,17 +117,24 @@ fun MessageContextMenu(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val sharedPrefs = remember { context.getSharedPreferences("emoji_reactions_prefs", android.content.Context.MODE_PRIVATE) }
+                val baseReactions = listOf("👍", "❤️", "😂", "🔥", "😮")
+                val recentReactions = remember {
+                    sharedPrefs.getString("recent_reactions", null)?.let {
+                        com.google.gson.Gson().fromJson<List<String>>(it, object : com.google.gson.reflect.TypeToken<List<String>>() {}.type)
+                    } ?: baseReactions
+                }
+
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    listOf(
-                        "thumbsup" to "👍",
-                        "heart" to "❤️",
-                        "joy" to "😂",
-                        "fire" to "🔥",
-                        "open_mouth" to "😮"
-                    ).forEach { (shortcode, char) ->
+                    recentReactions.forEach { shortcode ->
+                        val char = com.sharkord.android.ui.home.components.EmojiMapper.map(shortcode)
                         Text(
                             text = char,
                             fontSize = 28.sp,
@@ -129,9 +142,30 @@ fun MessageContextMenu(
                                 .clip(CircleShape)
                                 .clickable {
                                     onReactionClick(shortcode)
+                                    val updatedList = recentReactions.toMutableList()
+                                    updatedList.remove(shortcode)
+                                    updatedList.add(0, shortcode)
+                                    val limited = updatedList.take(15)
+                                    sharedPrefs.edit().putString("recent_reactions", com.google.gson.Gson().toJson(limited)).apply()
                                     onClose()
                                 }
                                 .padding(8.dp)
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
+                            .clickable {
+                                onAddReactionClick()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add Reaction",
+                            tint = textPrimary
                         )
                     }
                 }
@@ -173,100 +207,75 @@ fun MessageContextMenu(
 
                 HorizontalDivider(color = SharkordTheme.colors.foregroundText.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 12.dp))
 
-                // reply
+                // Message Actions
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable {
+                        .padding(vertical = 4.dp, horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // reply
+                    IconButton(
+                        onClick = {
                             onReply()
                             onClose()
                         }
-                        .padding(vertical = 12.dp, horizontal = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Reply, contentDescription = "Reply", tint = textPrimary)
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(text = stringResource(id = R.string.common_replyToMessage), color = textPrimary, fontSize = 15.sp)
-                }
+                    ) {
+                        Icon(Icons.Default.Reply, contentDescription = "Reply", tint = textPrimary)
+                    }
 
-                // pin
-                if (canPin) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable {
+                    // pin
+                    if (canPin) {
+                        IconButton(
+                            onClick = {
                                 onTogglePin()
                                 onClose()
                             }
-                            .padding(vertical = 12.dp, horizontal = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.PushPin, contentDescription = "Pin", tint = textPrimary)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = stringResource(id = if (message.pinned) R.string.common_unpinMessage else R.string.common_pinMessage),
-                            color = textPrimary,
-                            fontSize = 15.sp
-                        )
+                        ) {
+                            Icon(Icons.Default.PushPin, contentDescription = "Pin", tint = if (message.pinned) SharkordTheme.colors.accentColor else textPrimary)
+                        }
                     }
-                }
 
-                // edit
-                if (canManage && message.editable) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable {
+                    // edit
+                    if (canManage && message.editable) {
+                        IconButton(
+                            onClick = {
                                 onEdit()
                                 onClose()
                             }
-                            .padding(vertical = 12.dp, horizontal = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = textPrimary)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(text = stringResource(id = R.string.common_editMessage), color = textPrimary, fontSize = 15.sp)
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = textPrimary)
+                        }
                     }
-                }
 
-                // delete
-                if (canManage) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable {
-                                showDeleteConfirm = true
+                    // delete
+                    if (canManage) {
+                        IconButton(
+                            onClick = { showDeleteConfirm = true }
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red.copy(alpha = 0.8f))
+                        }
+                    }
+
+                    // download and share
+                    message.files.firstOrNull()?.let { file ->
+                        IconButton(
+                            onClick = {
+                                onDownloadFile(file)
+                                onClose()
                             }
-                            .padding(vertical = 12.dp, horizontal = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red.copy(alpha = 0.8f))
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(text = stringResource(id = R.string.common_deleteMessageTitle), color = Color.Red.copy(alpha = 0.8f), fontSize = 15.sp)
-                    }
-                }
-
-                // download Files
-                if (message.files.isNotEmpty()) {
-                    message.files.forEach { file ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    onDownloadFile(file)
-                                    onClose()
-                                }
-                                .padding(vertical = 12.dp, horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(Icons.Default.Download, contentDescription = "Download", tint = textPrimary)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(text = stringResource(id = R.string.chat_downloadFile, file.displayName), color = textPrimary, fontSize = 15.sp)
+                        }
+
+                        IconButton(
+                            onClick = {
+                                onShareFile(file)
+                                onClose()
+                            }
+                        ) {
+                            Icon(Icons.Default.Share, contentDescription = "Share", tint = textPrimary)
                         }
                     }
                 }

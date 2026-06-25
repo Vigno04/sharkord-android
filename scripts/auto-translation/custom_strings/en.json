@@ -32,6 +32,8 @@
   "chat_downloadStarted": "Download started: %1$s",
   "chat_failedDownloadFile": "Failed to download file.",
   "chat_openingFile": "Opening %1$s...",
+  "chat_preparingShare": "Preparing to share...",
+  "chat_shareFile": "Share %1$s",
   "chat_emptyFile": "Empty file.",
   "chat_noAppFoundToOpenFile": "No app found to open this file.",
   "chat_failedOpenFile": "Failed to open file.",
