@@ -28,7 +28,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|colorMode|smallestScreenSize"
             android:label="@string/app_name"
             android:theme="@style/Theme.Sharkord">
             <intent-filter>

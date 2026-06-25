@@ -20,6 +20,7 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
+        window.setBackgroundDrawableResource(android.R.color.transparent)
         setContent {
             SharkordTheme {
                 Scaffold(

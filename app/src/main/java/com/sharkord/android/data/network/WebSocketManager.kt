@@ -306,6 +306,10 @@ class WebSocketManager(
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                if (isPaused) {
+                    Log.d(TAG, "Ignoring WebSocket failure because app is paused: ${t.message}")
+                    return
+                }
                 Log.e(TAG, "WebSocket failure: ${t.message}", t)
                 _connectionState.value = ConnectionState.Error(
                     t.message ?: "Connection failed",
@@ -319,6 +323,10 @@ class WebSocketManager(
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                if (isPaused) {
+                    Log.d(TAG, "Ignoring WebSocket closed because app is paused: $reason ($code)")
+                    return
+                }
                 Log.d(TAG, "WebSocket closed: $reason ($code)")
                 if (shouldReconnect && code != 1000) {
                     _connectionState.value = ConnectionState.Error("Connection closed: $reason")
