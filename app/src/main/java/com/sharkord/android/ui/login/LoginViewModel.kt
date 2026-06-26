@@ -37,6 +37,9 @@ class LoginViewModel : ViewModel() {
     var showBiometricLaunchPrompt by mutableStateOf(false)
     var pendingSuccessAction: (() -> Unit)? = null
 
+    var showInsecureConnectionPrompt by mutableStateOf(false)
+    var pendingInsecureUrl by mutableStateOf<String?>(null)
+
     var currentStep by mutableStateOf(LoginStep.URL)
     var serverLogoUrl by mutableStateOf<String?>(null)
     var serverName by mutableStateOf("Sharkord")
@@ -104,20 +107,24 @@ class LoginViewModel : ViewModel() {
 
     // step 1: User taps "Next" after entering a server URL
     // validates the URL by fetching server info
-    fun onNextClick(context: Context) {
+    fun onNextClick(context: Context, isRetry: Boolean = false) {
         if (serverUrl.isBlank()) {
             errorMessage = context.getString(R.string.connect_invalidUrlError)
             return
         }
 
+        val originalUrl = serverUrl.trim()
+        val hasScheme = originalUrl.startsWith("http://", ignoreCase = true) || originalUrl.startsWith("https://", ignoreCase = true)
+        val attemptUrl = if (hasScheme || isRetry) originalUrl else "https://$originalUrl"
+
         isLoading = true
         errorMessage = null
 
         viewModelScope.launch {
-            repository.fetchServerInfo(serverUrl).fold(
+            repository.fetchServerInfo(attemptUrl).fold(
                 onSuccess = { info ->
                     isLoading = false
-                    val cleanUrl = serverUrl.trimEnd('/')
+                    val cleanUrl = attemptUrl.trimEnd('/')
                     serverLogoUrl = info.logo?.name?.let { name ->
                         val encodedName = android.net.Uri.encode(name)
                         "$cleanUrl/public/$encodedName"
@@ -133,13 +140,32 @@ class LoginViewModel : ViewModel() {
                 },
                 onFailure = { error ->
                     isLoading = false
-                    errorMessage = context.getString(
-                        R.string.connect_connectError,
-                        error.message ?: context.getString(R.string.settings_errorBadge)
-                    )
+                    if (!hasScheme && !isRetry) {
+                        pendingInsecureUrl = "http://$originalUrl"
+                        showInsecureConnectionPrompt = true
+                    } else {
+                        errorMessage = context.getString(
+                            R.string.connect_connectError,
+                            error.message ?: context.getString(R.string.settings_errorBadge)
+                        )
+                    }
                 }
             )
         }
+    }
+
+    fun onInsecureConnectionConfirm(context: Context) {
+        showInsecureConnectionPrompt = false
+        pendingInsecureUrl?.let {
+            serverUrl = it
+            onNextClick(context, isRetry = true)
+        }
+        pendingInsecureUrl = null
+    }
+
+    fun onInsecureConnectionCancel() {
+        showInsecureConnectionPrompt = false
+        pendingInsecureUrl = null
     }
 
     // step 1b: User taps "Back" to change the server URL

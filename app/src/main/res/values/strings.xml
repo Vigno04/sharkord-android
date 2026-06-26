@@ -136,6 +136,7 @@
     <string name="common_yes">Yes</string>
     <string name="common_you">(You)</string>
     <string name="connect_autoLoginLabel">Login automatically</string>
+    <string name="connect_cancel">Cancel</string>
     <string name="connect_changeServer">Change Server</string>
     <string name="connect_connectBtn">Connect</string>
     <string name="connect_connectError">Could not connect: %1$s</string>
@@ -153,6 +154,8 @@
     <string name="connect_next">Next</string>
     <string name="connect_passwordLabel">Password</string>
     <string name="connect_registrationDisabled">New user registrations are currently disabled. If you do not have an account yet, you need to be invited by an existing user to join this server.</string>
+    <string name="connect_unencryptedConnection">Unencrypted Connection</string>
+    <string name="connect_unencryptedConnectionPrompt">The connection could not be established securely (HTTPS). Do you want to connect using an unencrypted connection (HTTP)?</string>
     <string name="dialogs_argument_one">%1$s argument</string>
     <string name="dialogs_argument_other">%1$s arguments</string>
     <string name="dialogs_assignRoleBtn">Assign Role</string>

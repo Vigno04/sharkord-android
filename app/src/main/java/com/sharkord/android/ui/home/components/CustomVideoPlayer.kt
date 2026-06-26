@@ -189,10 +189,9 @@ fun CustomVideoPlayer(
     ) {
         AndroidView(
             factory = { ctx ->
-                PlayerView(ctx).apply {
-                    useController = false
-                    player = if (isOverlayActive) null else exoPlayer
-                }
+                val view = android.view.LayoutInflater.from(ctx).inflate(com.sharkord.android.R.layout.view_custom_player, null, false) as PlayerView
+                view.player = if (isOverlayActive) null else exoPlayer
+                view
             },
             update = { view ->
                 val targetPlayer = if (isOverlayActive) null else exoPlayer

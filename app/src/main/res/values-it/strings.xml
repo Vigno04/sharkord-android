@@ -134,6 +134,7 @@
     <string name="common_yes">Sì</string>
     <string name="common_you">(Tu)</string>
     <string name="connect_autoLoginLabel">Accesso automatico</string>
+    <string name="connect_cancel">Annulla</string>
     <string name="connect_changeServer">Cambia server</string>
     <string name="connect_connectBtn">Connetti</string>
     <string name="connect_connectError">Impossibile connettersi: %1$s</string>
@@ -151,6 +152,8 @@
     <string name="connect_next">Avanti</string>
     <string name="connect_passwordLabel">Password</string>
     <string name="connect_registrationDisabled">Le nuove registrazioni utenti sono attualmente disabilitate. Se non hai ancora un account, devi essere invitato da un utente esistente per entrare in questo server.</string>
+    <string name="connect_unencryptedConnection">Connessione non crittografata</string>
+    <string name="connect_unencryptedConnectionPrompt">Non è stato possibile stabilire una connessione sicura (HTTPS). Vuoi connetterti usando una connessione non crittografata (HTTP)?</string>
     <string name="dialogs_argument_one">%1$s argomento</string>
     <string name="dialogs_argument_other">%1$s argomenti</string>
     <string name="dialogs_assignRoleBtn">Assegna ruolo</string>

@@ -115,48 +115,36 @@ object ImageCacheManager {
                     }
 
                     Log.d(TAG, "Requesting image download from: $url")
-                    val request = Request.Builder().url(url).build()
-                    SharkordClient.okHttpClient.newCall(request).execute().use { response ->
-                        if (response.isSuccessful) {
-                            val bytes = response.body?.bytes()
-                            if (bytes != null) {
-                                try {
-                                    java.io.FileOutputStream(diskFile).use { fos ->
-                                        fos.write(bytes)
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "Failed to save image to disk cache: $url", e)
-                                }
-
-                                val options = BitmapFactory.Options().apply {
-                                    inJustDecodeBounds = true
-                                }
-                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
-                                
-                                options.inSampleSize = calculateInSampleSize(options, 400, 400)
-                                options.inJustDecodeBounds = false
-                                
-                                val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
-                                
-                                if (bmp != null) {
-                                    Log.d(TAG, "Successfully downloaded and decoded image from $url (${bytes.size} bytes)")
-                                    val entry = ImageCacheEntry(
-                                        bitmap = bmp
-                                    )
-                                    cache.put(url, entry)
-                                    entry
-                                } else {
-                                    Log.e(TAG, "Failed to decode bitmap from downloaded bytes for $url")
-                                    null
-                                }
-                            } else {
-                                Log.e(TAG, "Downloaded response body was empty for $url")
-                                null
+                    val tempFile = java.io.File(diskFile.absolutePath + ".tmp")
+                    val success = com.sharkord.android.data.network.ParallelDownloader.downloadFile(SharkordClient.okHttpClient, url, tempFile)
+                    
+                    if (success) {
+                        // Store the full size image too so we don't need to re-download it
+                        val fullDiskFile = getDiskCacheFile("full_$url")
+                        try {
+                            if (!fullDiskFile.exists()) {
+                                tempFile.copyTo(fullDiskFile, overwrite = true)
                             }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to copy tempFile to fullDiskFile: ${e.message}")
+                        }
+
+                        val bmp = processAndSaveImage(diskFile, tempFile, null, 400, 100)
+                        tempFile.delete()
+                        
+                        if (bmp != null) {
+                            Log.d(TAG, "Successfully downloaded and processed image from $url")
+                            val entry = ImageCacheEntry(bitmap = bmp)
+                            cache.put(url, entry)
+                            entry
                         } else {
-                            Log.e(TAG, "Server returned failure code ${response.code} for image $url")
+                            Log.e(TAG, "Failed to decode/process bitmap from downloaded file for $url")
                             null
                         }
+                    } else {
+                        Log.e(TAG, "Failed to download image $url")
+                        tempFile.delete()
+                        null
                     }
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
@@ -203,46 +191,82 @@ object ImageCacheManager {
             }
 
             var retriever: android.media.MediaMetadataRetriever? = null
+            var tempFile: java.io.File? = null
             try {
                 Log.d(TAG, "Retrieving video thumbnail from: $videoUrl")
+                
                 retriever = android.media.MediaMetadataRetriever()
-                retriever.setDataSource(videoUrl, HashMap<String, String>())
-                val bmp = retriever.getFrameAtTime(1_000_000, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                if (bmp != null) {
-                    val maxDim = 400f
-                    val width = bmp.width
-                    val height = bmp.height
-                    val scale = if (width > height) maxDim / width else maxDim / height
-                    val scaledBmp = if (scale < 1.0f) {
-                        val scaled = Bitmap.createScaledBitmap(bmp, (width * scale).toInt(), (height * scale).toInt(), true)
-                        bmp.recycle()
-                        scaled
-                    } else {
-                        bmp
-                    }
-                    
+                var bmp: Bitmap? = null
+                
+                // 1. Check if we already have the full video downloaded in the cache
+                val fileName = videoUrl.substringAfterLast("/")
+                val appCacheDir = SharkordClient.applicationContext.cacheDir
+                val localFullVideo = appCacheDir.listFiles()?.find { it.name.startsWith("shared_${fileName}_") }
+                
+                if (localFullVideo != null && localFullVideo.exists() && localFullVideo.length() > 0) {
                     try {
-                        java.io.FileOutputStream(diskFile).use { out ->
-                            @Suppress("DEPRECATION")
-                            scaledBmp.compress(Bitmap.CompressFormat.WEBP, 65, out)
-                        }
+                        retriever.setDataSource(localFullVideo.absolutePath)
+                        bmp = retriever.frameAtTime ?: retriever.getFrameAtTime(0, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                        if (bmp != null) Log.d(TAG, "Generated thumbnail from fully cached video file")
                     } catch (e: Exception) {
-                        Log.e(TAG, "Failed to compress video thumbnail to disk: ${e.message}")
+                        Log.w(TAG, "Failed to read cached full video file", e)
                     }
+                }
+                
+                // 2. If no full file (or failed), try partial download
+                if (bmp == null) {
+                    tempFile = java.io.File(diskFile.absolutePath + ".tmp")
+                    val success = com.sharkord.android.data.network.ParallelDownloader.downloadPartial(
+                        SharkordClient.okHttpClient, videoUrl, tempFile, 5 * 1024 * 1024
+                    )
+                    
+                    if (success && tempFile.exists()) {
+                        try {
+                            retriever.release()
+                            retriever = android.media.MediaMetadataRetriever()
+                            retriever.setDataSource(tempFile.absolutePath)
+                            bmp = retriever.frameAtTime ?: retriever.getFrameAtTime(0, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to read partial file", e)
+                        }
+                    }
+                }
 
-                    val entry = ImageCacheEntry(scaledBmp)
-                    cache.put(videoUrl, entry)
-                    scaledBmp
+                // 3. If partial download also fails, fallback to network stream
+                if (bmp == null) {
+                    try {
+                        // The partial file may be missing the moov atom if it's at the end of the file.
+                        // Fallback to letting MediaMetadataRetriever handle the network stream directly.
+                        retriever.release()
+                        retriever = android.media.MediaMetadataRetriever()
+                        val safeVideoUrl = videoUrl.replace(" ", "%20")
+                        retriever.setDataSource(safeVideoUrl, HashMap<String, String>())
+                        bmp = retriever.frameAtTime ?: retriever.getFrameAtTime(0, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to retrieve frame from network URL: ${e.message}")
+                    }
+                }
+                if (bmp != null) {
+                    val finalBmp = processAndSaveImage(diskFile, null, bmp, 400, 100)
+                    if (finalBmp != null) {
+                        val entry = ImageCacheEntry(finalBmp)
+                        cache.put(videoUrl, entry)
+                        finalBmp
+                    } else {
+                        null
+                    }
                 } else {
                     null
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e(TAG, "Failed to retrieve video thumbnail for $videoUrl: ${e.message}")
                 null
             } finally {
                 try {
                     retriever?.release()
                 } catch (_: Exception) {}
+                tempFile?.delete()
             }
         }
     }
@@ -257,6 +281,163 @@ object ImageCacheManager {
         cache.evictAll()
         inFlight.clear()
     }
+
+    suspend fun loadFullImage(url: String): ImageCacheEntry? {
+        if (url.isBlank() || !url.startsWith("http", ignoreCase = true)) return null
+
+        val fullUrl = "full_$url"
+        val cached = cache.get(fullUrl)
+        if (cached != null) return cached
+
+        val deferred = mutex.withLock {
+            inFlight[fullUrl] ?: scope.async {
+                try {
+                    val diskFile = getDiskCacheFile(fullUrl)
+                    if (diskFile.exists() && diskFile.length() > 0) {
+                        diskFile.setLastModified(System.currentTimeMillis())
+                        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                        BitmapFactory.decodeFile(diskFile.absolutePath, options)
+                        options.inSampleSize = calculateInSampleSize(options, 2000, 2000)
+                        options.inJustDecodeBounds = false
+                        val bmp = BitmapFactory.decodeFile(diskFile.absolutePath, options)
+                        if (bmp != null) {
+                            val entry = ImageCacheEntry(bitmap = bmp)
+                            cache.put(fullUrl, entry)
+                            return@async entry
+                        } else {
+                            diskFile.delete()
+                        }
+                    }
+
+                    val tempFile = java.io.File(diskFile.absolutePath + ".tmp")
+                    val success = com.sharkord.android.data.network.ParallelDownloader.downloadFile(SharkordClient.okHttpClient, url, tempFile)
+                    
+                    if (success) {
+                        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                        BitmapFactory.decodeFile(tempFile.absolutePath, options)
+                        options.inSampleSize = calculateInSampleSize(options, 2000, 2000)
+                        options.inJustDecodeBounds = false
+                        val sourceBmp = BitmapFactory.decodeFile(tempFile.absolutePath, options)
+                        
+                        if (sourceBmp != null) {
+                            try {
+                                java.io.FileOutputStream(diskFile).use { out ->
+                                    @Suppress("DEPRECATION")
+                                    sourceBmp.compress(Bitmap.CompressFormat.WEBP, 85, out)
+                                }
+                            } catch (e: Exception) {}
+                            tempFile.delete()
+                            
+                            val entry = ImageCacheEntry(bitmap = sourceBmp)
+                            cache.put(fullUrl, entry)
+                            entry
+                        } else {
+                            tempFile.delete()
+                            null
+                        }
+                    } else {
+                        tempFile.delete()
+                        null
+                    }
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    null
+                } finally {
+                    mutex.withLock {
+                        inFlight.remove(fullUrl)
+                    }
+                }
+            }.also { inFlight[fullUrl] = it }
+        }
+
+        return try {
+            val result = deferred.await()
+            result ?: cache.get(fullUrl)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            cache.get(fullUrl)
+        }
+    }
+
+    private fun processAndSaveImage(
+        diskFile: java.io.File,
+        originalFile: java.io.File?,
+        originalBitmap: Bitmap?,
+        targetSizePx: Int = 400,
+        maxKbSize: Int = 100
+    ): Bitmap? {
+        val sizeBytes = originalFile?.length() ?: 0L
+        val needsCompression = originalFile == null || sizeBytes > maxKbSize * 1024
+
+        var sourceBmp = originalBitmap
+        var didDecode = false
+
+        if (originalFile != null && sourceBmp == null) {
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(originalFile.absolutePath, options)
+            
+            val width = options.outWidth
+            val height = options.outHeight
+            val maxDim = maxOf(width, height)
+            
+            val needsResizing = maxDim > targetSizePx * 1.5f
+
+            if (!needsCompression && !needsResizing) {
+                try {
+                    if (originalFile.absolutePath != diskFile.absolutePath) {
+                        originalFile.copyTo(diskFile, overwrite = true)
+                    }
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    Log.e(TAG, "Failed to save raw image to disk: ${e.message}")
+                }
+                options.inSampleSize = calculateInSampleSize(options, targetSizePx, targetSizePx)
+                options.inJustDecodeBounds = false
+                return BitmapFactory.decodeFile(originalFile.absolutePath, options)
+            }
+
+            options.inSampleSize = calculateInSampleSize(options, targetSizePx, targetSizePx)
+            options.inJustDecodeBounds = false
+            sourceBmp = BitmapFactory.decodeFile(originalFile.absolutePath, options)
+            didDecode = true
+        }
+
+        if (sourceBmp == null) return null
+
+        val size = minOf(sourceBmp.width, sourceBmp.height)
+        val xOffset = (sourceBmp.width - size) / 2
+        val yOffset = (sourceBmp.height - size) / 2
+        
+        var squaredBmp = sourceBmp
+        if (sourceBmp.width != sourceBmp.height) {
+            squaredBmp = Bitmap.createBitmap(sourceBmp, xOffset, yOffset, size, size)
+            if (sourceBmp != squaredBmp && (didDecode || originalBitmap != null)) {
+                sourceBmp.recycle()
+            }
+        }
+
+        var finalBmp = squaredBmp
+        if (squaredBmp.width > targetSizePx) {
+            finalBmp = Bitmap.createScaledBitmap(squaredBmp, targetSizePx, targetSizePx, true)
+            if (squaredBmp != finalBmp) {
+                squaredBmp.recycle()
+            }
+        }
+
+        if (originalFile == null || needsCompression || squaredBmp != sourceBmp || finalBmp != squaredBmp) {
+            try {
+                java.io.FileOutputStream(diskFile).use { out ->
+                    @Suppress("DEPRECATION")
+                    finalBmp.compress(Bitmap.CompressFormat.WEBP, 65, out)
+                }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Log.e(TAG, "Failed to compress image to disk: ${e.message}")
+            }
+        }
+
+        return finalBmp
+    }
 }
 
 // three-state result for async image loading
@@ -265,6 +446,33 @@ sealed class AsyncImageState {
     data class Success(val painter: Painter) : AsyncImageState()
     object Failure : AsyncImageState()
     object Empty : AsyncImageState() // url was null/blank
+}
+
+@Composable
+fun rememberFullImageState(url: String?): AsyncImageState {
+    if (url.isNullOrBlank()) return AsyncImageState.Empty
+
+    val fullUrl = "full_$url"
+    val cached = ImageCacheManager.getCachedImage(fullUrl)
+    var state by remember(url) { 
+        mutableStateOf<AsyncImageState>(
+            if (cached != null) AsyncImageState.Success(BitmapPainter(cached.bitmap.asImageBitmap()))
+            else AsyncImageState.Loading
+        ) 
+    }
+
+    LaunchedEffect(url) {
+        if (cached == null) {
+            val entry = ImageCacheManager.loadFullImage(url)
+            state = if (entry != null) {
+                AsyncImageState.Success(BitmapPainter(entry.bitmap.asImageBitmap()))
+            } else {
+                AsyncImageState.Failure
+            }
+        }
+    }
+
+    return state
 }
 
 // loads an image from a URL and returns a tri-state [AsyncImageState]

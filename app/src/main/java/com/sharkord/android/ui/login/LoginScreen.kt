@@ -97,11 +97,15 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.height(24.dp))
                 }
 
-                CircularProgressIndicator(
-                    color = accentColor,
-                    modifier = Modifier.size(48.dp),
-                    strokeWidth = 3.dp
-                )
+                if (!viewModel.showBiometricLaunchPrompt) {
+                    CircularProgressIndicator(
+                        color = accentColor,
+                        modifier = Modifier.size(48.dp),
+                        strokeWidth = 3.dp
+                    )
+                } else {
+                    Spacer(modifier = Modifier.size(48.dp))
+                }
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
@@ -203,6 +207,25 @@ fun LoginScreen(
                 viewModel.onBiometricLaunchCancel()
             }
         }
+    }
+
+    if (viewModel.showInsecureConnectionPrompt) {
+        AlertDialog(
+            onDismissRequest = { viewModel.onInsecureConnectionCancel() },
+            title = { Text(stringResource(R.string.connect_unencryptedConnection), color = foregroundText) },
+            text = { Text(stringResource(R.string.connect_unencryptedConnectionPrompt), color = primaryText) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.onInsecureConnectionConfirm(context) }) {
+                    Text(stringResource(R.string.connect_connectBtn), color = accentColor)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.onInsecureConnectionCancel() }) {
+                    Text(stringResource(R.string.connect_cancel), color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f))
+                }
+            },
+            containerColor = cardColor
+        )
     }
 
     Box(

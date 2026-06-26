@@ -10,16 +10,21 @@ import java.io.File
 object DiskCacheManager {
     private const val TAG = "DiskCacheManager"
 
-    // Priority 0: Delete First (Videos, Audio)
-    // Priority 1: Medium (Documents, other temps)
-    // Priority 2: Keep Longest (Images, Thumbnails)
-    private fun getFilePriority(file: File): Int {
+    // Base score for priorities:
+    // Text/Structure = 300
+    // Previews (.img_cache) = 200
+    // Images = 100
+    // Documents/Others = 50
+    // Videos/Audio = 0
+    private fun getFileBaseScore(file: File): Float {
         val name = file.name.lowercase()
         return when {
-            name.endsWith(".mp4") || name.endsWith(".webm") || name.endsWith(".mkv") -> 0
-            name.endsWith(".m4a") || name.endsWith(".mp3") || name.endsWith(".ogg") || name.endsWith(".wav") -> 0
-            name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png") || name.endsWith(".webp") || name.endsWith(".img_cache") -> 2
-            else -> 1
+            name.endsWith(".json") || name.endsWith(".txt") -> 300f
+            name.endsWith(".img_cache") -> 200f
+            name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png") || name.endsWith(".webp") -> 100f
+            name.endsWith(".mp4") || name.endsWith(".webm") || name.endsWith(".mkv") -> 0f
+            name.endsWith(".m4a") || name.endsWith(".mp3") || name.endsWith(".ogg") || name.endsWith(".wav") -> 0f
+            else -> 50f
         }
     }
 
@@ -42,14 +47,20 @@ object DiskCacheManager {
                 if (totalSize > maxDiskCacheSize) {
                     Log.d(TAG, "Trimming disk cache: current size is ${totalSize / (1024 * 1024)} MB (max $maxMb MB)")
                     
-                    // sort by priority first (0 first, then 1, then 2), 
-                    // then by last modified (oldest first)
-                    val sortedFiles = allFiles.sortedWith(
-                        compareBy<File> { getFilePriority(it) }
-                            .thenBy { it.lastModified() }
-                    )
-
                     val now = System.currentTimeMillis()
+                    
+                    // calculate eviction score for each file. Lowest score is deleted first.
+                    // age penalty: lose 10 points per day. So an image (100) older than 10 days is worth less than a new video (0).
+                    val fileScores = allFiles.associateWith { file ->
+                        val ageMs = now - file.lastModified()
+                        val ageDays = ageMs / (1000f * 60f * 60f * 24f)
+                        val baseScore = getFileBaseScore(file)
+                        baseScore - (ageDays * 10f)
+                    }
+
+                    // sort by score (lowest first)
+                    val sortedFiles = allFiles.sortedBy { fileScores[it] ?: 0f }
+
                     val fiveMinutesMs = 5 * 60 * 1000L
 
                     for (file in sortedFiles) {

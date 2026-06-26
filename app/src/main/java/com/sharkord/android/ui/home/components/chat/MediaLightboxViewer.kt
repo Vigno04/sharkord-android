@@ -24,6 +24,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import com.sharkord.android.R
@@ -53,7 +56,8 @@ fun MediaLightboxViewer(
     ) {
         if (isImage) {
             val imageUrl = "${SharkordClient.currentServerUrl}/public/${file.name}"
-            val imageState = rememberAsyncImageState(imageUrl)
+            val previewState = rememberAsyncImageState(imageUrl)
+            val fullState = com.sharkord.android.ui.components.rememberFullImageState(imageUrl)
 
             var scale by remember { mutableFloatStateOf(1f) }
             var offsetX by remember { mutableFloatStateOf(0f) }
@@ -76,28 +80,38 @@ fun MediaLightboxViewer(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                when (imageState) {
-                    is AsyncImageState.Success -> {
-                        Image(
-                            painter = imageState.painter,
-                            contentDescription = file.displayName,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer(
-                                    scaleX = scale,
-                                    scaleY = scale,
-                                    translationX = offsetX,
-                                    translationY = offsetY
-                                )
-                        )
-                    }
-                    is AsyncImageState.Loading -> {
-                        CircularProgressIndicator(color = SharkordTheme.colors.foregroundText)
-                    }
-                    else -> {
-                        Text(text = stringResource(id = R.string.chat_failedLoadImage), color = SharkordTheme.colors.foregroundText)
-                    }
+                val painterToDraw = when (fullState) {
+                    is AsyncImageState.Success -> fullState.painter
+                    else -> (previewState as? AsyncImageState.Success)?.painter
+                }
+
+                if (painterToDraw != null) {
+                    val isBlurred = fullState !is AsyncImageState.Success
+                    val blurModifier = if (isBlurred) Modifier.blur(
+                        radius = 16.dp, 
+                        edgeTreatment = BlurredEdgeTreatment.Unbounded
+                    ) else Modifier
+                    
+                    Image(
+                        painter = painterToDraw,
+                        contentDescription = file.displayName,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer(
+                                scaleX = scale,
+                                scaleY = scale,
+                                translationX = offsetX,
+                                translationY = offsetY
+                            )
+                            .then(blurModifier)
+                    )
+                }
+
+                if (fullState is AsyncImageState.Loading) {
+                    CircularProgressIndicator(color = SharkordTheme.colors.accentColor)
+                } else if (fullState is AsyncImageState.Failure && previewState !is AsyncImageState.Success) {
+                    Text(text = stringResource(id = R.string.chat_failedLoadImage), color = SharkordTheme.colors.foregroundText)
                 }
             }
         } else if (isVideo) {

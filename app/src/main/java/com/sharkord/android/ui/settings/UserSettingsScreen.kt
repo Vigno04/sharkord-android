@@ -1057,7 +1057,8 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
                     )
                 )
                 ExposedDropdownMenu(expanded = expandedMediaCodec, onDismissRequest = { expandedMediaCodec = false }) {
-                    listOf("H.264", "HEVC").forEach { codec ->
+                    val supportedCodecs = remember { com.sharkord.android.utils.VideoCodecUtils.getSupportedHardwareEncoders() }
+                    supportedCodecs.forEach { codec ->
                         DropdownMenuItem(text = { Text(codec) }, onClick = { viewModel.saveMediaCodec(codec); expandedMediaCodec = false })
                     }
                 }

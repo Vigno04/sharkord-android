@@ -21,6 +21,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 
+object AudioMetadataCache {
+    val durationCache = java.util.concurrent.ConcurrentHashMap<String, Long>()
+}
+
 // custom voice note / audio playback card interface
 @Composable
 fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
@@ -40,22 +44,28 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
 
     LaunchedEffect(audioUrl) {
         if (duration == 0L) {
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                var retriever: android.media.MediaMetadataRetriever? = null
-                try {
-                    retriever = android.media.MediaMetadataRetriever()
-                    retriever.setDataSource(audioUrl, HashMap<String, String>())
-                    val timeString = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
-                    val parsed = timeString?.toLongOrNull()
-                    if (parsed != null && parsed > 0) {
-                        duration = parsed
-                    }
-                } catch (e: Exception) {
-                    Log.d("AudioPlayer", "Could not retrieve metadata duration for $audioUrl")
-                } finally {
+            val cached = AudioMetadataCache.durationCache[audioUrl]
+            if (cached != null) {
+                duration = cached
+            } else {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    var retriever: android.media.MediaMetadataRetriever? = null
                     try {
-                        retriever?.release()
-                    } catch (_: Exception) {}
+                        retriever = android.media.MediaMetadataRetriever()
+                        retriever.setDataSource(audioUrl, HashMap<String, String>())
+                        val timeString = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
+                        val parsed = timeString?.toLongOrNull()
+                        if (parsed != null && parsed > 0) {
+                            duration = parsed
+                            AudioMetadataCache.durationCache[audioUrl] = parsed
+                        }
+                    } catch (e: Exception) {
+                        Log.d("AudioPlayer", "Could not retrieve metadata duration for $audioUrl")
+                    } finally {
+                        try {
+                            retriever?.release()
+                        } catch (_: Exception) {}
+                    }
                 }
             }
         }
@@ -198,8 +208,8 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
         }
     }
 
-    DisposableEffect(isPlaying) {
-        if (isPlaying) {
+    if (isPlaying) {
+        DisposableEffect(Unit) {
             proximitySensor?.let {
                 sensorManager.registerListener(sensorEventListener, it, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
             }
@@ -208,35 +218,24 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
             } catch (e: Exception) {
                 Log.e("AudioPlayer", "WakeLock acquire failed", e)
             }
-        } else {
-            sensorManager.unregisterListener(sensorEventListener)
-            try {
-                wakeLock?.takeIf { it.isHeld }?.release()
-            } catch (e: Exception) {
-                Log.e("AudioPlayer", "WakeLock release failed", e)
+
+            onDispose {
+                sensorManager.unregisterListener(sensorEventListener)
+                try {
+                    wakeLock?.takeIf { it.isHeld }?.release()
+                } catch (e: Exception) {
+                    Log.e("AudioPlayer", "WakeLock release failed", e)
+                }
+                if (isNear) {
+                    audioManager.mode = android.media.AudioManager.MODE_NORMAL
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                        audioManager.clearCommunicationDevice()
+                    }
+                    @Suppress("DEPRECATION")
+                    audioManager.isSpeakerphoneOn = true
+                    isNear = false
+                }
             }
-            audioManager.mode = android.media.AudioManager.MODE_NORMAL
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                audioManager.clearCommunicationDevice()
-            }
-            @Suppress("DEPRECATION")
-            audioManager.isSpeakerphoneOn = true
-            isNear = false
-        }
-        onDispose {
-            sensorManager.unregisterListener(sensorEventListener)
-            try {
-                wakeLock?.takeIf { it.isHeld }?.release()
-            } catch (e: Exception) {
-                Log.e("AudioPlayer", "WakeLock release failed", e)
-            }
-            audioManager.mode = android.media.AudioManager.MODE_NORMAL
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                audioManager.clearCommunicationDevice()
-            }
-            @Suppress("DEPRECATION")
-            audioManager.isSpeakerphoneOn = true
-            isNear = false
         }
     }
 

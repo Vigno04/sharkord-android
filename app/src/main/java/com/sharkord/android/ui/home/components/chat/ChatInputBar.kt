@@ -438,6 +438,35 @@ fun ChatInputBar(
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val avatarUrl = replyAuthor?.avatar?.name?.let { "${com.sharkord.android.data.network.SharkordClient.currentServerUrl}/public/$it" }
+                    val avatarPainter = com.sharkord.android.ui.components.rememberAsyncImagePainter(avatarUrl, fallbackResourceId = null)
+                    
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(SharkordTheme.colors.bgColor),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (avatarPainter != null) {
+                            Image(
+                                painter = avatarPainter,
+                                contentDescription = "User Avatar",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Text(
+                                text = replyAuthor?.name?.take(1)?.uppercase() ?: "?",
+                                color = SharkordTheme.colors.foregroundText,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.width(12.dp))
+
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = stringResource(id = R.string.common_replyingTo, replyAuthor?.name ?: "Unknown"),
@@ -445,8 +474,18 @@ fun ChatInputBar(
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        val snippet = remember(target.content) {
-                            HtmlCompat.fromHtml(target.content ?: "", HtmlCompat.FROM_HTML_MODE_COMPACT).toString().trim()
+                        val snippet = remember(target.content, target.files) {
+                            var text = HtmlCompat.fromHtml(target.content ?: "", HtmlCompat.FROM_HTML_MODE_COMPACT).toString().trim()
+                            if (text.isEmpty() && target.files.isNotEmpty()) {
+                                val file = target.files.first()
+                                text = when {
+                                    file.isVideo -> "Video"
+                                    file.isImage -> "Photo"
+                                    file.mimeType?.startsWith("audio/") == true -> "Audio"
+                                    else -> "File"
+                                }
+                            }
+                            text
                         }
                         Text(
                             text = snippet,

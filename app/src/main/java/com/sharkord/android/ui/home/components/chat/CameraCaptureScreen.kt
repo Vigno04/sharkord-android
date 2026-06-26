@@ -280,12 +280,16 @@ private fun CameraPreviewContent(
                                             )
                                             
                                             val name = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(System.currentTimeMillis())
-                                            val file = File(context.cacheDir, "${name}.jpg")
-                                            val outputStream = java.io.FileOutputStream(file)
                                             
-                                            var jpegQuality = 95
+                                            var quality = 95
+                                            var compressFormat = android.graphics.Bitmap.CompressFormat.JPEG
+                                            var extension = "jpg"
+                                            
                                             if (SharkordClient.session.compressMedia) {
-                                                jpegQuality = when (SharkordClient.session.mediaQuality) {
+                                                @Suppress("DEPRECATION")
+                                                compressFormat = android.graphics.Bitmap.CompressFormat.WEBP
+                                                extension = "webp"
+                                                quality = when (SharkordClient.session.mediaQuality) {
                                                     "High" -> 90
                                                     "Medium" -> 70
                                                     "Low" -> 50
@@ -293,13 +297,16 @@ private fun CameraPreviewContent(
                                                 }
                                             }
                                             
-                                            rotatedBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, jpegQuality, outputStream)
+                                            val file = File(context.cacheDir, "${name}.${extension}")
+                                            val outputStream = java.io.FileOutputStream(file)
+                                            
+                                            rotatedBitmap.compress(compressFormat, quality, outputStream)
                                             outputStream.flush()
                                             outputStream.close()
                                             image.close()
                                             
                                             val savedUri = Uri.fromFile(file)
-                                            onPhotoCaptured("${name}.jpg", savedUri)
+                                            onPhotoCaptured("${name}.${extension}", savedUri)
                                         }
 
                                         override fun onError(exception: ImageCaptureException) {
@@ -339,7 +346,11 @@ private fun CameraPreviewContent(
                                                         val editedMediaItem = EditedMediaItem.Builder(mediaItem).build()
                                                         
                                                         val codecName = SharkordClient.session.mediaCodec
-                                                        val mimeType = if (codecName == "HEVC") MimeTypes.VIDEO_H265 else MimeTypes.VIDEO_H264
+                                                        val mimeType = when (codecName) {
+                                                            "AV1" -> MimeTypes.VIDEO_AV1
+                                                            "HEVC" -> MimeTypes.VIDEO_H265
+                                                            else -> MimeTypes.VIDEO_H264
+                                                        }
                                                         
                                                         val targetBitrate = when (SharkordClient.session.mediaQuality) {
                                                             "High" -> 5_000_000 // 5 Mbps
@@ -362,8 +373,13 @@ private fun CameraPreviewContent(
                                                             .addListener(object : Transformer.Listener {
                                                                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                                                                     isCompressing = false
-                                                                    onVideoCaptured("compressed_${name}.mp4", Uri.fromFile(compressedFile))
-                                                                    file.delete()
+                                                                    if (compressedFile.length() < file.length()) {
+                                                                        onVideoCaptured("compressed_${name}.mp4", Uri.fromFile(compressedFile))
+                                                                        file.delete()
+                                                                    } else {
+                                                                        compressedFile.delete()
+                                                                        onVideoCaptured("${name}.mp4", Uri.fromFile(file))
+                                                                    }
                                                                 }
                                                                 override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
                                                                     isCompressing = false
