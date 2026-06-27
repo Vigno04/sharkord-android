@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Divider
@@ -55,10 +56,12 @@ fun MembersBottomSheet(
         contentColor = primaryText,
         modifier = Modifier // Removed fillMaxHeight to prevent detaching from bottom
     ) {
+        val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.85f)
+                .height(screenHeight * 0.85f)
+                .navigationBarsPadding()
         ) {
             Column(
                 modifier = Modifier
@@ -96,10 +99,37 @@ fun MembersBottomSheet(
                     )
                 }
             } else {
+                val nestedScrollConnection = androidx.compose.runtime.remember {
+                    object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+                        override fun onPostScroll(
+                            consumed: androidx.compose.ui.geometry.Offset,
+                            available: androidx.compose.ui.geometry.Offset,
+                            source: androidx.compose.ui.input.nestedscroll.NestedScrollSource
+                        ): androidx.compose.ui.geometry.Offset {
+                            return if (available.y < 0) {
+                                androidx.compose.ui.geometry.Offset(0f, available.y)
+                            } else {
+                                androidx.compose.ui.geometry.Offset.Zero
+                            }
+                        }
+                        override suspend fun onPostFling(
+                            consumed: androidx.compose.ui.unit.Velocity,
+                            available: androidx.compose.ui.unit.Velocity
+                        ): androidx.compose.ui.unit.Velocity {
+                            return if (available.y < 0) {
+                                androidx.compose.ui.unit.Velocity(0f, available.y)
+                            } else {
+                                androidx.compose.ui.unit.Velocity.Zero
+                            }
+                        }
+                    }
+                }
+
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f)
+                        .nestedScroll(nestedScrollConnection),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
