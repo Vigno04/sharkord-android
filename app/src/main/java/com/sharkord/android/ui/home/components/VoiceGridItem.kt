@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -115,14 +116,14 @@ fun VoiceGridItem(
                         modifier = Modifier.fillMaxSize().blur(16.dp)
                     )
                 } else {
-                    Box(modifier = Modifier.fillMaxSize().background(Color.DarkGray))
+                    Box(modifier = Modifier.fillMaxSize().background(SharkordTheme.colors.cardColor))
                 }
                 
                 Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)))
                 
                 Text(
                     text = if (isScreenShare) { if (isConnected) "Loading screen share..." else "Enter channel to\nsee screen share" } else { "Enter channel to\nsee user's camera" },
-                    color = Color.White,
+                    color = SharkordTheme.colors.foregroundText,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center,
@@ -134,7 +135,7 @@ fun VoiceGridItem(
                 modifier = Modifier
                     .size(64.dp)
                     .clip(CircleShape)
-                    .background(Color.DarkGray),
+                    .background(SharkordTheme.colors.cardColor),
                 contentAlignment = Alignment.Center
             ) {
                 if (avatarPainter != null) {
@@ -147,7 +148,7 @@ fun VoiceGridItem(
                 } else {
                     Text(
                         text = voiceUser.user.name.take(1).uppercase(),
-                        color = Color.White,
+                        color = SharkordTheme.colors.foregroundText,
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -177,7 +178,7 @@ fun VoiceGridItem(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = if (isScreenShare) "${voiceUser.user.name}'s Screen" else voiceUser.user.name,
-                    color = Color.White,
+                    color = SharkordTheme.colors.foregroundText,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -219,7 +220,7 @@ fun VoiceGridItem(
                 Icon(
                     Icons.Default.Fullscreen,
                     contentDescription = "Fullscreen",
-                    tint = Color.White,
+                    tint = SharkordTheme.colors.foregroundText,
                     modifier = Modifier.size(20.dp)
                 )
             }

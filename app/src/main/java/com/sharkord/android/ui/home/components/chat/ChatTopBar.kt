@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components.chat
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -23,7 +24,6 @@ import androidx.compose.ui.layout.ContentScale
 import com.sharkord.android.data.model.User
 import com.sharkord.android.data.network.SharkordClient
 import com.sharkord.android.ui.components.rememberAsyncImagePainter
-import com.sharkord.android.ui.home.components.ChatColors
 
 @Composable
 fun ChatTopBar(
@@ -35,10 +35,10 @@ fun ChatTopBar(
     onTogglePinnedMessages: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val headerColor = ChatColors.HeaderColor
-    val textPrimary = ChatColors.TextPrimary
-    val textSecondary = ChatColors.TextSecondary
-    val accentColor = ChatColors.AccentColor
+    val headerColor = SharkordTheme.colors.bgColor
+    val textPrimary = SharkordTheme.colors.primaryText
+    val textSecondary = SharkordTheme.colors.primaryText.copy(alpha = 0.5f)
+    val accentColor = SharkordTheme.colors.accentColor
 
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
@@ -74,7 +74,7 @@ fun ChatTopBar(
                     modifier = Modifier
                         .size(24.dp)
                         .clip(CircleShape)
-                        .background(Color.DarkGray),
+                        .background(SharkordTheme.colors.cardColor),
                     contentAlignment = Alignment.Center
                 ) {
                     if (avatarPainter != null) {
@@ -87,7 +87,7 @@ fun ChatTopBar(
                     } else {
                         Text(
                             text = displayInitial,
-                            color = Color.White,
+                            color = SharkordTheme.colors.foregroundText,
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp
                         )
@@ -135,6 +135,6 @@ fun ChatTopBar(
                 )
             }
         }
-        HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+        HorizontalDivider(color = SharkordTheme.colors.foregroundText.copy(alpha = 0.05f))
     }
 }

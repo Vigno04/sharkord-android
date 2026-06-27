@@ -51,6 +51,7 @@ class WebSocketManager(
     private var serverUrl: String? = null
     private var reconnectJob: Job? = null
     private var shouldReconnect = false
+    private var isPaused = false
 
     // track pending tRPC request IDs and their purpose
     private var handshakeId: Int? = null
@@ -94,6 +95,7 @@ class WebSocketManager(
     // explicitly disconnects and stops reconnection attempts
     fun disconnect() {
         shouldReconnect = false
+        isPaused = false
         reconnectJob?.cancel()
         reconnectJob = null
         activeSubscriptions.clear()
@@ -102,6 +104,42 @@ class WebSocketManager(
         webSocket?.close(1000, "Client disconnect")
         webSocket = null
         _connectionState.value = ConnectionState.Disconnected
+    }
+
+    fun pauseConnection() {
+        if (!shouldReconnect) return
+        isPaused = true
+        Log.d(TAG, "Pausing connection (app in background)")
+        reconnectJob?.cancel()
+        reconnectJob = null
+        webSocket?.close(1000, "App paused")
+        webSocket = null
+        _connectionState.value = ConnectionState.Disconnected
+    }
+
+    fun resumeConnection() {
+        if (!isPaused || !shouldReconnect) return
+        isPaused = false
+        Log.d(TAG, "Resuming connection (app in foreground)")
+        forceReconnect()
+    }
+
+    // forces an immediate reconnection attempt, bypassing any active backoff delay.
+    // useful for lifecycle events (like the app returning to foreground).
+    fun forceReconnect() {
+        if (!shouldReconnect || serverUrl == null || token == null) return
+        
+        val currentState = _connectionState.value
+        if (currentState.isConnected || currentState is ConnectionState.Connecting || 
+            currentState is ConnectionState.Authenticating || currentState is ConnectionState.HandshakePending || 
+            currentState is ConnectionState.JoinPending) {
+            return // already connected or actively connecting
+        }
+        
+        Log.d(TAG, "Forcing immediate reconnect...")
+        reconnectJob?.cancel()
+        reconnectJob = null
+        doConnect()
     }
 
     // sends a tRPC query and returns the assigned message ID
@@ -180,6 +218,7 @@ class WebSocketManager(
     // internal Connection Logic
 
     private fun doConnect() {
+        if (isPaused) return
         _connectionState.value = ConnectionState.Connecting
         TrpcProtocol.resetIdCounter()
         handshakeId = null
@@ -267,6 +306,10 @@ class WebSocketManager(
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                if (isPaused) {
+                    Log.d(TAG, "Ignoring WebSocket failure because app is paused: ${t.message}")
+                    return
+                }
                 Log.e(TAG, "WebSocket failure: ${t.message}", t)
                 _connectionState.value = ConnectionState.Error(
                     t.message ?: "Connection failed",
@@ -280,6 +323,10 @@ class WebSocketManager(
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                if (isPaused) {
+                    Log.d(TAG, "Ignoring WebSocket closed because app is paused: $reason ($code)")
+                    return
+                }
                 Log.d(TAG, "WebSocket closed: $reason ($code)")
                 if (shouldReconnect && code != 1000) {
                     _connectionState.value = ConnectionState.Error("Connection closed: $reason")
@@ -453,7 +500,7 @@ class WebSocketManager(
     // reconnection
 
     private fun scheduleReconnect() {
-        if (!shouldReconnect) return
+        if (!shouldReconnect || isPaused) return
         if (reconnectJob?.isActive == true) return
 
         reconnectJob?.cancel()

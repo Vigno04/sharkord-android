@@ -184,6 +184,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         // build a fresh factory for each session
         peerConnectionFactory?.dispose()
         peerConnectionFactory = buildPeerConnectionFactory()
+        videoEngine.refreshSettings()
 
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {

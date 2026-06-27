@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import android.media.MediaPlayer
  import android.net.Uri
 import android.util.Log
@@ -26,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -84,10 +86,10 @@ fun MessageItem(
     onMediaClick: (com.sharkord.android.data.model.FileInfo) -> Unit = {},
     onMediaLongClick: (com.sharkord.android.data.model.FileInfo) -> Unit = {}
 ) {
-    val bgColor = ChatColors.BgColor
-    val textPrimary = ChatColors.TextPrimary
-    val textSecondary = ChatColors.TextSecondary
-    val textMuted = ChatColors.TextMuted
+    val bgColor = SharkordTheme.colors.bgColor
+    val textPrimary = SharkordTheme.colors.primaryText
+    val textSecondary = SharkordTheme.colors.primaryText.copy(alpha = 0.5f)
+    val textMuted = SharkordTheme.colors.primaryText.copy(alpha = 0.5f)
 
     val author = users.find { it.id == message.userId }
 
@@ -97,15 +99,22 @@ fun MessageItem(
         || (message.createdAt - previousMessage.createdAt) > TimeUnit.MINUTES.toMillis(5)
         || message.replyTo != null
 
+    val isLight = SharkordTheme.colors.isLight
     // resolve author's top-role color
-    val nameColor = remember(author, roles) {
+    val nameColor = remember(author, roles, isLight) {
         val authorRoleIds = author?.roleIds ?: emptyList()
         val topRole = roles
             .filter { it.id in authorRoleIds }
             .maxByOrNull { it.position }
         val hex = topRole?.color?.takeIf { it.isNotBlank() && it != "#99AAB5" }
         if (hex != null) {
-            runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrDefault(textPrimary)
+            val rawColor = runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrDefault(textPrimary)
+            // In light mode, if the role color is very bright (e.g. white or yellow), fallback to the default text color for contrast
+            if (isLight && rawColor.luminance() > 0.8f) {
+                textPrimary
+            } else {
+                rawColor
+            }
         } else {
             textPrimary
         }
@@ -186,7 +195,7 @@ fun MessageItem(
         }
     }
 
-    val highlightColor = Color(0x22FFFFFF)
+    val highlightColor = SharkordTheme.colors.foregroundText.copy(alpha = 0.08f)
     val transparentHighlight = Color(0x00FFFFFF)
     val animatableColor = remember { androidx.compose.animation.Animatable(transparentHighlight) }
     
@@ -259,7 +268,7 @@ fun MessageItem(
                             modifier = Modifier.fillMaxSize()
                         )
                         is AsyncImageState.Loading -> CircularProgressIndicator(
-                            color = ChatColors.AccentColor,
+                            color = SharkordTheme.colors.accentColor,
                             modifier = Modifier.size(8.dp),
                             strokeWidth = 1.dp
                         )
@@ -337,7 +346,7 @@ fun MessageItem(
                             modifier = Modifier.fillMaxSize()
                         )
                         is AsyncImageState.Loading -> CircularProgressIndicator(
-                            color = ChatColors.AccentColor,
+                            color = SharkordTheme.colors.accentColor,
                             modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp
                         )
@@ -394,7 +403,7 @@ fun MessageItem(
                     val lineHeight = if (isEmojiOnly) 44.sp else 21.sp
                     Text(
                         text = annotatedContent,
-                        color = textSecondary,
+                        color = textPrimary,
                         fontSize = fontSize,
                         lineHeight = lineHeight,
                         inlineContent = inlineContentMap
@@ -431,7 +440,7 @@ fun MessageItem(
                                         .width(240.dp)
                                         .height(160.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(Color(0xFF2B2B2B))
+                                        .background(SharkordTheme.colors.cardColor)
                                         .combinedClickable(
                                             onClick = { onMediaClick(file) },
                                             onLongClick = { onMediaLongClick(file) }
@@ -446,7 +455,7 @@ fun MessageItem(
                                             modifier = Modifier.fillMaxSize()
                                         )
                                         is AsyncImageState.Loading -> CircularProgressIndicator(
-                                            color = ChatColors.AccentColor,
+                                            color = SharkordTheme.colors.accentColor,
                                             modifier = Modifier.size(28.dp),
                                             strokeWidth = 2.dp
                                         )
@@ -509,7 +518,7 @@ fun MessageItem(
                                             }
                                             is AsyncImageState.Loading -> {
                                                 CircularProgressIndicator(
-                                                    color = ChatColors.AccentColor,
+                                                    color = SharkordTheme.colors.accentColor,
                                                     modifier = Modifier.size(28.dp),
                                                     strokeWidth = 2.dp
                                                 )
@@ -551,7 +560,7 @@ fun MessageItem(
                                     modifier = Modifier
                                         .padding(top = 4.dp)
                                         .background(
-                                            Color(0xFF2B2B2B),
+                                            SharkordTheme.colors.cardColor,
                                             RoundedCornerShape(6.dp)
                                         )
                                         .clip(RoundedCornerShape(6.dp))
@@ -597,8 +606,8 @@ fun MessageItem(
                                 val hasReacted = groupList.any { it.userId == ownUserId }
                                 val emojiCode = firstReaction.emoji ?: ""
 
-                                val chipBg = if (hasReacted) ChatColors.AccentColor.copy(alpha = 0.15f) else ChatColors.CardColor
-                                val chipBorder = if (hasReacted) ChatColors.AccentColor.copy(alpha = 0.8f) else Color.Transparent
+                                val chipBg = if (hasReacted) SharkordTheme.colors.accentColor.copy(alpha = 0.15f) else SharkordTheme.colors.cardColor
+                                val chipBorder = if (hasReacted) SharkordTheme.colors.accentColor.copy(alpha = 0.8f) else Color.Transparent
 
                                 Row(
                                     modifier = Modifier
@@ -635,7 +644,7 @@ fun MessageItem(
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = count.toString(),
-                                        color = if (hasReacted) ChatColors.AccentColor else textSecondary,
+                                        color = if (hasReacted) SharkordTheme.colors.accentColor else textSecondary,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
@@ -699,19 +708,36 @@ private fun getInitials(name: String): String {
 }
 
 // stable deterministic background color for a user's avatar based on their name
+@androidx.compose.runtime.Composable
 private fun getUsernameColor(name: String): Color {
-    val palette = listOf(
-        Color(0xFF5865F2), // Discord blurple
-        Color(0xFF57F287), // green
-        Color(0xFFFEE75C), // yellow
-        Color(0xFFEB459E), // fuchsia
-        Color(0xFFED4245), // red
-        Color(0xFF3BA55C), // dark green
-        Color(0xFF1ABC9C), // teal
-        Color(0xFF9B59B6), // purple
-        Color(0xFFE67E22), // orange
-        Color(0xFF2980B9), // blue
-    )
+    val isLight = com.sharkord.android.ui.theme.SharkordTheme.colors.isLight
+    val palette = if (isLight) {
+        listOf(
+            Color(0xFF3B48D9), // darker blurple
+            Color(0xFF2E8B57), // sea green
+            Color(0xFFD4AC0D), // dark yellow
+            Color(0xFFC2185B), // dark fuchsia
+            Color(0xFFC0392B), // dark red
+            Color(0xFF1E8449), // darker green
+            Color(0xFF117A65), // dark teal
+            Color(0xFF7D3C98), // dark purple
+            Color(0xFFBA4A00), // dark orange
+            Color(0xFF2471A3), // dark blue
+        )
+    } else {
+        listOf(
+            com.sharkord.android.ui.theme.SharkordTheme.colors.accentColor, // Discord blurple
+            Color(0xFF57F287), // green
+            Color(0xFFFEE75C), // yellow
+            Color(0xFFEB459E), // fuchsia
+            Color(0xFFED4245), // red
+            Color(0xFF3BA55C), // dark green
+            Color(0xFF1ABC9C), // teal
+            Color(0xFF9B59B6), // purple
+            Color(0xFFE67E22), // orange
+            Color(0xFF2980B9), // blue
+        )
+    }
     val index = Math.abs(name.hashCode()) % palette.size
     return palette[index]
 }

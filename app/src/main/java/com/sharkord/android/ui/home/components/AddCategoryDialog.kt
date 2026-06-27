@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -58,7 +59,7 @@ fun AddCategoryDialog(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = foregroundText,
                         unfocusedTextColor = foregroundText,
-                        focusedBorderColor = Color(0xFF5865F2),
+                        focusedBorderColor = SharkordTheme.colors.accentColor,
                         unfocusedBorderColor = cardColor,
                         focusedContainerColor = cardColor,
                         unfocusedContainerColor = cardColor
@@ -84,12 +85,12 @@ fun AddCategoryDialog(
                             }
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF5865F2),
-                            disabledContainerColor = Color(0xFF5865F2).copy(alpha = 0.5f)
+                            containerColor = SharkordTheme.colors.accentColor,
+                            disabledContainerColor = SharkordTheme.colors.accentColor.copy(alpha = 0.5f)
                         ),
                         enabled = categoryName.isNotBlank()
                     ) {
-                        Text("Create", color = Color.White)
+                        Text("Create", color = SharkordTheme.colors.foregroundText)
                     }
                 }
             }

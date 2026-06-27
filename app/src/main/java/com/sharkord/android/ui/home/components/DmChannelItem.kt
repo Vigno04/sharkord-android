@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -52,7 +53,7 @@ fun DmChannelItem(
             modifier = Modifier
                 .size(24.dp)
                 .clip(CircleShape)
-                .background(Color.DarkGray),
+                .background(SharkordTheme.colors.cardColor),
             contentAlignment = Alignment.Center
         ) {
             if (avatarPainter != null) {
@@ -65,7 +66,7 @@ fun DmChannelItem(
             } else {
                 Text(
                     text = displayInitial,
-                    color = Color.White,
+                    color = SharkordTheme.colors.foregroundText,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp
                 )
@@ -87,13 +88,13 @@ fun DmChannelItem(
                 modifier = Modifier
                     .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFE3E5E8)) // Snow/porcelain color
+                    .background(SharkordTheme.colors.primaryText) // Snow/porcelain color
                     .padding(horizontal = 4.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = unreadCount.toString(),
-                    color = Color(0xFF2B2B2B), // Dark text for contrast
+                    color = SharkordTheme.colors.cardColor, // Dark text for contrast
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 )

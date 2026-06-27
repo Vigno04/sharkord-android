@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -109,18 +110,15 @@ fun WebRtcVideoRenderer(
         AndroidView(
             factory = { context ->
                 SurfaceViewRenderer(context).apply {
+                    // MUST be true to prevent native crashes!
+                    // hardware scaling works by calling SurfaceHolder.setFixedSize() to
+                    // lock the buffer dimensions to the video resolution.
+                    setEnableHardwareScaler(true)
+                    
                     viewRef.set(this)
                     init(eglBaseContext, null)
                     setScalingType(if (isZoomedOut) ScalingType.SCALE_ASPECT_FIT else ScalingType.SCALE_ASPECT_FILL)
                     
-                    // MUST be true to prevent native crashes!
-                    // hardware scaling works by calling SurfaceHolder.setFixedSize() to
-                    // lock the buffer dimensions to the video resolution. When the View resizes
-                    // (e.g. toggling zoom or grid reflowing), Android WindowManager scales the
-                    // fixed-size buffer instead of destroying and recreating the Surface
-                    // if disabled, every resize destroys the EGL surface, causing fatal
-                    // bLASTBufferQueue rejections and libEGL "no current context" freezes!
-                    setEnableHardwareScaler(true)
                     clipToOutline = false
                     outlineProvider = null
 
@@ -235,7 +233,7 @@ fun WebRtcVideoRenderer(
             ) {
                 Text(
                     text = "${videoWidth}x${videoHeight} @ ${frameRate}fps",
-                    color = Color.White,
+                    color = SharkordTheme.colors.foregroundText,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium
                 )

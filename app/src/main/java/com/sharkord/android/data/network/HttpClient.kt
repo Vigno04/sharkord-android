@@ -13,6 +13,9 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import okhttp3.RequestBody
+import okio.source
+import android.content.Context
 import java.io.IOException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -129,6 +132,96 @@ class SharkordHttpClient(private val client: OkHttpClient) {
 
         val mediaType = "application/octet-stream".toMediaType()
         val requestBody = fileBytes.toRequestBody(mediaType)
+
+        val request = Request.Builder()
+            .url(requestUrl)
+            .post(requestBody)
+            .addHeader("x-token", token)
+            .addHeader("x-file-name", originalName)
+            .build()
+
+        return try {
+            val response = client.awaitCall(request)
+            val body = response.body?.string()
+
+            if (!response.isSuccessful || body == null) {
+                return Result.failure(
+                    SharkordApiException("File upload failed (HTTP ${response.code})", response.code)
+                )
+            }
+
+            val fileInfo = gson.fromJson(body, com.sharkord.android.data.model.FileInfo::class.java)
+            Log.d(TAG, "File uploaded successfully: id=${fileInfo.id}, name=${fileInfo.name}")
+            Result.success(fileInfo)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: IOException) {
+            Log.e(TAG, "File upload network error: ${e.message}")
+            Result.failure(SharkordApiException("Network error: ${e.message}", cause = e))
+        } catch (e: Exception) {
+            Result.failure(SharkordApiException("Unexpected error: ${e.message}", cause = e))
+        }
+    }
+
+    suspend fun uploadFileStream(
+        context: Context,
+        serverUrl: String,
+        token: String,
+        originalName: String,
+        localUri: String,
+        onProgress: ((Int) -> Unit)? = null
+    ): Result<com.sharkord.android.data.model.FileInfo> {
+        val cleanUrl = serverUrl.trimEnd('/')
+        val requestUrl = "$cleanUrl/upload"
+
+        val uri = android.net.Uri.parse(localUri)
+        val resolver = context.contentResolver
+        
+        var fileLength = -1L
+        if (uri.scheme == "content") {
+            val cursor = resolver.query(uri, null, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val index = it.getColumnIndex(android.provider.OpenableColumns.SIZE)
+                    if (index != -1 && !it.isNull(index)) {
+                        fileLength = it.getLong(index)
+                    }
+                }
+            }
+        } else if (uri.scheme == "file") {
+            uri.path?.let { path ->
+                val file = java.io.File(path)
+                if (file.exists()) {
+                    fileLength = file.length()
+                }
+            }
+        }
+
+        val mediaType = "application/octet-stream".toMediaType()
+        val requestBody = object : RequestBody() {
+            override fun contentType() = mediaType
+            override fun contentLength() = fileLength
+            override fun writeTo(sink: okio.BufferedSink) {
+                resolver.openInputStream(uri)?.use { inputStream ->
+                    val source = inputStream.source()
+                    try {
+                        var totalBytesRead = 0L
+                        val buffer = okio.Buffer()
+                        var read: Long
+                        while (source.read(buffer, 8192).also { read = it } != -1L) {
+                            sink.write(buffer, read)
+                            totalBytesRead += read
+                            if (fileLength > 0 && onProgress != null) {
+                                val progress = ((totalBytesRead.toFloat() / fileLength.toFloat()) * 100).toInt()
+                                onProgress.invoke(progress)
+                            }
+                        }
+                    } finally {
+                        source.close()
+                    }
+                }
+            }
+        }
 
         val request = Request.Builder()
             .url(requestUrl)

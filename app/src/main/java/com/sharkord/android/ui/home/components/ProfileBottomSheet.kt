@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -43,7 +44,7 @@ fun ProfileBottomSheet(
     onNavigateToSettings: () -> Unit = {},
     roles: List<Role> = emptyList()
 ) {
-    val colors = com.sharkord.android.ui.theme.LocalSharkordColors.current
+    val colors = SharkordTheme.colors
     val bgColor = colors.bgColor
     val cardColor = colors.cardColor
     val primaryText = colors.primaryText
@@ -102,18 +103,18 @@ fun ProfileBottomSheet(
                     )
                     Text(
                         text = stringResource(id = R.string.settings_userIdLabel) + ": #" + ownUserId,
-                        color = Color.Gray,
+                        color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                         fontSize = 14.sp
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    Divider(color = Color.White.copy(alpha = 0.1f))
+                    Divider(color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
 
                     if (!currentUser?.bio.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = stringResource(R.string.settings_bioLabel),
-                            color = Color.Gray,
+                            color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.sp
@@ -131,7 +132,7 @@ fun ProfileBottomSheet(
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = stringResource(R.string.settings_usersRolesCol),
-                            color = Color.Gray,
+                            color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.sp
@@ -145,7 +146,7 @@ fun ProfileBottomSheet(
                                 val roleColor = try {
                                     Color(android.graphics.Color.parseColor(role.color))
                                 } catch (e: Exception) {
-                                    Color.Gray
+                                    SharkordTheme.colors.primaryText.copy(alpha = 0.6f)
                                 }
                                 Box(
                                     modifier = Modifier
@@ -170,7 +171,7 @@ fun ProfileBottomSheet(
                         val formatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
                         Text(
                             text = stringResource(R.string.common_memberSince, formatter.format(date)),
-                            color = Color.Gray,
+                            color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Normal
                         )
@@ -182,10 +183,10 @@ fun ProfileBottomSheet(
                         onClick = { onNavigateToSettings() },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF5865F2).copy(alpha = 0.15f),
-                            contentColor = Color(0xFF5865F2)
+                            containerColor = SharkordTheme.colors.accentColor.copy(alpha = 0.15f),
+                            contentColor = SharkordTheme.colors.accentColor
                         ),
-                        border = BorderStroke(1.dp, Color(0xFF5865F2).copy(alpha = 0.3f)),
+                        border = BorderStroke(1.dp, SharkordTheme.colors.accentColor.copy(alpha = 0.3f)),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
@@ -228,7 +229,7 @@ fun ProfileBottomSheet(
                         .border(4.dp, bgColor, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Box(modifier = Modifier.fillMaxSize().clip(CircleShape).background(Color.DarkGray)) {
+                    Box(modifier = Modifier.fillMaxSize().clip(CircleShape).background(SharkordTheme.colors.cardColor)) {
                         val avatarPainter = com.sharkord.android.ui.components.rememberAsyncImagePainter(avatarUrl)
                         if (avatarPainter != null) {
                             Image(

@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -20,6 +21,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 
+object AudioMetadataCache {
+    val durationCache = java.util.concurrent.ConcurrentHashMap<String, Long>()
+}
+
 // custom voice note / audio playback card interface
 @Composable
 fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
@@ -39,22 +44,28 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
 
     LaunchedEffect(audioUrl) {
         if (duration == 0L) {
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                var retriever: android.media.MediaMetadataRetriever? = null
-                try {
-                    retriever = android.media.MediaMetadataRetriever()
-                    retriever.setDataSource(audioUrl, HashMap<String, String>())
-                    val timeString = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
-                    val parsed = timeString?.toLongOrNull()
-                    if (parsed != null && parsed > 0) {
-                        duration = parsed
-                    }
-                } catch (e: Exception) {
-                    Log.d("AudioPlayer", "Could not retrieve metadata duration for $audioUrl")
-                } finally {
+            val cached = AudioMetadataCache.durationCache[audioUrl]
+            if (cached != null) {
+                duration = cached
+            } else {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    var retriever: android.media.MediaMetadataRetriever? = null
                     try {
-                        retriever?.release()
-                    } catch (_: Exception) {}
+                        retriever = android.media.MediaMetadataRetriever()
+                        retriever.setDataSource(audioUrl, HashMap<String, String>())
+                        val timeString = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
+                        val parsed = timeString?.toLongOrNull()
+                        if (parsed != null && parsed > 0) {
+                            duration = parsed
+                            AudioMetadataCache.durationCache[audioUrl] = parsed
+                        }
+                    } catch (e: Exception) {
+                        Log.d("AudioPlayer", "Could not retrieve metadata duration for $audioUrl")
+                    } finally {
+                        try {
+                            retriever?.release()
+                        } catch (_: Exception) {}
+                    }
                 }
             }
         }
@@ -197,8 +208,8 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
         }
     }
 
-    DisposableEffect(isPlaying) {
-        if (isPlaying) {
+    if (isPlaying) {
+        DisposableEffect(Unit) {
             proximitySensor?.let {
                 sensorManager.registerListener(sensorEventListener, it, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
             }
@@ -207,42 +218,31 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
             } catch (e: Exception) {
                 Log.e("AudioPlayer", "WakeLock acquire failed", e)
             }
-        } else {
-            sensorManager.unregisterListener(sensorEventListener)
-            try {
-                wakeLock?.takeIf { it.isHeld }?.release()
-            } catch (e: Exception) {
-                Log.e("AudioPlayer", "WakeLock release failed", e)
+
+            onDispose {
+                sensorManager.unregisterListener(sensorEventListener)
+                try {
+                    wakeLock?.takeIf { it.isHeld }?.release()
+                } catch (e: Exception) {
+                    Log.e("AudioPlayer", "WakeLock release failed", e)
+                }
+                if (isNear) {
+                    audioManager.mode = android.media.AudioManager.MODE_NORMAL
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                        audioManager.clearCommunicationDevice()
+                    }
+                    @Suppress("DEPRECATION")
+                    audioManager.isSpeakerphoneOn = true
+                    isNear = false
+                }
             }
-            audioManager.mode = android.media.AudioManager.MODE_NORMAL
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                audioManager.clearCommunicationDevice()
-            }
-            @Suppress("DEPRECATION")
-            audioManager.isSpeakerphoneOn = true
-            isNear = false
-        }
-        onDispose {
-            sensorManager.unregisterListener(sensorEventListener)
-            try {
-                wakeLock?.takeIf { it.isHeld }?.release()
-            } catch (e: Exception) {
-                Log.e("AudioPlayer", "WakeLock release failed", e)
-            }
-            audioManager.mode = android.media.AudioManager.MODE_NORMAL
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                audioManager.clearCommunicationDevice()
-            }
-            @Suppress("DEPRECATION")
-            audioManager.isSpeakerphoneOn = true
-            isNear = false
         }
     }
 
     Column(
         modifier = modifier
             .fillMaxWidth(0.9f)
-            .background(Color(0xFF242424), RoundedCornerShape(12.dp))
+            .background(SharkordTheme.colors.cardColor, RoundedCornerShape(12.dp))
             .padding(start = 14.dp, end = 14.dp, top = 16.dp, bottom = 8.dp)
     ) {
         Row(
@@ -251,13 +251,13 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
         ) {
             IconButton(
                 onClick = playPauseAction, 
-                enabled = isPrepared,
+                enabled = exoPlayer == null || isPrepared,
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = Color(0xFF5B9BD5),
+                    tint = SharkordTheme.colors.accentColor,
                     modifier = Modifier.size(30.dp)
                 )
             }
@@ -273,9 +273,9 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
                     }
                 },
                 colors = SliderDefaults.colors(
-                    thumbColor = Color(0xFF5B9BD5),
-                    activeTrackColor = Color(0xFF5B9BD5),
-                    inactiveTrackColor = Color(0xFF4A4A4A)
+                    thumbColor = SharkordTheme.colors.accentColor,
+                    activeTrackColor = SharkordTheme.colors.accentColor,
+                    inactiveTrackColor = SharkordTheme.colors.primaryText.copy(alpha = 0.2f)
                 ),
                 modifier = Modifier.weight(1f).height(18.dp)
             )
@@ -288,12 +288,12 @@ fun AudioPlayer(audioUrl: String, modifier: Modifier = Modifier) {
         ) {
             Text(
                 text = formatTime(currentPosition),
-                color = Color(0xFF9E9E9E),
+                color = SharkordTheme.colors.primaryText.copy(alpha = 0.5f),
                 fontSize = 11.sp
             )
             Text(
                 text = formatTime(duration),
-                color = Color(0xFF9E9E9E),
+                color = SharkordTheme.colors.primaryText.copy(alpha = 0.5f),
                 fontSize = 11.sp
             )
         }

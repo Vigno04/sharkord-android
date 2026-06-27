@@ -2,8 +2,8 @@ package com.sharkord.android
 
 import android.os.Bundle
 import android.view.WindowManager
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -11,21 +11,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import com.sharkord.android.ui.home.HomeScreen
-import com.sharkord.android.ui.login.LoginScreen
-import com.sharkord.android.ui.settings.UserSettingsScreen
+import com.sharkord.android.ui.navigation.AppNavigation
 import com.sharkord.android.ui.theme.SharkordTheme
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
+        window.setBackgroundDrawableResource(android.R.color.transparent)
         setContent {
             SharkordTheme {
                 Scaffold(
@@ -41,69 +36,21 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-}
 
-@Composable
-fun AppNavigation(modifier: Modifier = Modifier) {
-    val navController = rememberNavController()
+    override fun onPause() {
+        super.onPause()
+        val isCallGoing = if (com.sharkord.android.data.network.SharkordClient.isVoiceEngineInitialized) {
+            com.sharkord.android.data.network.SharkordClient.voiceEngine.isConnected.value
+        } else false
 
-    NavHost(
-        navController = navController,
-        startDestination = "login",
-        modifier = modifier
-    ) {
-        composable("login") {
-            LoginScreen(
-                onLoginSuccess = {
-                    navController.navigate("home") {
-                        popUpTo("login") { inclusive = true }
-                    }
-                }
-            )
+        if (!isCallGoing) {
+            com.sharkord.android.data.network.SharkordClient.webSocket.pauseConnection()
         }
-        composable("home") {
-            HomeScreen(
-                onLogout = {
-                    navController.navigate("login") {
-                        popUpTo("home") { inclusive = true }
-                    }
-                },
-                onNavigateToSettings = {
-                    navController.navigate("user_settings")
-                },
-                onNavigateToServerSettings = {
-                    navController.navigate("server_settings")
-                },
-                onNavigateToChannelSettings = { channelId ->
-                    navController.navigate("channel_settings/$channelId")
-                }
-            )
-        }
-        composable("user_settings") {
-            UserSettingsScreen(
-                onBackClick = {
-                    navController.popBackStack()
-                }
-            )
-        }
-        composable("server_settings") {
-            com.sharkord.android.ui.settings.ServerSettingsScreen(
-                onBackClick = {
-                    navController.popBackStack()
-                }
-            )
-        }
-        composable(
-            route = "channel_settings/{channelId}",
-            arguments = listOf(androidx.navigation.navArgument("channelId") { type = androidx.navigation.NavType.IntType })
-        ) { backStackEntry ->
-            val channelId = backStackEntry.arguments?.getInt("channelId") ?: return@composable
-            com.sharkord.android.ui.settings.ChannelSettingsScreen(
-                channelId = channelId,
-                onBackClick = {
-                    navController.popBackStack()
-                }
-            )
-        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // force immediate reconnect if we were disconnected (e.g., from network loss or screen off)
+        com.sharkord.android.data.network.SharkordClient.webSocket.resumeConnection()
     }
 }

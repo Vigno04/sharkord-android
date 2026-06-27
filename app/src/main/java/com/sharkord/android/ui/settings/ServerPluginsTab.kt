@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.settings
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -27,7 +28,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import com.sharkord.android.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharkord.android.data.model.MarketplaceEntry
@@ -45,7 +48,7 @@ fun ServerPluginsTab(
     val uiState by viewModel.uiState.collectAsState()
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     var selectedPluginId by remember { mutableStateOf<String?>(null) }
-    val tabs = listOf("Installed", "Marketplace")
+    val tabs = listOf(R.string.settings_tabInstalled, R.string.settings_tabMarketplace)
 
     LaunchedEffect(Unit) {
         viewModel.fetchPlugins()
@@ -121,7 +124,7 @@ fun ServerPluginsTab(
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
-            text = "SERVER PLUGINS",
+            text = stringResource(R.string.settings_serverPluginsTitle),
             color = foregroundText,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
@@ -139,15 +142,15 @@ fun ServerPluginsTab(
                     )
                 }
             },
-            divider = { HorizontalDivider(color = Color.White.copy(alpha = 0.1f)) }
+            divider = { HorizontalDivider(color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f)) }
         ) {
-            tabs.forEachIndexed { index, title ->
+            tabs.forEachIndexed { index, titleRes ->
                 Tab(
                     selected = selectedTabIndex == index,
                     onClick = { selectedTabIndex = index },
                     text = {
                         Text(
-                            text = title,
+                            text = stringResource(titleRes),
                             color = if (selectedTabIndex == index) foregroundText else primaryText.copy(alpha = 0.7f),
                             fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal
                         )
@@ -217,7 +220,7 @@ fun InstalledPluginsList(
             CircularProgressIndicator(color = accentColor)
         }
     } else if (plugins.isEmpty()) {
-        Text("No plugins installed or available.", color = primaryText)
+        Text(stringResource(R.string.settings_noPluginsInstalled), color = primaryText)
     } else {
         LazyColumn(
             modifier = Modifier.fillMaxWidth(),
@@ -268,7 +271,7 @@ fun MarketplacePluginsList(
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
-            placeholder = { Text("Search Marketplace", color = primaryText) },
+            placeholder = { Text(stringResource(R.string.settings_searchMarketplace), color = primaryText) },
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = cardColor,
@@ -284,7 +287,7 @@ fun MarketplacePluginsList(
                 CircularProgressIndicator(color = accentColor)
             }
         } else if (filteredEntries.isEmpty()) {
-            Text("No marketplace plugins found.", color = primaryText)
+            Text(stringResource(R.string.settings_noMarketplacePlugins), color = primaryText)
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
@@ -326,19 +329,19 @@ fun PluginItemRow(
     if (showRemoveDialog) {
         AlertDialog(
             onDismissRequest = { showRemoveDialog = false },
-            title = { Text("Remove Plugin") },
-            text = { Text("Are you sure you want to remove ${plugin.name}?") },
+            title = { Text(stringResource(R.string.settings_removePluginTitle)) },
+            text = { Text(stringResource(R.string.settings_removePluginConfirm, plugin.name)) },
             confirmButton = {
                 TextButton(onClick = {
                     showRemoveDialog = false
                     viewModel.removePlugin(plugin.id)
                 }) {
-                    Text("Remove", color = Color.Red)
+                    Text(stringResource(R.string.common_remove), color = Color.Red)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showRemoveDialog = false }) {
-                    Text("Cancel", color = primaryText)
+                    Text(stringResource(R.string.common_cancel), color = primaryText)
                 }
             },
             containerColor = cardColor,
@@ -371,10 +374,10 @@ fun PluginItemRow(
                             modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp))
                         )
                     } else {
-                        Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(Color.Gray))
+                        Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(SharkordTheme.colors.cardColor))
                     }
                 } else {
-                    Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(Color.DarkGray))
+                    Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(SharkordTheme.colors.cardColor))
                 }
                 
                 Spacer(modifier = Modifier.width(16.dp))
@@ -387,15 +390,15 @@ fun PluginItemRow(
             
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (plugin.loadError != null) {
-                    Badge(containerColor = Color.Red, contentColor = Color.White) {
-                        Text("ERROR")
+                    Badge(containerColor = Color.Red, contentColor = SharkordTheme.colors.foregroundText) {
+                        Text(stringResource(R.string.common_error))
                     }
                 } else {
                     Badge(
-                        containerColor = if (plugin.enabled) accentColor else Color.DarkGray,
-                        contentColor = Color.White
+                        containerColor = if (plugin.enabled) accentColor else SharkordTheme.colors.cardColor,
+                        contentColor = SharkordTheme.colors.foregroundText
                     ) {
-                        Text(if (plugin.enabled) "ENABLED" else "DISABLED")
+                        Text(if (plugin.enabled) stringResource(R.string.common_enabled) else stringResource(R.string.common_disabled))
                     }
                 }
                 Spacer(modifier = Modifier.width(8.dp))
@@ -409,7 +412,7 @@ fun PluginItemRow(
         
         if (plugin.loadError != null) {
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Error: ${plugin.loadError}", color = Color.Red, fontSize = 12.sp)
+            Text(stringResource(R.string.settings_pluginError, plugin.loadError), color = Color.Red, fontSize = 12.sp)
         }
         
         Spacer(modifier = Modifier.height(8.dp))
@@ -421,7 +424,7 @@ fun PluginItemRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("v${plugin.version}", color = primaryText, fontSize = 12.sp)
                 Spacer(modifier = Modifier.width(16.dp))
-                Text("By ${plugin.author}", color = primaryText, fontSize = 12.sp)
+                Text(stringResource(R.string.settings_pluginAuthor, plugin.author), color = primaryText, fontSize = 12.sp)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onOpenLogs) {
@@ -431,13 +434,13 @@ fun PluginItemRow(
                     onClick = onOpenCommands,
                     enabled = plugin.enabled
                 ) {
-                    Icon(Icons.Default.Terminal, contentDescription = "Commands", tint = if (plugin.enabled) primaryText else Color.Gray)
+                    Icon(Icons.Default.Terminal, contentDescription = "Commands", tint = if (plugin.enabled) primaryText else SharkordTheme.colors.primaryText.copy(alpha = 0.6f))
                 }
                 IconButton(
                     onClick = onOpenSettings,
                     enabled = plugin.enabled
                 ) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = if (plugin.enabled) primaryText else Color.Gray)
+                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = if (plugin.enabled) primaryText else SharkordTheme.colors.primaryText.copy(alpha = 0.6f))
                 }
                 IconButton(onClick = { showRemoveDialog = true }) {
                     Icon(Icons.Default.Delete, contentDescription = "Remove", tint = Color.Red)
@@ -487,7 +490,7 @@ fun MarketplaceItemRow(
                         modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp))
                     )
                 } else {
-                    Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(Color.DarkGray))
+                    Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(SharkordTheme.colors.cardColor))
                 }
                 
                 Spacer(modifier = Modifier.width(16.dp))
@@ -504,22 +507,22 @@ fun MarketplaceItemRow(
                         onClick = { viewModel.installPlugin(entry.plugin.id, latestVersion) },
                         colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                     ) {
-                        Text("Install")
+                        Text(stringResource(R.string.settings_installPlugin))
                     }
                 } else if (canUpdate) {
                     Button(
                         onClick = { viewModel.updatePlugin(entry.plugin.id, latestVersion) },
                         colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                     ) {
-                        Text("Update to $latestVersion")
+                        Text(stringResource(R.string.settings_updatePluginTo, latestVersion))
                     }
                 } else {
                     Button(
                         onClick = { },
                         enabled = false,
-                        colors = ButtonDefaults.buttonColors(disabledContainerColor = Color.DarkGray, disabledContentColor = Color.LightGray)
+                        colors = ButtonDefaults.buttonColors(disabledContainerColor = SharkordTheme.colors.cardColor, disabledContentColor = SharkordTheme.colors.primaryText.copy(alpha = 0.5f))
                     ) {
-                        Text("Installed")
+                        Text(stringResource(R.string.settings_pluginStatusInstalled))
                     }
                 }
             }
@@ -527,9 +530,9 @@ fun MarketplaceItemRow(
         
         Spacer(modifier = Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Latest: v$latestVersion", color = primaryText, fontSize = 12.sp)
+            Text(stringResource(R.string.settings_pluginLatestVersion, latestVersion), color = primaryText, fontSize = 12.sp)
             Spacer(modifier = Modifier.width(16.dp))
-            Text("By ${entry.plugin.author}", color = primaryText, fontSize = 12.sp)
+            Text(stringResource(R.string.settings_pluginAuthor, entry.plugin.author), color = primaryText, fontSize = 12.sp)
         }
     }
 }
@@ -575,31 +578,31 @@ fun PluginDetailsSheet(
                             modifier = Modifier.size(64.dp).clip(RoundedCornerShape(8.dp))
                         )
                     } else {
-                        Box(modifier = Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)).background(Color.Gray))
+                        Box(modifier = Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)).background(SharkordTheme.colors.cardColor))
                     }
                 } else {
-                    Box(modifier = Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)).background(Color.DarkGray))
+                    Box(modifier = Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)).background(SharkordTheme.colors.cardColor))
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
                     Text(name, color = foregroundText, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                    Text("By $author • v$version", color = primaryText, fontSize = 14.sp)
+                    Text(stringResource(R.string.settings_pluginAuthorAndVersion, author, version), color = primaryText, fontSize = 14.sp)
                 }
             }
             
             Spacer(modifier = Modifier.height(16.dp))
-            Text("Description", color = foregroundText, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            Text(stringResource(R.string.settings_pluginDescription), color = foregroundText, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
             Spacer(modifier = Modifier.height(4.dp))
             Text(description, color = primaryText, fontSize = 14.sp)
             
             if (tags.isNotEmpty() || categories.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Tags & Categories", color = foregroundText, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                Text(stringResource(R.string.settings_pluginTags), color = foregroundText, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     val allChips = tags + categories
                     allChips.forEach { tag ->
-                        Badge(containerColor = Color.DarkGray, contentColor = primaryText) {
+                        Badge(containerColor = SharkordTheme.colors.cardColor, contentColor = primaryText) {
                             Text(tag, modifier = Modifier.padding(4.dp))
                         }
                     }
@@ -608,7 +611,7 @@ fun PluginDetailsSheet(
 
             if (screenshots.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Screenshots", color = foregroundText, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                Text(stringResource(R.string.settings_pluginScreenshots), color = foregroundText, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 Spacer(modifier = Modifier.height(8.dp))
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -624,7 +627,7 @@ fun PluginDetailsSheet(
                                 modifier = Modifier.height(200.dp).width(300.dp).clip(RoundedCornerShape(8.dp))
                             )
                         } else {
-                            Box(modifier = Modifier.height(200.dp).width(300.dp).clip(RoundedCornerShape(8.dp)).background(Color.Gray))
+                            Box(modifier = Modifier.height(200.dp).width(300.dp).clip(RoundedCornerShape(8.dp)).background(SharkordTheme.colors.cardColor))
                         }
                     }
                 }
@@ -638,13 +641,13 @@ fun PluginDetailsSheet(
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(homepage))
                             context.startActivity(intent)
                         } catch (e: Exception) {
-                            Toast.makeText(context, "Invalid URL", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.common_invalidUrl), Toast.LENGTH_SHORT).show()
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Visit Homepage")
+                    Text(stringResource(R.string.settings_visitHomepage))
                 }
             }
 
@@ -662,7 +665,7 @@ fun PluginDetailsSheet(
                         colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Install")
+                        Text(stringResource(R.string.settings_installPlugin))
                     }
                 } else if (canUpdate) {
                     Button(
@@ -673,16 +676,16 @@ fun PluginDetailsSheet(
                         colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Update to $latestVersion")
+                        Text(stringResource(R.string.settings_updatePluginTo, latestVersion))
                     }
                 } else {
                     Button(
                         onClick = { },
                         enabled = false,
-                        colors = ButtonDefaults.buttonColors(disabledContainerColor = Color.DarkGray, disabledContentColor = Color.LightGray),
+                        colors = ButtonDefaults.buttonColors(disabledContainerColor = SharkordTheme.colors.cardColor, disabledContentColor = SharkordTheme.colors.primaryText.copy(alpha = 0.5f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Installed")
+                        Text(stringResource(R.string.settings_pluginStatusInstalled))
                     }
                 }
             }

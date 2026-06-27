@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.settings
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -11,10 +12,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.sharkord.android.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,17 +30,17 @@ fun ChannelSettingsScreen(
     
     val uiState by viewModel.uiState.collectAsState()
 
-    val bgColor = Color(0xFF1C1C1C)
-    val foregroundText = Color(0xFFFAFAFA)
-    val accentColor = Color(0xFF5865F2)
+    val bgColor = SharkordTheme.colors.bgColor
+    val foregroundText = SharkordTheme.colors.foregroundText
+    val accentColor = SharkordTheme.colors.accentColor
 
     var selectedTabIndex by remember { mutableStateOf(0) }
-    val tabs = listOf("General", "Permissions")
+    val tabs = listOf(R.string.settings_tabGeneral, R.string.settings_tabPermissions)
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Channel Settings", color = foregroundText, fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.settings_channelSettingsTitle), color = foregroundText, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = foregroundText)
@@ -54,7 +57,7 @@ fun ChannelSettingsScreen(
             }
         } else if (uiState.errorMessage != null && uiState.channel == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(uiState.errorMessage ?: "Unknown error", color = Color.Red)
+                Text(uiState.errorMessage ?: stringResource(R.string.common_unknownError), color = Color.Red)
             }
         } else {
             Column(modifier = Modifier.padding(paddingValues)) {
@@ -70,13 +73,13 @@ fun ChannelSettingsScreen(
                         )
                     }
                 ) {
-                    tabs.forEachIndexed { index, title ->
+                    tabs.forEachIndexed { index, titleRes ->
                         Tab(
                             selected = selectedTabIndex == index,
                             onClick = { selectedTabIndex = index },
-                            text = { Text(title) },
+                            text = { Text(stringResource(titleRes)) },
                             selectedContentColor = accentColor,
-                            unselectedContentColor = Color(0xFFE8E8E8)
+                            unselectedContentColor = SharkordTheme.colors.primaryText
                         )
                     }
                 }
@@ -99,10 +102,10 @@ fun GeneralTabContent(
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
 
-    val cardColor = Color(0xFF2B2B2B)
-    val primaryText = Color(0xFFE8E8E8)
-    val foregroundText = Color(0xFFFAFAFA)
-    val accentColor = Color(0xFF5865F2)
+    val cardColor = SharkordTheme.colors.cardColor
+    val primaryText = SharkordTheme.colors.primaryText
+    val foregroundText = SharkordTheme.colors.foregroundText
+    val accentColor = SharkordTheme.colors.accentColor
 
     var name by remember { mutableStateOf(uiState.channel?.name ?: "") }
     var topic by remember { mutableStateOf(uiState.channel?.description ?: "") }
@@ -123,11 +126,11 @@ fun GeneralTabContent(
             .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        SettingsSection(title = "GENERAL SETTINGS", cardColor = cardColor, foregroundText = foregroundText) {
+        SettingsSection(title = stringResource(R.string.settings_generalSettingsTitle), cardColor = cardColor, foregroundText = foregroundText) {
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Channel Name", color = primaryText) },
+                label = { Text(stringResource(R.string.settings_channelNameLabel), color = primaryText) },
                 modifier = Modifier.fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
@@ -141,7 +144,7 @@ fun GeneralTabContent(
             OutlinedTextField(
                 value = topic,
                 onValueChange = { topic = it },
-                label = { Text("Channel Topic", color = primaryText) },
+                label = { Text(stringResource(R.string.settings_channelTopicLabel), color = primaryText) },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3,
                 maxLines = 5,
@@ -160,8 +163,8 @@ fun GeneralTabContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Private Channel", color = foregroundText)
-                    Text("Only selected members and roles will be able to view this channel.", color = primaryText, fontSize = 12.sp)
+                    Text(stringResource(R.string.settings_privateChannelLabel), color = foregroundText)
+                    Text(stringResource(R.string.settings_privateChannelDesc), color = primaryText, fontSize = 12.sp)
                 }
                 Switch(
                     checked = isPrivate,
@@ -193,10 +196,10 @@ fun GeneralTabContent(
                 enabled = !uiState.isSaving && name.isNotBlank()
             ) {
                 if (uiState.isSaving) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White)
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = SharkordTheme.colors.foregroundText)
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text("Save Changes")
+                Text(stringResource(R.string.common_saveChanges))
             }
         }
     }
@@ -210,15 +213,15 @@ fun PermissionsTabContent(
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
 
-    val cardColor = Color(0xFF2B2B2B)
-    val primaryText = Color(0xFFE8E8E8)
-    val foregroundText = Color(0xFFFAFAFA)
-    val accentColor = Color(0xFF5865F2)
+    val cardColor = SharkordTheme.colors.cardColor
+    val primaryText = SharkordTheme.colors.primaryText
+    val foregroundText = SharkordTheme.colors.foregroundText
+    val accentColor = SharkordTheme.colors.accentColor
 
     if (uiState.channel?.private == false) {
         Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
             Text(
-                "This channel is public.\nMake it private in the General tab to manage specific permissions.",
+                stringResource(R.string.settings_publicChannelNotice),
                 color = primaryText,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
@@ -261,7 +264,7 @@ fun PermissionsTabContent(
             .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        SettingsSection(title = "ROLE OVERRIDES", cardColor = cardColor, foregroundText = foregroundText) {
+        SettingsSection(title = stringResource(R.string.settings_roleOverridesTitle), cardColor = cardColor, foregroundText = foregroundText) {
             val roleIdsWithOverrides = uiState.rolePermissions.map { it.roleId }.distinct()
             
             // flowRow for Roles
@@ -289,7 +292,7 @@ fun PermissionsTabContent(
                 }
 
                 Box {
-                    Button(onClick = { showAddRoleDropdown = true }, colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)) {
+                    Button(onClick = { showAddRoleDropdown = true }, colors = ButtonDefaults.buttonColors(containerColor = SharkordTheme.colors.primaryText.copy(alpha = 0.6f))) {
                         Text("+ " + androidx.compose.ui.res.stringResource(id = com.sharkord.android.R.string.common_add))
                     }
                     DropdownMenu(expanded = showAddRoleDropdown, onDismissRequest = { showAddRoleDropdown = false }) {
@@ -309,7 +312,7 @@ fun PermissionsTabContent(
             }
         }
 
-        SettingsSection(title = "USER OVERRIDES", cardColor = cardColor, foregroundText = foregroundText) {
+        SettingsSection(title = stringResource(R.string.settings_userOverridesTitle), cardColor = cardColor, foregroundText = foregroundText) {
             val userIdsWithOverrides = uiState.userPermissions.map { it.userId }.distinct()
             
             // flowRow for Users
@@ -337,7 +340,7 @@ fun PermissionsTabContent(
                 }
 
                 Box {
-                    Button(onClick = { showAddUserDropdown = true }, colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)) {
+                    Button(onClick = { showAddUserDropdown = true }, colors = ButtonDefaults.buttonColors(containerColor = SharkordTheme.colors.primaryText.copy(alpha = 0.6f))) {
                         Text("+ " + androidx.compose.ui.res.stringResource(id = com.sharkord.android.R.string.common_add))
                     }
                     DropdownMenu(expanded = showAddUserDropdown, onDismissRequest = { showAddUserDropdown = false }) {
@@ -364,7 +367,7 @@ fun PermissionsTabContent(
                 serverUsers.find { it.id == selectedUserId }?.name ?: "User"
             }
             
-            SettingsSection(title = "EDIT PERMISSIONS FOR ${selectedName.uppercase()}", cardColor = cardColor, foregroundText = foregroundText) {
+            SettingsSection(title = stringResource(R.string.settings_editPermissionsFor, selectedName.uppercase()), cardColor = cardColor, foregroundText = foregroundText) {
                 val context = androidx.compose.ui.platform.LocalContext.current
                 com.sharkord.android.data.model.ChannelPermission.values().forEach { permission ->
                     val isAllowed = currentPermissionsMap[permission.value] == true
@@ -412,7 +415,7 @@ fun PermissionsTabContent(
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(androidx.compose.ui.res.stringResource(id = com.sharkord.android.R.string.common_deleteLabel), color = Color.White)
+                    Text(androidx.compose.ui.res.stringResource(id = com.sharkord.android.R.string.common_deleteLabel), color = SharkordTheme.colors.foregroundText)
                 }
             }
         }

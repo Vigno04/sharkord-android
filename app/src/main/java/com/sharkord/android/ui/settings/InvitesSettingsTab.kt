@@ -17,9 +17,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sharkord.android.R
 import com.sharkord.android.data.model.Role
 import com.sharkord.android.data.model.Invite
 
@@ -48,22 +50,22 @@ fun ServerInvitesTab(
         var roleExpanded by remember { mutableStateOf(false) }
         var expirationExpanded by remember { mutableStateOf(false) }
         
-        val expirations = listOf("1 Hour", "1 Day", "7 Days", "Never")
-        var selectedExpiration by remember { mutableStateOf("Never") }
+        val expirations = listOf(R.string.settings_exp1Hour, R.string.settings_exp1Day, R.string.settings_exp7Days, R.string.settings_expNever)
+        var selectedExpiration by remember { mutableStateOf(R.string.settings_expNever) }
         
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
             containerColor = cardColor,
-            title = { Text("Create Invite", color = foregroundText, fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(R.string.settings_createInviteDialogTitle), color = foregroundText, fontWeight = FontWeight.Bold) },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    Text("Invite Code (Optional):", color = primaryText)
+                    Text(stringResource(R.string.settings_inviteCodeLabel), color = primaryText)
                     Spacer(modifier = Modifier.height(4.dp))
                     OutlinedTextField(
                         value = inviteCode,
                         onValueChange = { inviteCode = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Leave blank for random code", color = primaryText.copy(alpha = 0.5f)) },
+                        placeholder = { Text(stringResource(R.string.settings_inviteCodePlaceholder), color = primaryText.copy(alpha = 0.5f)) },
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                             focusedTextColor = foregroundText, unfocusedTextColor = primaryText, focusedIndicatorColor = accentColor
@@ -71,7 +73,7 @@ fun ServerInvitesTab(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Text("Maximum Uses (0 for unlimited):", color = primaryText)
+                    Text(stringResource(R.string.settings_maxUsesLabel), color = primaryText)
                     Spacer(modifier = Modifier.height(4.dp))
                     OutlinedTextField(
                         value = maxUsesStr,
@@ -84,14 +86,14 @@ fun ServerInvitesTab(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Text("Assigned Role:", color = primaryText)
+                    Text(stringResource(R.string.settings_assignedRoleLabel), color = primaryText)
                     Spacer(modifier = Modifier.height(4.dp))
                     ExposedDropdownMenuBox(
                         expanded = roleExpanded,
                         onExpandedChange = { roleExpanded = !roleExpanded }
                     ) {
                         OutlinedTextField(
-                            value = selectedRole?.name ?: "None",
+                            value = selectedRole?.name ?: stringResource(R.string.common_none),
                             onValueChange = {},
                             readOnly = true,
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = roleExpanded) },
@@ -107,7 +109,7 @@ fun ServerInvitesTab(
                             modifier = Modifier.background(cardColor)
                         ) {
                             DropdownMenuItem(
-                                text = { Text("None", color = foregroundText) },
+                                text = { Text(stringResource(R.string.common_none), color = foregroundText) },
                                 onClick = {
                                     selectedRole = null
                                     roleExpanded = false
@@ -128,14 +130,14 @@ fun ServerInvitesTab(
                     }
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Text("Expiration:", color = primaryText)
+                    Text(stringResource(R.string.settings_expirationLabel), color = primaryText)
                     Spacer(modifier = Modifier.height(4.dp))
                     ExposedDropdownMenuBox(
                         expanded = expirationExpanded,
                         onExpandedChange = { expirationExpanded = !expirationExpanded }
                     ) {
                         OutlinedTextField(
-                            value = selectedExpiration,
+                            value = stringResource(selectedExpiration),
                             onValueChange = {},
                             readOnly = true,
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expirationExpanded) },
@@ -152,7 +154,7 @@ fun ServerInvitesTab(
                         ) {
                             expirations.forEach { exp ->
                                 DropdownMenuItem(
-                                    text = { Text(exp, color = foregroundText) },
+                                    text = { Text(stringResource(exp), color = foregroundText) },
                                     onClick = {
                                         selectedExpiration = exp
                                         expirationExpanded = false
@@ -170,9 +172,9 @@ fun ServerInvitesTab(
                         val code = inviteCode.takeIf { it.isNotBlank() }
                         val roleId = selectedRole?.id
                         val expiresAt = when (selectedExpiration) {
-                            "1 Hour" -> System.currentTimeMillis() + 3600_000L
-                            "1 Day" -> System.currentTimeMillis() + 86400_000L
-                            "7 Days" -> System.currentTimeMillis() + 7 * 86400_000L
+                            R.string.settings_exp1Hour -> System.currentTimeMillis() + 3600_000L
+                            R.string.settings_exp1Day -> System.currentTimeMillis() + 86400_000L
+                            R.string.settings_exp7Days -> System.currentTimeMillis() + 7 * 86400_000L
                             else -> null
                         }
                         viewModel.createInvite(
@@ -185,12 +187,12 @@ fun ServerInvitesTab(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                 ) {
-                    Text("Generate")
+                    Text(stringResource(R.string.settings_generateInviteBtn))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showCreateDialog = false }) {
-                    Text("Cancel", color = primaryText)
+                    Text(stringResource(R.string.common_cancel), color = primaryText)
                 }
             }
         )
@@ -202,20 +204,20 @@ fun ServerInvitesTab(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("SERVER INVITES", color = foregroundText, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.settings_serverInvitesTitle), color = foregroundText, fontWeight = FontWeight.Bold)
             Button(
                 onClick = { showCreateDialog = true },
                 colors = ButtonDefaults.buttonColors(containerColor = accentColor)
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add")
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Create Invite")
+                Text(stringResource(R.string.settings_createInviteDialogTitle))
             }
         }
 
         if (invites.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No active invites.", color = primaryText)
+                Text(stringResource(R.string.settings_noActiveInvites), color = primaryText)
             }
         } else {
             LazyColumn(
@@ -228,7 +230,7 @@ fun ServerInvitesTab(
                         onCopy = {
                             val clip = android.content.ClipData.newPlainText("Invite Code", invite.code)
                             clipboardManager.setPrimaryClip(clip)
-                            android.widget.Toast.makeText(context, "Invite copied", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, context.getString(R.string.settings_inviteCopied), android.widget.Toast.LENGTH_SHORT).show()
                         },
                         onDelete = { viewModel.deleteInvite(invite.id) },
                         cardColor = cardColor,
@@ -262,9 +264,9 @@ fun InviteItemRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(invite.code, color = foregroundText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             val usesText = if (invite.maxUses != null && invite.maxUses > 0) {
-                "${invite.uses} / ${invite.maxUses} uses"
+                stringResource(R.string.settings_inviteUses, invite.uses, invite.maxUses)
             } else {
-                "${invite.uses} uses (Unlimited)"
+                stringResource(R.string.settings_inviteUsesUnlimited, invite.uses)
             }
             Text(usesText, color = primaryText, fontSize = 12.sp)
         }

@@ -16,6 +16,7 @@ enum class SoundType(val value: String) {
     MESSAGE_RECEIVED("message_received"),
     MESSAGE_SENT("message_sent"),
     SERVER_DISCONNECTED("server_disconnected"),
+    SERVER_RECONNECTED("server_reconnected"),
 
     OWN_USER_LEFT_VOICE_CHANNEL("own_user_left_voice_channel"),
     OWN_USER_JOINED_VOICE_CHANNEL("own_user_joined_voice_channel"),
@@ -243,6 +244,40 @@ object SoundEngine {
                 osc.frequency.exponentialRampToValueAtTime(440, endAt)
 
                 val harmonicOsc = createOsc("triangle", 784)
+                val harmonicGain = createGain(0.05f)
+
+                harmonicGain.gain.exponentialRampToValueAtTime(0.0001f, endAt)
+
+                harmonicOsc.connect(harmonicGain).connect(destination)
+                harmonicOsc.start(startAt + 0.02f)
+                harmonicOsc.stop(endAt)
+            }
+
+            osc.connect(gain).connect(destination)
+            osc.start(startAt)
+            osc.stop(endAt)
+        }
+    }
+
+    private fun SynthContext.sfxServerReconnected() {
+        val notes = listOf(
+            Note(523, 0.12f, 0f),
+            Note(659, 0.106f, 0.09f),
+            Note(784, 0.108f, 0.18f),
+            Note(1046, 0.115f, 0.27f)
+        )
+
+        notes.forEachIndexed { index, (freq, g, delay) ->
+            val startAt = now() + delay.toFloat()
+            val endAt = startAt + if (index == notes.size - 1) 0.35f else 0.18f
+            val osc = createOsc("sine", freq)
+            val gain = createGain(g)
+
+            gain.gain.setValueAtTime(g.toFloat() * SOUNDS_VOLUME, startAt)
+            gain.gain.exponentialRampToValueAtTime(0.0001f, endAt)
+
+            if (index == notes.size - 1) {
+                val harmonicOsc = createOsc("triangle", 1046)
                 val harmonicGain = createGain(0.05f)
 
                 harmonicGain.gain.exponentialRampToValueAtTime(0.0001f, endAt)
@@ -548,6 +583,7 @@ object SoundEngine {
                     SoundType.MESSAGE_RECEIVED -> sfxMessageReceived()
                     SoundType.MESSAGE_SENT -> sfxMessageSent()
                     SoundType.SERVER_DISCONNECTED -> sfxServerDisconnected()
+                    SoundType.SERVER_RECONNECTED -> sfxServerReconnected()
                     SoundType.OWN_USER_JOINED_VOICE_CHANNEL -> sfxOwnUserJoinedVoiceChannel()
                     SoundType.OWN_USER_LEFT_VOICE_CHANNEL -> sfxOwnUserLeftVoiceChannel()
                     SoundType.OWN_USER_MUTED_MIC -> sfxOwnUserMutedMic()

@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components.chat
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,7 +30,6 @@ import com.sharkord.android.data.model.User
 import com.sharkord.android.data.network.SharkordClient
 import com.sharkord.android.ui.components.AsyncImageState
 import com.sharkord.android.ui.components.rememberAsyncImageState
-import com.sharkord.android.ui.home.components.ChatColors
 
 @Composable
 fun PinnedMessagesSheet(
@@ -40,12 +40,12 @@ fun PinnedMessagesSheet(
     onUnpin: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val bgColor = ChatColors.BgColor
-    val cardColor = ChatColors.CardColor
-    val textPrimary = ChatColors.TextPrimary
-    val textSecondary = ChatColors.TextSecondary
-    val textMuted = ChatColors.TextMuted
-    val accentColor = ChatColors.AccentColor
+    val bgColor = SharkordTheme.colors.bgColor
+    val cardColor = SharkordTheme.colors.cardColor
+    val textPrimary = SharkordTheme.colors.primaryText
+    val textSecondary = SharkordTheme.colors.primaryText.copy(alpha = 0.5f)
+    val textMuted = SharkordTheme.colors.primaryText.copy(alpha = 0.5f)
+    val accentColor = SharkordTheme.colors.accentColor
 
     Box(
         modifier = modifier
@@ -78,7 +78,7 @@ fun PinnedMessagesSheet(
                         Icon(Icons.Default.Close, contentDescription = "Close", tint = textSecondary)
                     }
                 }
-                HorizontalDivider(color = Color.White.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 8.dp))
+                HorizontalDivider(color = SharkordTheme.colors.foregroundText.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 8.dp))
 
                 if (isLoading) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -110,7 +110,7 @@ fun PinnedMessagesSheet(
                                     modifier = Modifier
                                         .size(32.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFF3A3A3A)),
+                                        .background(SharkordTheme.colors.cardColor),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     val avatarUrl = author?.avatar?.name?.let { name ->
@@ -125,7 +125,7 @@ fun PinnedMessagesSheet(
                                             modifier = Modifier.fillMaxSize()
                                         )
                                         is AsyncImageState.Loading -> CircularProgressIndicator(
-                                            color = ChatColors.AccentColor,
+                                            color = SharkordTheme.colors.accentColor,
                                             modifier = Modifier.size(14.dp),
                                             strokeWidth = 2.dp
                                         )
@@ -138,7 +138,7 @@ fun PinnedMessagesSheet(
                                             ) {
                                                 Text(
                                                     text = initials,
-                                                    color = Color.White,
+                                                    color = SharkordTheme.colors.foregroundText,
                                                     fontSize = 12.sp,
                                                     fontWeight = FontWeight.Bold
                                                 )
@@ -183,19 +183,36 @@ private fun getInitials(name: String): String {
     }
 }
 
+@androidx.compose.runtime.Composable
 private fun getUsernameColor(name: String): Color {
-    val palette = listOf(
-        Color(0xFF5865F2), // Discord blurple
-        Color(0xFF57F287), // green
-        Color(0xFFFEE75C), // yellow
-        Color(0xFFEB459E), // fuchsia
-        Color(0xFFED4245), // red
-        Color(0xFF3BA55C), // dark green
-        Color(0xFF1ABC9C), // teal
-        Color(0xFF9B59B6), // purple
-        Color(0xFFE67E22), // orange
-        Color(0xFF2980B9), // blue
-    )
+    val isLight = com.sharkord.android.ui.theme.SharkordTheme.colors.isLight
+    val palette = if (isLight) {
+        listOf(
+            Color(0xFF3B48D9), // darker blurple
+            Color(0xFF2E8B57), // sea green
+            Color(0xFFD4AC0D), // dark yellow
+            Color(0xFFC2185B), // dark fuchsia
+            Color(0xFFC0392B), // dark red
+            Color(0xFF1E8449), // darker green
+            Color(0xFF117A65), // dark teal
+            Color(0xFF7D3C98), // dark purple
+            Color(0xFFBA4A00), // dark orange
+            Color(0xFF2471A3), // dark blue
+        )
+    } else {
+        listOf(
+            com.sharkord.android.ui.theme.SharkordTheme.colors.accentColor, // Discord blurple
+            Color(0xFF57F287), // green
+            Color(0xFFFEE75C), // yellow
+            Color(0xFFEB459E), // fuchsia
+            Color(0xFFED4245), // red
+            Color(0xFF3BA55C), // dark green
+            Color(0xFF1ABC9C), // teal
+            Color(0xFF9B59B6), // purple
+            Color(0xFFE67E22), // orange
+            Color(0xFF2980B9), // blue
+        )
+    }
     val index = Math.abs(name.hashCode()) % palette.size
     return palette[index]
 }

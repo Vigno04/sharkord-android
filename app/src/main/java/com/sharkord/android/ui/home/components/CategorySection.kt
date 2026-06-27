@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -65,13 +66,13 @@ fun CategorySection(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = if (isCollapsed) "▶" else "▼",
-                    color = Color.Gray,
+                    color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                     fontSize = 10.sp
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = category.name.uppercase(),
-                    color = Color.Gray,
+                    color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp
@@ -85,7 +86,7 @@ fun CategorySection(
                     Icon(
                         Icons.Default.Add,
                         contentDescription = "Add Channel",
-                        tint = Color.Gray,
+                        tint = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                         modifier = Modifier.size(16.dp)
                     )
                 }

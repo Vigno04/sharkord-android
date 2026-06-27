@@ -38,6 +38,14 @@ class UserSettingsViewModel : ViewModel() {
 
     // app Settings
     var maxDiskCacheMb = MutableStateFlow(250)
+    var autoLogin = MutableStateFlow(false)
+    var alwaysRequireBiometrics = MutableStateFlow(false)
+    var hasBiometrics = MutableStateFlow(false)
+
+    // media compression
+    var compressMedia = MutableStateFlow(false)
+    var mediaCodec = MutableStateFlow("H.264")
+    var mediaQuality = MutableStateFlow("Medium")
 
     // devices Settings
     var defaultAudioRoute = MutableStateFlow("None")
@@ -58,6 +66,14 @@ class UserSettingsViewModel : ViewModel() {
 
     init {
         maxDiskCacheMb.value = SharkordClient.session.maxDiskCacheMb
+        autoLogin.value = SharkordClient.session.autoLogin
+        alwaysRequireBiometrics.value = SharkordClient.session.alwaysRequireBiometrics
+        hasBiometrics.value = SharkordClient.session.hasBiometricCredentials()
+        
+        compressMedia.value = SharkordClient.session.compressMedia
+        mediaCodec.value = SharkordClient.session.mediaCodec
+        mediaQuality.value = SharkordClient.session.mediaQuality
+        
         defaultAudioRoute.value = SharkordClient.session.defaultAudioRoute
         echoCancellation.value = SharkordClient.session.echoCancellation
         noiseSuppression.value = SharkordClient.session.noiseSuppression
@@ -148,6 +164,38 @@ class UserSettingsViewModel : ViewModel() {
     fun saveMaxDiskCacheMb(value: Int) {
         maxDiskCacheMb.value = value
         SharkordClient.session.maxDiskCacheMb = value
+    }
+
+    fun saveAutoLogin(value: Boolean) {
+        autoLogin.value = value
+        SharkordClient.session.autoLogin = value
+    }
+
+    fun saveAlwaysRequireBiometrics(value: Boolean) {
+        alwaysRequireBiometrics.value = value
+        SharkordClient.session.alwaysRequireBiometrics = value
+    }
+
+    fun saveCompressMedia(value: Boolean) {
+        compressMedia.value = value
+        SharkordClient.session.compressMedia = value
+    }
+
+    fun saveMediaCodec(value: String) {
+        mediaCodec.value = value
+        SharkordClient.session.mediaCodec = value
+    }
+
+    fun saveMediaQuality(value: String) {
+        mediaQuality.value = value
+        SharkordClient.session.mediaQuality = value
+    }
+
+    fun removeBiometrics() {
+        SharkordClient.session.clearBiometricCredentials()
+        hasBiometrics.value = false
+        alwaysRequireBiometrics.value = false
+        SharkordClient.session.alwaysRequireBiometrics = false
     }
 
     fun saveDefaultAudioRoute(value: String) {

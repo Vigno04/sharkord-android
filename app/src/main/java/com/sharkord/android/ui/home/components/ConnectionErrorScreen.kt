@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -26,8 +27,8 @@ fun ConnectionErrorScreen(
     onRetryClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val bgColor = Color(0xFF1C1C1C)
-    val primaryText = Color(0xFFE8E8E8)
+    val bgColor = SharkordTheme.colors.bgColor
+    val primaryText = SharkordTheme.colors.primaryText
     val errorColor = Color(0xFFEF4444)
 
     Box(
@@ -85,7 +86,7 @@ fun ConnectionErrorScreen(
             // bold Connection Lost title
             Text(
                 text = stringResource(id = R.string.disconnected_connectionLost),
-                color = Color.White,
+                color = SharkordTheme.colors.foregroundText,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
@@ -96,7 +97,7 @@ fun ConnectionErrorScreen(
             // readable secondary error/description text
             Text(
                 text = errorMessage ?: stringResource(id = R.string.disconnected_lostConnectionMessage),
-                color = Color.Gray,
+                color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(0.85f)

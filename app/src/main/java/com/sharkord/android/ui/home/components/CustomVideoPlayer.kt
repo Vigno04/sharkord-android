@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
@@ -188,10 +189,9 @@ fun CustomVideoPlayer(
     ) {
         AndroidView(
             factory = { ctx ->
-                PlayerView(ctx).apply {
-                    useController = false
-                    player = if (isOverlayActive) null else exoPlayer
-                }
+                val view = android.view.LayoutInflater.from(ctx).inflate(com.sharkord.android.R.layout.view_custom_player, null, false) as PlayerView
+                view.player = if (isOverlayActive) null else exoPlayer
+                view
             },
             update = { view ->
                 val targetPlayer = if (isOverlayActive) null else exoPlayer
@@ -257,8 +257,8 @@ fun CustomVideoPlayer(
                                 exoPlayer.seekTo(newPos)
                             },
                             colors = SliderDefaults.colors(
-                                thumbColor = ChatColors.AccentColor,
-                                activeTrackColor = ChatColors.AccentColor,
+                                thumbColor = SharkordTheme.colors.accentColor,
+                                activeTrackColor = SharkordTheme.colors.accentColor,
                                 inactiveTrackColor = Color.White.copy(alpha = 0.3f)
                             ),
                             modifier = Modifier

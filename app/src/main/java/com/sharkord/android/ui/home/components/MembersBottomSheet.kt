@@ -1,17 +1,20 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -38,26 +41,49 @@ fun MembersBottomSheet(
     onDismissRequest: () -> Unit,
     onMessageClick: (Int) -> Unit
 ) {
-    val colors = com.sharkord.android.ui.theme.LocalSharkordColors.current
+    val colors = SharkordTheme.colors
+    val bgColor = colors.bgColor
     val cardColor = colors.cardColor
     val primaryText = colors.primaryText
     val foregroundText = colors.foregroundText
 
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        containerColor = cardColor,
+        sheetState = sheetState,
+        containerColor = bgColor,
         contentColor = primaryText,
-        modifier = Modifier.fillMaxHeight(0.85f)
+        modifier = Modifier // Removed fillMaxHeight to prevent detaching from bottom
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Text(
-                text = stringResource(id = R.string.common_members),
-                color = foregroundText,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
-            )
-            Divider(color = Color.White.copy(alpha = 0.05f))
+        val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(screenHeight * 0.85f)
+                .navigationBarsPadding()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = stringResource(id = R.string.common_members),
+                    color = foregroundText,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${users.size} members",
+                    color = primaryText.copy(alpha = 0.6f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Divider(color = foregroundText.copy(alpha = 0.1f))
 
             if (users.isEmpty()) {
                 Box(
@@ -68,16 +94,44 @@ fun MembersBottomSheet(
                 ) {
                     Text(
                         text = "Wow, so empty. So many friends",
-                        color = Color.Gray,
+                        color = primaryText.copy(alpha = 0.6f),
                         fontSize = 14.sp
                     )
                 }
             } else {
+                val nestedScrollConnection = androidx.compose.runtime.remember {
+                    object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+                        override fun onPostScroll(
+                            consumed: androidx.compose.ui.geometry.Offset,
+                            available: androidx.compose.ui.geometry.Offset,
+                            source: androidx.compose.ui.input.nestedscroll.NestedScrollSource
+                        ): androidx.compose.ui.geometry.Offset {
+                            return if (available.y < 0) {
+                                androidx.compose.ui.geometry.Offset(0f, available.y)
+                            } else {
+                                androidx.compose.ui.geometry.Offset.Zero
+                            }
+                        }
+                        override suspend fun onPostFling(
+                            consumed: androidx.compose.ui.unit.Velocity,
+                            available: androidx.compose.ui.unit.Velocity
+                        ): androidx.compose.ui.unit.Velocity {
+                            return if (available.y < 0) {
+                                androidx.compose.ui.unit.Velocity(0f, available.y)
+                            } else {
+                                androidx.compose.ui.unit.Velocity.Zero
+                            }
+                        }
+                    }
+                }
+
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
-                    contentPadding = PaddingValues(16.dp)
+                        .weight(1f)
+                        .nestedScroll(nestedScrollConnection),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(users) { user ->
                     val bannerColor = androidx.compose.runtime.remember(user.bannerColor) {
@@ -88,18 +142,19 @@ fun MembersBottomSheet(
                         }
                     }
                     
+                    val itemBgColor = if (bannerColor != Color.Transparent) bannerColor.copy(alpha = 0.15f) else cardColor
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(itemBgColor)
                             .clickable {
                                 if (user.id != ownUserId) {
                                     onMessageClick(user.id)
                                 }
                             }
-                            // added slight background tint based on banner color if present
-                            .background(if (bannerColor != Color.Transparent) bannerColor.copy(alpha = 0.1f) else Color.Transparent)
-                            .padding(8.dp),
+                            .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // left accent bar for banner color
@@ -121,7 +176,7 @@ fun MembersBottomSheet(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape)
-                                .background(Color.DarkGray),
+                                .background(SharkordTheme.colors.cardColor),
                             contentAlignment = Alignment.Center
                         ) {
                             if (avatarPainter != null) {
@@ -134,7 +189,7 @@ fun MembersBottomSheet(
                             } else {
                                 Text(
                                     text = user.name.take(1).uppercase(),
-                                    color = Color.White,
+                                    color = SharkordTheme.colors.foregroundText,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -151,7 +206,7 @@ fun MembersBottomSheet(
                             if (user.id == ownUserId) {
                                 Text(
                                     text = stringResource(id = R.string.common_you),
-                                    color = Color.Gray,
+                                    color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                                     fontSize = 12.sp
                                 )
                             }
@@ -159,18 +214,23 @@ fun MembersBottomSheet(
                         
                         Spacer(modifier = Modifier.weight(1f))
                         if (user.id != ownUserId) {
-                            androidx.compose.material3.Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Default.Sms,
-                                contentDescription = "Message",
-                                tint = primaryText,
+                            Box(
                                 modifier = Modifier
-                                    .size(24.dp)
-                                    .clickable { onMessageClick(user.id) }
-                                    .padding(4.dp)
-                            )
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(SharkordTheme.colors.accentColor.copy(alpha = 0.15f))
+                                    .clickable { onMessageClick(user.id) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                androidx.compose.material3.Icon(
+                                    imageVector = androidx.compose.material.icons.Icons.Default.Sms,
+                                    contentDescription = "Message",
+                                    tint = SharkordTheme.colors.accentColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
-                    Divider(color = Color.White.copy(alpha = 0.02f))
                 }
             }
         }

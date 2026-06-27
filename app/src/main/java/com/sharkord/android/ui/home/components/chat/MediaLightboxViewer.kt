@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components.chat
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -21,6 +23,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
@@ -36,6 +41,7 @@ fun MediaLightboxViewer(
     file: FileInfo,
     onClose: () -> Unit,
     onDownload: () -> Unit,
+    onShare: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val extension = file.originalName?.substringAfterLast('.', "")?.lowercase() ?: ""
@@ -50,7 +56,8 @@ fun MediaLightboxViewer(
     ) {
         if (isImage) {
             val imageUrl = "${SharkordClient.currentServerUrl}/public/${file.name}"
-            val imageState = rememberAsyncImageState(imageUrl)
+            val previewState = rememberAsyncImageState(imageUrl)
+            val fullState = com.sharkord.android.ui.components.rememberFullImageState(imageUrl)
 
             var scale by remember { mutableFloatStateOf(1f) }
             var offsetX by remember { mutableFloatStateOf(0f) }
@@ -73,28 +80,38 @@ fun MediaLightboxViewer(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                when (imageState) {
-                    is AsyncImageState.Success -> {
-                        Image(
-                            painter = imageState.painter,
-                            contentDescription = file.displayName,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer(
-                                    scaleX = scale,
-                                    scaleY = scale,
-                                    translationX = offsetX,
-                                    translationY = offsetY
-                                )
-                        )
-                    }
-                    is AsyncImageState.Loading -> {
-                        CircularProgressIndicator(color = Color.White)
-                    }
-                    else -> {
-                        Text(text = stringResource(id = R.string.chat_failedLoadImage), color = Color.White)
-                    }
+                val painterToDraw = when (fullState) {
+                    is AsyncImageState.Success -> fullState.painter
+                    else -> (previewState as? AsyncImageState.Success)?.painter
+                }
+
+                if (painterToDraw != null) {
+                    val isBlurred = fullState !is AsyncImageState.Success
+                    val blurModifier = if (isBlurred) Modifier.blur(
+                        radius = 16.dp, 
+                        edgeTreatment = BlurredEdgeTreatment.Unbounded
+                    ) else Modifier
+                    
+                    Image(
+                        painter = painterToDraw,
+                        contentDescription = file.displayName,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer(
+                                scaleX = scale,
+                                scaleY = scale,
+                                translationX = offsetX,
+                                translationY = offsetY
+                            )
+                            .then(blurModifier)
+                    )
+                }
+
+                if (fullState is AsyncImageState.Loading) {
+                    CircularProgressIndicator(color = SharkordTheme.colors.accentColor)
+                } else if (fullState is AsyncImageState.Failure && previewState !is AsyncImageState.Success) {
+                    Text(text = stringResource(id = R.string.chat_failedLoadImage), color = SharkordTheme.colors.foregroundText)
                 }
             }
         } else if (isVideo) {
@@ -106,14 +123,14 @@ fun MediaLightboxViewer(
                 CustomVideoPlayer(
                     videoUrl = videoUrl,
                     autoPlay = true,
-                    isOverlayActive = true,
+                    isOverlayActive = false,
                     onFullscreenClick = onClose,
                     modifier = Modifier.fillMaxSize()
                 )
             }
         } else {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = stringResource(id = R.string.chat_unsupportedMediaType), color = Color.White, fontSize = 16.sp)
+                Text(text = stringResource(id = R.string.chat_unsupportedMediaType), color = SharkordTheme.colors.foregroundText, fontSize = 16.sp)
             }
         }
 
@@ -134,12 +151,12 @@ fun MediaLightboxViewer(
                     .clip(CircleShape)
                     .background(Color.Black.copy(alpha = 0.5f))
             ) {
-                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                Icon(Icons.Default.Close, contentDescription = "Close", tint = SharkordTheme.colors.foregroundText)
             }
 
             Text(
                 text = file.displayName,
-                color = Color.White,
+                color = SharkordTheme.colors.foregroundText,
                 fontSize = 14.sp,
                 maxLines = 1,
                 modifier = Modifier
@@ -147,13 +164,24 @@ fun MediaLightboxViewer(
                     .padding(horizontal = 16.dp)
             )
 
-            IconButton(
-                onClick = onDownload,
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.5f))
-            ) {
-                Icon(Icons.Default.Download, contentDescription = "Download", tint = Color.White)
+            Row {
+                IconButton(
+                    onClick = onShare,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.5f))
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = "Share", tint = SharkordTheme.colors.foregroundText)
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = onDownload,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.5f))
+                ) {
+                    Icon(Icons.Default.Download, contentDescription = "Download", tint = SharkordTheme.colors.foregroundText)
+                }
             }
         }
     }

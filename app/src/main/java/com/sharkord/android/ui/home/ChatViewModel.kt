@@ -53,6 +53,8 @@ data class ChatUiState(
     val attachedFiles: List<com.sharkord.android.data.model.FileInfo> = emptyList(),
     // true while an attachment upload is in-flight
     val isUploadingAttachment: Boolean = false,
+    // current upload progress (0-100) or null if not uploading or indeterminate
+    val uploadProgress: Int? = null,
     // expose the current user's ID reactively from the server connection state
     val ownUserId: Int = -1,
     // the media file currently being viewed in full-screen lightbox
@@ -376,22 +378,26 @@ class ChatViewModel : ViewModel() {
 
     // file Upload & Voice Messaging
 
-    // uploads a file and attaches it to the draft
-    fun uploadAndAttachFile(originalName: String, fileBytes: ByteArray, localUri: String? = null) {
+    // uploads a file and attaches it to the draft using streaming
+    fun uploadAndAttachFile(context: android.content.Context, originalName: String, localUri: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isUploadingAttachment = true, errorMessage = null) }
-            repository.uploadFile(originalName, fileBytes).fold(
+            _uiState.update { it.copy(isUploadingAttachment = true, uploadProgress = 0, errorMessage = null) }
+            repository.uploadFileStream(context, originalName, localUri) { progress ->
+                _uiState.update { it.copy(uploadProgress = progress) }
+            }.fold(
                 onSuccess = { fileInfo ->
                     val updatedFileInfo = fileInfo.copy(localUri = localUri)
                     _uiState.update { it.copy(
                         attachedFiles = it.attachedFiles + updatedFileInfo,
-                        isUploadingAttachment = false
+                        isUploadingAttachment = false,
+                        uploadProgress = null
                     )}
                 },
                 onFailure = { error ->
                     Log.e(TAG, "Failed to upload file: ${error.message}")
                     _uiState.update { it.copy(
                         isUploadingAttachment = false,
+                        uploadProgress = null,
                         errorMessage = error.message ?: "Failed to upload file"
                     )}
                 }
@@ -438,6 +444,91 @@ class ChatViewModel : ViewModel() {
         }
     }
 
+    private suspend fun getOrDownloadFile(context: android.content.Context, file: com.sharkord.android.data.model.FileInfo): java.io.File? {
+        val urlString = "${SharkordClient.currentServerUrl}/public/${file.name}"
+        val tempFile = java.io.File(context.cacheDir, "shared_${file.name}_${file.displayName}")
+
+        if (tempFile.exists() && tempFile.length() > 0L) {
+            return tempFile
+        }
+
+        val imageCacheFile = com.sharkord.android.ui.components.ImageCacheManager.getDiskCacheFile(urlString)
+        val isImage = file.mimeType?.startsWith("image/") == true
+
+        if (isImage && imageCacheFile.exists() && imageCacheFile.length() > 0L) {
+            try {
+                imageCacheFile.copyTo(tempFile, overwrite = true)
+                return tempFile
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to copy from image cache", e)
+            }
+        }
+
+        val request = okhttp3.Request.Builder().url(urlString).build()
+        val response = SharkordClient.okHttpClient.newCall(request).execute()
+
+        if (!response.isSuccessful) {
+            Log.e(TAG, "Server returned HTTP ${response.code} ${response.message}")
+            return null
+        }
+
+        return response.body?.byteStream()?.use { input ->
+            java.io.FileOutputStream(tempFile).use { output ->
+                input.copyTo(output)
+            }
+            tempFile
+        }
+    }
+
+    fun shareFile(context: android.content.Context, file: com.sharkord.android.data.model.FileInfo) {
+        if (file.name == null) return
+        
+        android.widget.Toast.makeText(context, context.getString(R.string.chat_preparingShare), android.widget.Toast.LENGTH_SHORT).show()
+        
+        com.sharkord.android.utils.DiskCacheManager.trim(context)
+        
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val tempFile = getOrDownloadFile(context, file)
+                if (tempFile == null) {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        android.widget.Toast.makeText(context, context.getString(R.string.chat_failedDownloadFile), android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
+
+                val uri = androidx.core.content.FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    tempFile
+                )
+
+                val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = file.mimeType ?: "*/*"
+                    putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                    flags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                }
+
+                val chooser = android.content.Intent.createChooser(intent, "Share file")
+                chooser.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    try {
+                        context.startActivity(chooser)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to share file", e)
+                        android.widget.Toast.makeText(context, context.getString(R.string.chat_noAppFoundToOpenFile), android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to share file", e)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    android.widget.Toast.makeText(context, context.getString(R.string.chat_failedDownloadFile), android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     // media Lightbox & Download
 
     fun setViewingMediaFile(file: com.sharkord.android.data.model.FileInfo?) {
@@ -471,30 +562,14 @@ class ChatViewModel : ViewModel() {
         
         android.widget.Toast.makeText(context, context.getString(R.string.chat_openingFile, file.displayName), android.widget.Toast.LENGTH_SHORT).show()
         
-        clearOldTempFiles(context)
+        com.sharkord.android.utils.DiskCacheManager.trim(context)
         
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
-                val urlString = "${SharkordClient.currentServerUrl}/public/${file.name}"
-                val request = okhttp3.Request.Builder().url(urlString).build()
-                val response = SharkordClient.okHttpClient.newCall(request).execute()
-
-                if (!response.isSuccessful) {
-                    Log.e(TAG, "Server returned HTTP ${response.code} ${response.message}")
+                val tempFile = getOrDownloadFile(context, file)
+                if (tempFile == null) {
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                         android.widget.Toast.makeText(context, context.getString(R.string.chat_failedDownloadFile), android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                    return@launch
-                }
-
-                val tempFile = java.io.File(context.cacheDir, file.displayName)
-                response.body?.byteStream()?.use { input ->
-                    java.io.FileOutputStream(tempFile).use { output ->
-                        input.copyTo(output)
-                    }
-                } ?: run {
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        android.widget.Toast.makeText(context, context.getString(R.string.chat_emptyFile), android.widget.Toast.LENGTH_SHORT).show()
                     }
                     return@launch
                 }
@@ -527,24 +602,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    private fun clearOldTempFiles(context: android.content.Context) {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            try {
-                val cacheDir = context.cacheDir
-                if (cacheDir != null && cacheDir.exists()) {
-                    val now = System.currentTimeMillis()
-                    val oneDayMs = 24 * 60 * 60 * 1000L
-                    cacheDir.listFiles()?.forEach { file ->
-                        if (now - file.lastModified() > oneDayMs) {
-                            file.delete()
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to clear temp files", e)
-            }
-        }
-    }
+
 
     // typing Indicators
 

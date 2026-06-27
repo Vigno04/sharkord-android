@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components.chat
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
@@ -67,7 +68,6 @@ import com.sharkord.android.data.model.User
 import com.sharkord.android.ui.components.AsyncImageState
 import com.sharkord.android.ui.components.rememberAsyncImageState
 import com.sharkord.android.ui.home.ChatUiState
-import com.sharkord.android.ui.home.components.ChatColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -82,7 +82,7 @@ fun ChatInputBar(
     onSend: (String) -> Unit,
     onCancelReply: () -> Unit,
     onCancelEdit: () -> Unit,
-    onFileUpload: (String, ByteArray, String?) -> Unit,
+    onFileUpload: (String, String) -> Unit,
     onRemoveAttachment: (String) -> Unit,
     onSendAudioRecording: (String, ByteArray) -> Unit,
     isEmojiPickerOpen: Boolean = false,
@@ -90,11 +90,11 @@ fun ChatInputBar(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val cardColor = ChatColors.CardColor
-    val textPrimary = ChatColors.TextPrimary
-    val textSecondary = ChatColors.TextSecondary
-    val textMuted = ChatColors.TextMuted
-    val accentColor = ChatColors.AccentColor
+    val cardColor = SharkordTheme.colors.cardColor
+    val textPrimary = SharkordTheme.colors.primaryText
+    val textSecondary = SharkordTheme.colors.primaryText.copy(alpha = 0.5f)
+    val textMuted = SharkordTheme.colors.primaryText.copy(alpha = 0.5f)
+    val accentColor = SharkordTheme.colors.accentColor
     val keyboardController = LocalSoftwareKeyboardController.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -106,6 +106,10 @@ fun ChatInputBar(
     var hasSwipeCancelled by remember { mutableStateOf(false) }
     var mediaRecorder by remember { mutableStateOf<android.media.MediaRecorder?>(null) }
     var audioFilepath by remember { mutableStateOf<String?>(null) }
+    
+    // attachment Menu State
+    var isAttachmentMenuOpen by remember { mutableStateOf(false) }
+    var showCameraCapture by remember { mutableStateOf(false) }
 
     val startRecording = {
         try {
@@ -229,12 +233,23 @@ fun ChatInputBar(
             }
 
             try {
-                contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val fileBytes = inputStream.readBytes()
-                    onFileUpload(originalName, fileBytes, uri.toString())
-                }
+                onFileUpload(originalName, uri.toString())
             } catch (e: Exception) {
-                Log.e("ChatInputBar", "Failed to read file", e)
+                Log.e("ChatInputBar", "Failed to process file uri", e)
+            }
+        }
+    }
+
+    // gallery Picker
+    val galleryPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            val originalName = "gallery_media"
+            try {
+                onFileUpload(originalName, uri.toString())
+            } catch (e: Exception) {
+                Log.e("ChatInputBar", "Failed to process gallery uri", e)
             }
         }
     }
@@ -301,7 +316,7 @@ fun ChatInputBar(
                                     modifier = Modifier
                                         .size(36.dp)
                                         .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0xFF2B2B2B)),
+                                        .background(SharkordTheme.colors.cardColor),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     when (imgState) {
@@ -341,7 +356,7 @@ fun ChatInputBar(
                                     Icon(
                                         imageVector = Icons.Default.PlayArrow,
                                         contentDescription = null,
-                                        tint = Color.White.copy(alpha = 0.85f),
+                                        tint = SharkordTheme.colors.foregroundText.copy(alpha = 0.85f),
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -379,11 +394,20 @@ fun ChatInputBar(
                             .padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        CircularProgressIndicator(
-                            color = accentColor,
-                            modifier = Modifier.size(14.dp),
-                            strokeWidth = 2.dp
-                        )
+                        if (uiState.uploadProgress != null) {
+                            CircularProgressIndicator(
+                                progress = uiState.uploadProgress.toFloat() / 100f,
+                                color = accentColor,
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            CircularProgressIndicator(
+                                color = accentColor,
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp
+                            )
+                        }
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = stringResource(id = R.string.chat_uploading),
@@ -408,12 +432,41 @@ fun ChatInputBar(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            color = Color(0xFF242424),
+                            color = SharkordTheme.colors.cardColor,
                             shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                         )
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val avatarUrl = replyAuthor?.avatar?.name?.let { "${com.sharkord.android.data.network.SharkordClient.currentServerUrl}/public/$it" }
+                    val avatarPainter = com.sharkord.android.ui.components.rememberAsyncImagePainter(avatarUrl, fallbackResourceId = null)
+                    
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(SharkordTheme.colors.bgColor),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (avatarPainter != null) {
+                            Image(
+                                painter = avatarPainter,
+                                contentDescription = "User Avatar",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Text(
+                                text = replyAuthor?.name?.take(1)?.uppercase() ?: "?",
+                                color = SharkordTheme.colors.foregroundText,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.width(12.dp))
+
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = stringResource(id = R.string.common_replyingTo, replyAuthor?.name ?: "Unknown"),
@@ -421,8 +474,18 @@ fun ChatInputBar(
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        val snippet = remember(target.content) {
-                            HtmlCompat.fromHtml(target.content ?: "", HtmlCompat.FROM_HTML_MODE_COMPACT).toString().trim()
+                        val snippet = remember(target.content, target.files) {
+                            var text = HtmlCompat.fromHtml(target.content ?: "", HtmlCompat.FROM_HTML_MODE_COMPACT).toString().trim()
+                            if (text.isEmpty() && target.files.isNotEmpty()) {
+                                val file = target.files.first()
+                                text = when {
+                                    file.isVideo -> "Video"
+                                    file.isImage -> "Photo"
+                                    file.mimeType?.startsWith("audio/") == true -> "Audio"
+                                    else -> "File"
+                                }
+                            }
+                            text
                         }
                         Text(
                             text = snippet,
@@ -459,7 +522,7 @@ fun ChatInputBar(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            color = Color(0xFF242424),
+                            color = SharkordTheme.colors.cardColor,
                             shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                         )
                         .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -496,6 +559,35 @@ fun ChatInputBar(
                     }
                 }
             }
+        }
+
+        // Attachment Menu
+        AnimatedVisibility(
+            visible = isAttachmentMenuOpen,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            AttachmentMenu(
+                onCameraClick = {
+                    isAttachmentMenuOpen = false
+                    showCameraCapture = true
+                },
+                onGalleryClick = {
+                    isAttachmentMenuOpen = false
+                    galleryPickerLauncher.launch(
+                        androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                    )
+                },
+                onFilesClick = {
+                    isAttachmentMenuOpen = false
+                    filePickerLauncher.launch("*/*")
+                },
+                onLocationClick = {
+                    isAttachmentMenuOpen = false
+                    android.widget.Toast.makeText(context, "Work in progress", android.widget.Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
         }
 
         // input Field Row
@@ -595,12 +687,12 @@ fun ChatInputBar(
                     }
                 )
 
-                // right: Attach File button
-                IconButton(onClick = { filePickerLauncher.launch("*/*") }) {
+                // right: Attach Menu button
+                IconButton(onClick = { isAttachmentMenuOpen = !isAttachmentMenuOpen }) {
                     Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Attach File",
-                        tint = textSecondary
+                        imageVector = if (isAttachmentMenuOpen) Icons.Default.Close else Icons.Default.Add,
+                        contentDescription = "Attach Options",
+                        tint = if (isAttachmentMenuOpen) accentColor else textSecondary
                     )
                 }
             }
@@ -705,6 +797,27 @@ fun ChatInputBar(
             }
         }
     }
+
+    if (showCameraCapture) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { showCameraCapture = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            CameraCaptureScreen(
+                onPhotoCaptured = { name, uri ->
+                    showCameraCapture = false
+                    onFileUpload(name, uri.toString())
+                },
+                onVideoCaptured = { name, uri ->
+                    showCameraCapture = false
+                    onFileUpload(name, uri.toString())
+                },
+                onClose = {
+                    showCameraCapture = false
+                }
+            )
+        }
+    }
 }
 
 @Composable
@@ -734,7 +847,7 @@ fun TypingDotsWave() {
                 modifier = Modifier
                     .size(6.dp)
                     .graphicsLayer { translationY = -animatable.value * 8.dp.toPx() }
-                    .background(Color.Gray, CircleShape)
+                    .background(SharkordTheme.colors.primaryText.copy(alpha = 0.6f), CircleShape)
             )
         }
     }

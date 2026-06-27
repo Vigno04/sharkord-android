@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
@@ -89,7 +90,7 @@ fun FullscreenScreenShareDialog(
                 Icon(
                     Icons.Default.Close,
                     contentDescription = "Close Fullscreen",
-                    tint = Color.White
+                    tint = SharkordTheme.colors.foregroundText
                 )
             }
         }

@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.settings
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import android.content.Context
 import android.net.Uri
 import android.os.Environment
@@ -25,11 +26,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import com.sharkord.android.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -57,13 +60,13 @@ fun UserSettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    val bgColor = Color(0xFF1C1C1C)
-    val cardColor = Color(0xFF2B2B2B)
-    val primaryText = Color(0xFFE8E8E8)
-    val foregroundText = Color(0xFFFAFAFA)
-    val accentColor = Color(0xFF5865F2)
+    val bgColor = SharkordTheme.colors.bgColor
+    val cardColor = SharkordTheme.colors.cardColor
+    val primaryText = SharkordTheme.colors.primaryText
+    val foregroundText = SharkordTheme.colors.foregroundText
+    val accentColor = SharkordTheme.colors.accentColor
     
-    val tabs = listOf("Profile", "Devices", "Password", "Notifications", "App Settings", "Others")
+    val tabs = listOf("Profile", "Call Settings", "Password", "Notifications", "App Settings")
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val coroutineScope = rememberCoroutineScope()
 
@@ -82,7 +85,7 @@ fun UserSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("User Settings", color = foregroundText, fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.profile_user_settings_title), color = foregroundText, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = foregroundText)
@@ -98,6 +101,31 @@ fun UserSettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            val isInVoiceChannel by remember {
+                if (com.sharkord.android.data.network.SharkordClient.isVoiceEngineInitialized) {
+                    com.sharkord.android.data.network.SharkordClient.voiceEngine.isConnected
+                } else {
+                    kotlinx.coroutines.flow.MutableStateFlow(false)
+                }
+            }.collectAsState()
+
+            if (isInVoiceChannel && pagerState.currentPage == 1) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFE53935))
+                        .padding(12.dp),
+                    contentAlignment = androidx.compose.ui.Alignment.Center
+                ) {
+                    Text(
+                        text = "Changing settings will take effect when re entering a new chanel",
+                        color = SharkordTheme.colors.foregroundText,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            }
             ScrollableTabRow(
                 selectedTabIndex = pagerState.currentPage,
                 containerColor = bgColor,
@@ -111,7 +139,7 @@ fun UserSettingsScreen(
                         )
                     }
                 },
-                divider = { Divider(color = Color.White.copy(alpha = 0.1f)) }
+                divider = { Divider(color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f)) }
             ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
@@ -155,7 +183,6 @@ fun UserSettingsScreen(
                             2 -> PasswordTabContent(viewModel, cardColor, foregroundText, primaryText, accentColor)
                             3 -> NotificationsTabContent(cardColor, foregroundText, primaryText, accentColor)
                             4 -> AppSettingsTabContent(viewModel, cardColor, foregroundText, primaryText, accentColor)
-                            5 -> OthersTabContent(cardColor, foregroundText, primaryText, accentColor)
                         }
                     }
                 }
@@ -246,7 +273,7 @@ fun ProfileTabContent(
                 ) {
                     Icon(Icons.Default.CameraAlt, contentDescription = null, tint = primaryText)
                     Spacer(modifier = Modifier.width(16.dp))
-                    Text("Take Photo", color = primaryText)
+                    Text(stringResource(R.string.settings_takePhoto), color = primaryText)
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth().clickable { galleryLauncher.launch("image/*") }.padding(16.dp),
@@ -254,7 +281,7 @@ fun ProfileTabContent(
                 ) {
                     Icon(Icons.Default.Image, contentDescription = null, tint = primaryText)
                     Spacer(modifier = Modifier.width(16.dp))
-                    Text("Choose from Gallery", color = primaryText)
+                    Text(stringResource(R.string.settings_chooseFromGallery), color = primaryText)
                 }
                 Spacer(modifier = Modifier.height(32.dp))
             }
@@ -268,7 +295,7 @@ fun ProfileTabContent(
                 modifier = Modifier
                     .size(80.dp)
                     .clip(CircleShape)
-                    .background(Color.DarkGray)
+                    .background(SharkordTheme.colors.cardColor)
                     .clickable { showAvatarPicker = true },
                 contentAlignment = Alignment.Center
             ) {
@@ -282,13 +309,13 @@ fun ProfileTabContent(
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    Text("No Avatar", color = Color.Gray, fontSize = 10.sp)
+                    Text(stringResource(R.string.settings_noAvatar), color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f), fontSize = 10.sp)
                 }
                 Box(
                     modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.CameraAlt, contentDescription = "Change Avatar", tint = Color.White)
+                    Icon(Icons.Default.CameraAlt, contentDescription = "Change Avatar", tint = SharkordTheme.colors.foregroundText)
                 }
             }
             
@@ -301,9 +328,9 @@ fun ProfileTabContent(
                     .clip(RoundedCornerShape(8.dp))
                     .background(
                         try { Color(android.graphics.Color.parseColor(bannerColor)) } 
-                        catch (e: Exception) { Color.DarkGray }
+                        catch (e: Exception) { SharkordTheme.colors.cardColor }
                     )
-                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                    .border(1.dp, SharkordTheme.colors.dividerColor, RoundedCornerShape(8.dp))
                     .clickable { showBannerPicker = true },
                 contentAlignment = Alignment.Center
             ) {
@@ -321,7 +348,7 @@ fun ProfileTabContent(
                     modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Image, contentDescription = "Change Banner", tint = Color.White)
+                    Icon(Icons.Default.Image, contentDescription = "Change Banner", tint = SharkordTheme.colors.foregroundText)
                 }
             }
         }
@@ -331,7 +358,7 @@ fun ProfileTabContent(
         OutlinedTextField(
             value = name,
             onValueChange = { viewModel.name.value = it },
-            label = { Text("Display Name", color = primaryText) },
+            label = { Text(stringResource(R.string.settings_displayNameLabel), color = primaryText) },
             modifier = Modifier.fillMaxWidth(),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
@@ -345,7 +372,7 @@ fun ProfileTabContent(
         OutlinedTextField(
             value = bio,
             onValueChange = { viewModel.bio.value = it },
-            label = { Text("Bio", color = primaryText) },
+            label = { Text(stringResource(R.string.settings_bioLabel), color = primaryText) },
             modifier = Modifier.fillMaxWidth(),
             minLines = 3,
             maxLines = 5,
@@ -364,7 +391,7 @@ fun ProfileTabContent(
             "#FF5722", "#795548", "#9E9E9E", "#607D8B", "#000000",
             "#FFFFFF", "#2B2B2B"
         )
-        Text("Banner Color", color = foregroundText, fontSize = 14.sp)
+        Text(stringResource(R.string.settings_bannerColorLabel), color = foregroundText, fontSize = 14.sp)
         Spacer(modifier = Modifier.height(8.dp))
         LazyRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(colorPresets) { colorHex ->
@@ -392,7 +419,7 @@ fun ProfileTabContent(
         OutlinedTextField(
             value = bannerColor,
             onValueChange = { viewModel.bannerColor.value = it },
-            label = { Text("Banner Color (Hex)", color = primaryText) },
+            label = { Text(stringResource(R.string.settings_bannerColorLabel) + " (Hex)", color = primaryText) },
             modifier = Modifier.fillMaxWidth(),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
@@ -410,10 +437,24 @@ fun ProfileTabContent(
             enabled = !uiState.isSavingProfile
         ) {
             if (uiState.isSavingProfile) {
-                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White)
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = SharkordTheme.colors.foregroundText)
                 Spacer(modifier = Modifier.width(8.dp))
             }
-            Text("Save Changes")
+            Text(stringResource(R.string.common_saveChanges))
+        }
+    }
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    SettingsSection(title = "DANGER ZONE", cardColor = cardColor, foregroundText = foregroundText) {
+        Text(stringResource(R.string.settings_deleteAccount), color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.settings_deleteAccountConfirm), color = primaryText, fontSize = 14.sp)
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = { /*TODO*/ },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+        ) {
+            Text(stringResource(R.string.settings_deleteAccount), color = SharkordTheme.colors.foregroundText)
         }
     }
 }
@@ -533,7 +574,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
                 value = defaultAudioRoute,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Default Audio Route") },
+                label = { Text(stringResource(R.string.settings_defaultAudioRoute)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedAudioRoute) },
                 modifier = Modifier.menuAnchor().fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
@@ -551,17 +592,17 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
         Spacer(modifier = Modifier.height(16.dp))
         
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Hardware Echo Cancellation", color = foregroundText, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.settings_echoCancellationLabel), color = foregroundText, modifier = Modifier.weight(1f))
             Switch(checked = echoCancellation, onCheckedChange = { viewModel.saveEchoCancellation(it) }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
         }
         Spacer(modifier = Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Hardware Noise Suppression", color = foregroundText, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.settings_noiseSuppressionLabel), color = foregroundText, modifier = Modifier.weight(1f))
             Switch(checked = noiseSuppression, onCheckedChange = { viewModel.saveNoiseSuppression(it) }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
         }
         Spacer(modifier = Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Auto Gain Control", color = foregroundText, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.settings_autoGainControlLabel), color = foregroundText, modifier = Modifier.weight(1f))
             Switch(checked = autoGainControl, onCheckedChange = { viewModel.saveAutoGainControl(it) }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
         }
     }
@@ -578,7 +619,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
                 value = defaultCamera,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Default Camera") },
+                label = { Text(stringResource(R.string.settings_defaultCamera)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCamera) },
                 modifier = Modifier.menuAnchor().fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
@@ -594,7 +635,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
         }
         
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Front Camera Settings", color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.settings_frontCameraSettings), color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
         
         ExposedDropdownMenuBox(
@@ -606,7 +647,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
                 value = "$frontVideoResolution @ ${frontVideoFps}fps",
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Format (Resolution @ FPS)") },
+                label = { Text(stringResource(R.string.settings_cameraFormatLabel)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFrontVideoResolution) },
                 modifier = Modifier.menuAnchor().fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
@@ -627,7 +668,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Back Camera Settings", color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.settings_backCameraSettings), color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
         
         ExposedDropdownMenuBox(
@@ -639,7 +680,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
                 value = "$backVideoResolution @ ${backVideoFps}fps",
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Format (Resolution @ FPS)") },
+                label = { Text(stringResource(R.string.settings_cameraFormatLabel)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedBackVideoResolution) },
                 modifier = Modifier.menuAnchor().fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
@@ -662,7 +703,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
         Spacer(modifier = Modifier.height(12.dp))
         
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Mirror Front Camera", color = foregroundText, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.settings_mirrorOwnVideoLabel), color = foregroundText, modifier = Modifier.weight(1f))
             Switch(checked = mirrorFrontCamera, onCheckedChange = { viewModel.saveMirrorFrontCamera(it) }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
         }
         
@@ -677,7 +718,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
                 value = videoCodec,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Video Codec") },
+                label = { Text(stringResource(R.string.settings_videoCodecLabel)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedVideoCodec) },
                 modifier = Modifier.menuAnchor().fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
@@ -705,7 +746,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
                 value = screenShareResolution,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Resolution") },
+                label = { Text(stringResource(R.string.settings_videoResolutionLabel)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedScreenShareResolution) },
                 modifier = Modifier.menuAnchor().fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
@@ -732,7 +773,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
                 value = "$screenShareFps fps",
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Framerate") },
+                label = { Text(stringResource(R.string.settings_videoFramerateLabel)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedScreenShareFps) },
                 modifier = Modifier.menuAnchor().fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
@@ -758,7 +799,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
                 value = videoCodec,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Screen Share Codec") },
+                label = { Text(stringResource(R.string.settings_screenShareCodecLabel)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedScreenShareCodec) },
                 modifier = Modifier.menuAnchor().fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
@@ -786,7 +827,7 @@ fun PasswordTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foreg
         OutlinedTextField(
             value = current,
             onValueChange = { viewModel.currentPassword.value = it },
-            label = { Text("Current Password", color = primaryText) },
+            label = { Text(stringResource(R.string.settings_currentPasswordLabel), color = primaryText) },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
             colors = TextFieldDefaults.colors(
@@ -798,7 +839,7 @@ fun PasswordTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foreg
         OutlinedTextField(
             value = new,
             onValueChange = { viewModel.newPassword.value = it },
-            label = { Text("New Password", color = primaryText) },
+            label = { Text(stringResource(R.string.settings_newPasswordLabel), color = primaryText) },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
             colors = TextFieldDefaults.colors(
@@ -810,7 +851,7 @@ fun PasswordTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foreg
         OutlinedTextField(
             value = confirm,
             onValueChange = { viewModel.confirmNewPassword.value = it },
-            label = { Text("Confirm New Password", color = primaryText) },
+            label = { Text(stringResource(R.string.settings_confirmNewPasswordLabel), color = primaryText) },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
             colors = TextFieldDefaults.colors(
@@ -826,10 +867,10 @@ fun PasswordTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foreg
             enabled = !uiState.isSavingPassword && current.isNotEmpty() && new.isNotEmpty() && confirm.isNotEmpty()
         ) {
             if (uiState.isSavingPassword) {
-                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White)
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = SharkordTheme.colors.foregroundText)
                 Spacer(modifier = Modifier.width(8.dp))
             }
-            Text("Update Password")
+            Text(stringResource(R.string.settings_updatePasswordBtn))
         }
     }
 }
@@ -847,42 +888,42 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
     SettingsSection(title = "NOTIFICATION PREFERENCES", cardColor = cardColor, foregroundText = foregroundText) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("All Messages", color = foregroundText)
-                Text("Get a notification for every new message", color = primaryText, fontSize = 12.sp)
+                Text(stringResource(R.string.settings_allMessagesLabel), color = foregroundText)
+                Text(stringResource(R.string.settings_allMessagesDesc), color = primaryText, fontSize = 12.sp)
             }
             Switch(checked = allMessages, onCheckedChange = { allMessages = it }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
         }
-        Divider(modifier = Modifier.padding(vertical = 12.dp), color = Color.White.copy(alpha = 0.1f))
+        Divider(modifier = Modifier.padding(vertical = 12.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
         
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Mentions Only", color = foregroundText)
-                Text("Only get notified when you are @mentioned", color = primaryText, fontSize = 12.sp)
+                Text(stringResource(R.string.settings_mentionsOnlyLabel), color = foregroundText)
+                Text(stringResource(R.string.settings_mentionsOnlyDesc), color = primaryText, fontSize = 12.sp)
             }
             Switch(checked = mentionsOnly, onCheckedChange = { mentionsOnly = it }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
         }
-        Divider(modifier = Modifier.padding(vertical = 12.dp), color = Color.White.copy(alpha = 0.1f))
+        Divider(modifier = Modifier.padding(vertical = 12.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
         
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Direct Messages", color = foregroundText)
-                Text("Get notified when someone sends you a DM", color = primaryText, fontSize = 12.sp)
+                Text(stringResource(R.string.settings_dmNotificationsLabel), color = foregroundText)
+                Text(stringResource(R.string.settings_dmNotificationsDesc), color = primaryText, fontSize = 12.sp)
             }
             Switch(checked = dmNotifications, onCheckedChange = { dmNotifications = it }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
         }
-        Divider(modifier = Modifier.padding(vertical = 12.dp), color = Color.White.copy(alpha = 0.1f))
+        Divider(modifier = Modifier.padding(vertical = 12.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
         
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Replies", color = foregroundText)
-                Text("Get notified when someone replies to your message", color = primaryText, fontSize = 12.sp)
+                Text(stringResource(R.string.settings_repliesNotificationsLabel), color = foregroundText)
+                Text(stringResource(R.string.settings_repliesNotificationsDesc), color = primaryText, fontSize = 12.sp)
             }
             Switch(checked = repliesNotifications, onCheckedChange = { repliesNotifications = it }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
         }
         
-        Divider(modifier = Modifier.padding(vertical = 16.dp), color = Color.White.copy(alpha = 0.1f))
+        Divider(modifier = Modifier.padding(vertical = 16.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
         
-        Text("Sync Frequency", color = foregroundText, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.settings_syncFrequency), color = foregroundText, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
         ExposedDropdownMenuBox(
             expanded = expandedFreq,
@@ -892,7 +933,7 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
                 value = syncFreq,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Pull Frequency") },
+                label = { Text(stringResource(R.string.settings_pullFrequency)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFreq) },
                 modifier = Modifier.menuAnchor().fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
@@ -909,9 +950,13 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregroundText: Color, primaryText: Color, accentColor: Color) {
     val maxDiskCacheMb by viewModel.maxDiskCacheMb.collectAsState()
+    val autoLogin by viewModel.autoLogin.collectAsState()
+    val alwaysRequireBiometrics by viewModel.alwaysRequireBiometrics.collectAsState()
+    val hasBiometrics by viewModel.hasBiometrics.collectAsState()
 
     val displaySize = if (maxDiskCacheMb >= 1024) {
         String.format(java.util.Locale.US, "%.1f GB", maxDiskCacheMb / 1024f)
@@ -919,11 +964,44 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
         "${maxDiskCacheMb} MB"
     }
 
+    SettingsSection(title = "SECURITY & ACCESS", cardColor = cardColor, foregroundText = foregroundText) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.connect_autoLoginLabel), color = foregroundText)
+                Text("Remember credentials and bypass login screen.", color = primaryText, fontSize = 12.sp)
+            }
+            Switch(checked = autoLogin, onCheckedChange = { viewModel.saveAutoLogin(it) }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.settings_requireBiometrics), color = foregroundText)
+                Text(stringResource(R.string.settings_requireBiometricsDesc), color = primaryText, fontSize = 12.sp)
+            }
+            Switch(checked = alwaysRequireBiometrics, onCheckedChange = { viewModel.saveAlwaysRequireBiometrics(it) }, enabled = hasBiometrics, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
+        }
+        
+        if (hasBiometrics) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = { viewModel.removeBiometrics() },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.settings_removeBiometrics), color = SharkordTheme.colors.foregroundText)
+            }
+        }
+    }
+
+    Spacer(modifier = Modifier.height(16.dp))
+
     SettingsSection(title = "STORAGE PREFERENCES", cardColor = cardColor, foregroundText = foregroundText) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Max Disk Cache Size", color = foregroundText)
-                Text("Limit how much local storage is used for images.", color = primaryText, fontSize = 12.sp)
+                Text(stringResource(R.string.settings_maxDiskCacheSize), color = foregroundText)
+                Text(stringResource(R.string.settings_maxDiskCacheSizeDesc), color = primaryText, fontSize = 12.sp)
             }
             Text(displaySize, color = accentColor, fontWeight = FontWeight.Bold)
         }
@@ -940,19 +1018,77 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
             modifier = Modifier.fillMaxWidth()
         )
     }
-}
 
-@Composable
-fun OthersTabContent(cardColor: Color, foregroundText: Color, primaryText: Color, accentColor: Color) {
-    SettingsSection(title = "DANGER ZONE", cardColor = cardColor, foregroundText = foregroundText) {
-        Text("Delete Account", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
-        Text("This action is irreversible.", color = primaryText, fontSize = 14.sp)
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = { /*TODO*/ },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
-        ) {
-            Text("Delete Account", color = Color.White)
+    Spacer(modifier = Modifier.height(16.dp))
+
+    val compressMedia by viewModel.compressMedia.collectAsState()
+    val mediaCodec by viewModel.mediaCodec.collectAsState()
+    val mediaQuality by viewModel.mediaQuality.collectAsState()
+    var expandedMediaCodec by remember { mutableStateOf(false) }
+    var expandedMediaQuality by remember { mutableStateOf(false) }
+
+    SettingsSection(title = "MEDIA COMPRESSION", cardColor = cardColor, foregroundText = foregroundText) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.settings_compressMediaLabel), color = foregroundText)
+                Text(stringResource(R.string.settings_compressMediaDesc), color = primaryText, fontSize = 12.sp)
+            }
+            Switch(checked = compressMedia, onCheckedChange = { viewModel.saveCompressMedia(it) }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
+        }
+
+        if (compressMedia) {
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // codec dropdown
+            ExposedDropdownMenuBox(
+                expanded = expandedMediaCodec,
+                onExpandedChange = { expandedMediaCodec = !expandedMediaCodec }
+            ) {
+                OutlinedTextField(
+                    value = mediaCodec,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.settings_mediaCodecLabel)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMediaCodec) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                        focusedTextColor = foregroundText, unfocusedTextColor = primaryText
+                    )
+                )
+                ExposedDropdownMenu(expanded = expandedMediaCodec, onDismissRequest = { expandedMediaCodec = false }) {
+                    val supportedCodecs = remember { com.sharkord.android.utils.VideoCodecUtils.getSupportedHardwareEncoders() }
+                    supportedCodecs.forEach { codec ->
+                        DropdownMenuItem(text = { Text(codec) }, onClick = { viewModel.saveMediaCodec(codec); expandedMediaCodec = false })
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // quality dropdown
+            ExposedDropdownMenuBox(
+                expanded = expandedMediaQuality,
+                onExpandedChange = { expandedMediaQuality = !expandedMediaQuality }
+            ) {
+                OutlinedTextField(
+                    value = mediaQuality,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.settings_mediaQualityLabel)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMediaQuality) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                        focusedTextColor = foregroundText, unfocusedTextColor = primaryText
+                    )
+                )
+                ExposedDropdownMenu(expanded = expandedMediaQuality, onDismissRequest = { expandedMediaQuality = false }) {
+                    listOf("High", "Medium", "Low").forEach { quality ->
+                        DropdownMenuItem(text = { Text(quality) }, onClick = { viewModel.saveMediaQuality(quality); expandedMediaQuality = false })
+                    }
+                }
+            }
         }
     }
 }
@@ -962,7 +1098,7 @@ fun SettingsSection(title: String, cardColor: Color, foregroundText: Color, cont
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = title,
-            color = Color.Gray,
+            color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)

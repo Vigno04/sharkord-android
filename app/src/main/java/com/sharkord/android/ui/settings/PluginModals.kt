@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.settings
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,9 +19,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import com.sharkord.android.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.gson.JsonObject
@@ -59,7 +62,7 @@ fun PluginLogsSheet(
                 .padding(16.dp)
         ) {
             Text(
-                text = "Logs: $pluginId",
+                text = stringResource(R.string.settings_pluginLogsTitle, pluginId),
                 color = foregroundText,
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
@@ -68,7 +71,7 @@ fun PluginLogsSheet(
 
             if (logs.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No logs available.", color = primaryText)
+                    Text(stringResource(R.string.settings_noLogs), color = primaryText)
                 }
             } else {
                 LazyColumn(
@@ -78,7 +81,7 @@ fun PluginLogsSheet(
                     items(logs) { log ->
                         val logColor = when (log.type) {
                             "error" -> Color.Red
-                            "debug" -> Color.Gray
+                            "debug" -> SharkordTheme.colors.primaryText.copy(alpha = 0.6f)
                             else -> accentColor
                         }
                         val icon = when (log.type) {
@@ -91,7 +94,7 @@ fun PluginLogsSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(Color.DarkGray.copy(alpha = 0.3f))
+                                .background(SharkordTheme.colors.cardColor.copy(alpha = 0.3f))
                                 .padding(8.dp),
                             verticalAlignment = Alignment.Top
                         ) {
@@ -150,7 +153,7 @@ fun PluginCommandsSheet(
                 .padding(16.dp)
         ) {
             Text(
-                text = "Commands: $pluginId",
+                text = stringResource(R.string.settings_pluginCommandsTitle, pluginId),
                 color = foregroundText,
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
@@ -159,7 +162,7 @@ fun PluginCommandsSheet(
 
             if (commands.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No commands available.", color = primaryText)
+                    Text(stringResource(R.string.settings_noCommands), color = primaryText)
                 }
             } else {
                 LazyColumn(
@@ -201,7 +204,7 @@ fun CommandItemView(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(Color.DarkGray.copy(alpha = 0.3f))
+            .background(SharkordTheme.colors.cardColor.copy(alpha = 0.3f))
             .padding(16.dp)
     ) {
         Row(
@@ -225,7 +228,7 @@ fun CommandItemView(
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = accentColor)
             ) {
-                Text(if (command.args.isNullOrEmpty() || expanded) "Execute" else "Args...")
+                Text(if (command.args.isNullOrEmpty() || expanded) stringResource(R.string.settings_executeCommand) else stringResource(R.string.settings_commandArgs))
             }
         }
 
@@ -265,7 +268,7 @@ fun CommandItemView(
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = accentColor)
             ) {
-                Text("Run Command")
+                Text(stringResource(R.string.settings_runCommand))
             }
         }
     }
@@ -296,7 +299,7 @@ fun PluginSettingsSheet(
                 .padding(16.dp)
         ) {
             Text(
-                text = "Settings: $pluginId",
+                text = stringResource(R.string.settings_pluginSettingsTitle, pluginId),
                 color = foregroundText,
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
@@ -305,7 +308,7 @@ fun PluginSettingsSheet(
 
             if (settingsResponse.definitions.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No settings available.", color = primaryText)
+                    Text(stringResource(R.string.settings_noSettings), color = primaryText)
                 }
             } else {
                 Column(
@@ -348,7 +351,7 @@ fun SettingItemView(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(Color.DarkGray.copy(alpha = 0.3f))
+            .background(SharkordTheme.colors.cardColor.copy(alpha = 0.3f))
             .padding(16.dp)
     ) {
         Text(text = definition.name, color = foregroundText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -389,7 +392,7 @@ fun SettingItemView(
                     modifier = Modifier.padding(top = 8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                 ) {
-                    Text("Save")
+                    Text(stringResource(R.string.common_save))
                 }
             }
             else -> { // string
@@ -413,7 +416,7 @@ fun SettingItemView(
                     modifier = Modifier.padding(top = 8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                 ) {
-                    Text("Save")
+                    Text(stringResource(R.string.common_save))
                 }
             }
         }

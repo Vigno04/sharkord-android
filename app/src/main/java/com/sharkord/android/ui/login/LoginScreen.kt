@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.login
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -14,6 +15,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,6 +40,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sharkord.android.R
 import com.sharkord.android.data.network.SharkordClient
 import com.sharkord.android.ui.components.rememberAsyncImagePainter
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 
 @Composable
 fun LoginScreen(
@@ -58,14 +63,14 @@ fun LoginScreen(
         viewModel.initialize(context, onLoginSuccess)
     }
     
-    val bgColor = Color(0xFF1C1C1C)
-    val cardColor = Color(0xFF2B2B2B)
-    val primaryText = Color(0xFFE8E8E8)
-    val foregroundText = Color(0xFFFAFAFA)
-    val accentColor = Color(0xFFE8E8E8)
+    val bgColor = SharkordTheme.colors.bgColor
+    val cardColor = SharkordTheme.colors.cardColor
+    val primaryText = SharkordTheme.colors.primaryText
+    val foregroundText = SharkordTheme.colors.foregroundText
+    val accentColor = SharkordTheme.colors.accentColor
 
     // render a premium full-screen splash screen immediately during auto-login transitions
-    if (hasSavedSession || viewModel.isAutoLoggingIn) {
+    if (!viewModel.hideSplashScreen && (hasSavedSession || viewModel.isAutoLoggingIn)) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -92,11 +97,15 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.height(24.dp))
                 }
 
-                CircularProgressIndicator(
-                    color = accentColor,
-                    modifier = Modifier.size(48.dp),
-                    strokeWidth = 3.dp
-                )
+                if (!viewModel.showBiometricLaunchPrompt) {
+                    CircularProgressIndicator(
+                        color = accentColor,
+                        modifier = Modifier.size(48.dp),
+                        strokeWidth = 3.dp
+                    )
+                } else {
+                    Spacer(modifier = Modifier.size(48.dp))
+                }
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
@@ -109,13 +118,114 @@ fun LoginScreen(
                 }
                 Text(
                     text = "Connecting to $hostName...",
-                    color = Color.Gray,
+                    color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
                 )
             }
         }
+
+        if (viewModel.showBiometricLaunchPrompt) {
+            LaunchedEffect(Unit) {
+                val activity = context as? FragmentActivity
+                if (activity != null) {
+                    val executor = ContextCompat.getMainExecutor(activity)
+                    val biometricPrompt = BiometricPrompt(activity, executor,
+                        object : BiometricPrompt.AuthenticationCallback() {
+                            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                                super.onAuthenticationError(errorCode, errString)
+                                viewModel.onBiometricLaunchCancel()
+                            }
+
+                            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                                super.onAuthenticationSucceeded(result)
+                                viewModel.onBiometricLaunchSuccess()
+                            }
+                        }
+                    )
+                    val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                        .setTitle("Sblocco Applicazione")
+                        .setSubtitle("Conferma l'identità per aprire Sharkord")
+                        .setNegativeButtonText("Annulla")
+                        .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK)
+                        .build()
+                    biometricPrompt.authenticate(promptInfo)
+                } else {
+                    viewModel.onBiometricLaunchCancel()
+                }
+            }
+        }
+        
         return
+    }
+
+    if (viewModel.showBiometricSavePrompt) {
+        AlertDialog(
+            onDismissRequest = { viewModel.onBiometricSaveAnswer(false) },
+            title = { Text("Abilita Impronta Digitale", color = foregroundText) },
+            text = { Text("Vuoi accedere a Sharkord con l'impronta digitale la prossima volta?", color = primaryText) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.onBiometricSaveAnswer(true) }) {
+                    Text("Sì", color = accentColor)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.onBiometricSaveAnswer(false) }) {
+                    Text("No", color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f))
+                }
+            },
+            containerColor = cardColor
+        )
+    }
+
+    if (viewModel.showBiometricLaunchPrompt) {
+        LaunchedEffect(Unit) {
+            val activity = context as? FragmentActivity
+            if (activity != null) {
+                val executor = ContextCompat.getMainExecutor(activity)
+                val biometricPrompt = BiometricPrompt(activity, executor,
+                    object : BiometricPrompt.AuthenticationCallback() {
+                        override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                            super.onAuthenticationError(errorCode, errString)
+                            viewModel.onBiometricLaunchCancel()
+                        }
+
+                        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                            super.onAuthenticationSucceeded(result)
+                            viewModel.onBiometricLaunchSuccess()
+                        }
+                    }
+                )
+                val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                    .setTitle("Sblocco Applicazione")
+                    .setSubtitle("Conferma l'identità per aprire Sharkord")
+                    .setNegativeButtonText("Annulla")
+                    .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK)
+                    .build()
+                biometricPrompt.authenticate(promptInfo)
+            } else {
+                viewModel.onBiometricLaunchCancel()
+            }
+        }
+    }
+
+    if (viewModel.showInsecureConnectionPrompt) {
+        AlertDialog(
+            onDismissRequest = { viewModel.onInsecureConnectionCancel() },
+            title = { Text(stringResource(R.string.connect_unencryptedConnection), color = foregroundText) },
+            text = { Text(stringResource(R.string.connect_unencryptedConnectionPrompt), color = primaryText) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.onInsecureConnectionConfirm(context) }) {
+                    Text(stringResource(R.string.connect_connectBtn), color = accentColor)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.onInsecureConnectionCancel() }) {
+                    Text(stringResource(R.string.connect_cancel), color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f))
+                }
+            },
+            containerColor = cardColor
+        )
     }
 
     Box(
@@ -188,7 +298,7 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = desc,
-                        color = Color.Gray,
+                        color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                         fontSize = 14.sp,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 24.dp)
@@ -231,7 +341,7 @@ fun LoginScreen(
                             value = viewModel.serverUrl,
                             onValueChange = { viewModel.serverUrl = it },
                             label = { Text(stringResource(id = R.string.sidebar_server)) },
-                            placeholder = { Text("https://demo.sharkord.com", color = Color.Gray.copy(alpha = 0.5f)) },
+                            placeholder = { Text("https://demo.sharkord.com", color = SharkordTheme.colors.primaryText.copy(alpha = 0.5f)) },
                             leadingIcon = { Icon(Icons.Default.Share, contentDescription = null, tint = primaryText) },
                             colors = TextFieldDefaults.colors(
                                 focusedTextColor = foregroundText,
@@ -239,9 +349,9 @@ fun LoginScreen(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent,
                                 focusedLabelColor = accentColor,
-                                unfocusedLabelColor = Color.Gray,
+                                unfocusedLabelColor = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                                 focusedIndicatorColor = accentColor,
-                                unfocusedIndicatorColor = Color.Gray.copy(alpha = 0.5f)
+                                unfocusedIndicatorColor = SharkordTheme.colors.primaryText.copy(alpha = 0.6f).copy(alpha = 0.5f)
                             ),
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
@@ -305,9 +415,9 @@ fun LoginScreen(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent,
                                 focusedLabelColor = accentColor,
-                                unfocusedLabelColor = Color.Gray,
+                                unfocusedLabelColor = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                                 focusedIndicatorColor = accentColor,
-                                unfocusedIndicatorColor = Color.Gray.copy(alpha = 0.5f)
+                                unfocusedIndicatorColor = SharkordTheme.colors.primaryText.copy(alpha = 0.6f).copy(alpha = 0.5f)
                             ),
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
@@ -329,9 +439,9 @@ fun LoginScreen(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent,
                                 focusedLabelColor = accentColor,
-                                unfocusedLabelColor = Color.Gray,
+                                unfocusedLabelColor = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                                 focusedIndicatorColor = accentColor,
-                                unfocusedIndicatorColor = Color.Gray.copy(alpha = 0.5f)
+                                unfocusedIndicatorColor = SharkordTheme.colors.primaryText.copy(alpha = 0.6f).copy(alpha = 0.5f)
                             ),
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
@@ -354,7 +464,7 @@ fun LoginScreen(
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = foregroundText,
                                     checkedTrackColor = accentColor.copy(alpha = 0.6f),
-                                    uncheckedThumbColor = Color.Gray,
+                                    uncheckedThumbColor = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                                     uncheckedTrackColor = Color.Black.copy(alpha = 0.3f)
                                 )
                             )
@@ -382,31 +492,85 @@ fun LoginScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                         }
 
-                        // login Button
-                        Button(
-                            onClick = { viewModel.onLoginClick(context, onLoginSuccess) },
-                            enabled = !viewModel.isLoading,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = primaryText,
-                                contentColor = bgColor
-                            ),
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp)
+                        // login Button Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            if (viewModel.isLoading) {
-                                CircularProgressIndicator(
-                                    color = bgColor,
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.5.dp
-                                )
-                            } else {
-                                Text(
-                                    text = stringResource(id = R.string.connect_connectBtn),
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                            Button(
+                                onClick = { viewModel.onLoginClick(context, onLoginSuccess) },
+                                enabled = !viewModel.isLoading,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = primaryText,
+                                    contentColor = bgColor
+                                ),
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(56.dp)
+                            ) {
+                                if (viewModel.isLoading) {
+                                    CircularProgressIndicator(
+                                        color = bgColor,
+                                        modifier = Modifier.size(24.dp),
+                                        strokeWidth = 2.5.dp
+                                    )
+                                } else {
+                                    Text(
+                                        text = stringResource(id = R.string.connect_connectBtn),
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            if (SharkordClient.session.hasBiometricCredentials() && viewModel.isBiometricSupported(context)) {
+                                Spacer(modifier = Modifier.width(12.dp))
+                                IconButton(
+                                    onClick = {
+                                        val activity = context as? FragmentActivity
+                                        if (activity != null) {
+                                            val executor = ContextCompat.getMainExecutor(activity)
+                                            val biometricPrompt = BiometricPrompt(activity, executor,
+                                                object : BiometricPrompt.AuthenticationCallback() {
+                                                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                                                        super.onAuthenticationError(errorCode, errString)
+                                                        if (errorCode != BiometricPrompt.ERROR_USER_CANCELED && errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
+                                                            viewModel.errorMessage = errString.toString()
+                                                        }
+                                                    }
+
+                                                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                                                        super.onAuthenticationSucceeded(result)
+                                                        val creds = SharkordClient.session.getBiometricCredentials()
+                                                        if (creds != null) {
+                                                            viewModel.identity = creds.first
+                                                            viewModel.password = creds.second
+                                                            viewModel.onLoginClick(context, onLoginSuccess, isBiometric = true)
+                                                        }
+                                                    }
+                                                }
+                                            )
+                                            val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                                                .setTitle("Accedi con Impronta")
+                                                .setSubtitle("Usa l'impronta per accedere a Sharkord")
+                                                .setNegativeButtonText("Annulla")
+                                                .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK)
+                                                .build()
+                                            biometricPrompt.authenticate(promptInfo)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .background(cardColor, RoundedCornerShape(16.dp))
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Fingerprint,
+                                        contentDescription = "Login with Fingerprint",
+                                        tint = accentColor,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
                             }
                         }
                     }

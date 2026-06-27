@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -38,7 +39,7 @@ fun ServerProfileBottomSheet(
     onAddCategoryClick: () -> Unit,
     onDisconnectClick: () -> Unit
 ) {
-    val colors = com.sharkord.android.ui.theme.LocalSharkordColors.current
+    val colors = SharkordTheme.colors
     val bgColor = colors.bgColor
     val cardColor = colors.cardColor
     val primaryText = colors.primaryText
@@ -80,13 +81,13 @@ fun ServerProfileBottomSheet(
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    Divider(color = Color.White.copy(alpha = 0.1f))
+                    Divider(color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
 
                     if (!serverDescription.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = stringResource(R.string.settings_descriptionLabel),
-                            color = Color.Gray,
+                            color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.sp
@@ -123,10 +124,10 @@ fun ServerProfileBottomSheet(
                             onClick = { onServerOptionsClick() },
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF5865F2).copy(alpha = 0.15f),
-                                contentColor = Color(0xFF5865F2)
+                                containerColor = SharkordTheme.colors.accentColor.copy(alpha = 0.15f),
+                                contentColor = SharkordTheme.colors.accentColor
                             ),
-                            border = BorderStroke(1.dp, Color(0xFF5865F2).copy(alpha = 0.3f)),
+                            border = BorderStroke(1.dp, SharkordTheme.colors.accentColor.copy(alpha = 0.3f)),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
@@ -185,7 +186,7 @@ fun ServerProfileBottomSheet(
                         .border(4.dp, bgColor, RoundedCornerShape(16.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Box(modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp)).background(Color.DarkGray)) {
+                    Box(modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp)).background(SharkordTheme.colors.cardColor)) {
                         val logoPainter = com.sharkord.android.ui.components.rememberAsyncImagePainter(SharkordClient.currentServerLogoUrl)
                         if (logoPainter != null) {
                             Image(
