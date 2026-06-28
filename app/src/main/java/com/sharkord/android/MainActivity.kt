@@ -1,6 +1,7 @@
 package com.sharkord.android
 
 import android.os.Bundle
+import android.content.Intent
 import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.fragment.app.FragmentActivity
@@ -33,6 +34,24 @@ class MainActivity : FragmentActivity() {
                             .consumeWindowInsets(innerPadding)
                     )
                 }
+            }
+        }
+        handleIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        intent?.let { 
+            setIntent(it)
+            handleIntent(it) 
+        }
+    }
+
+    private fun handleIntent(intent: Intent) {
+        if (intent.hasExtra("target_channel_id")) {
+            val channelId = intent.getIntExtra("target_channel_id", -1)
+            if (channelId != -1) {
+                com.sharkord.android.ui.navigation.MessageNavigationManager.jumpToChannel(channelId)
             }
         }
     }

@@ -7,12 +7,9 @@ import androidx.compose.runtime.setValue
 import com.sharkord.android.data.session.SessionManager
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.flow.MutableStateFlow
 
 // lightweight facade that provides access to the Sharkord networking layer
-// previously this was a monolithic 250+ line object containing all HTTP calls,
-// webSocket management, tRPC protocol handling, and mutable global state
-// now it's a thin coordinator that owns the shared OkHttpClient and provides
-// access to the specialized components
 // usage:
 // ```
 // sharkordClient.initialize(context)
@@ -63,12 +60,16 @@ object SharkordClient {
     // exposed as a Compose reactive state so components automatically recompose when updated
     var currentServerLogoUrl: String? by mutableStateOf(null)
 
+    // tracks the currently visible channel id in the UI, used to suppress foreground notifications
+    val activeChannelId = MutableStateFlow<Int?>(null)
+
     // initializes the client with an Android Context (required for SessionManager)
     // call this once from Application.onCreate() or the first Activity
     fun initialize(context: Context) {
         applicationContext = context.applicationContext
         session = SessionManager(applicationContext)
         voiceEngine = VoiceEngine(applicationContext, webSocket)
+        com.sharkord.android.utils.NotificationHelper.createNotificationChannel(applicationContext)
     }
 
     // clears all in-memory state. Call on logout

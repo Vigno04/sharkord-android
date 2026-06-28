@@ -91,14 +91,20 @@ class HomeViewModel : ViewModel() {
 
     init {
         // Voice-related initialization moved to VoiceViewModel
-    }
-
-    // lifecycle
-
-    // called on first composition. Initiates the WebSocket connection and starts
-    // observing both connection state changes and real-time subscription events
-    fun connect() {
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        
+        // Sync active channel to SharkordClient for notifications
+        viewModelScope.launch {
+            uiState.collect { state ->
+                val activeChannel = if (state.activePanel == com.sharkord.android.ui.home.HomePanel.SERVER_CHAT) {
+                    state.selectedServerChannelId
+                } else if (state.activePanel == com.sharkord.android.ui.home.HomePanel.DM_CHAT) {
+                    state.selectedDmChannelId
+                } else {
+                    null
+                }
+                SharkordClient.activeChannelId.value = activeChannel
+            }
+        }
 
         // observe connection state changes
         viewModelScope.launch {
@@ -119,17 +125,28 @@ class HomeViewModel : ViewModel() {
             }
         }
 
-        // fetch server details in background to ensure freshest server logo, name and description
-        viewModelScope.launch {
-            SharkordClient.currentServerUrl?.let { url ->
-                repository.fetchServerInfo(url)
-            }
-        }
-
         // observe global jump events
         viewModelScope.launch {
             com.sharkord.android.ui.navigation.MessageNavigationManager.jumpEvents.collect { event ->
                 selectChannel(channelId = event.channelId, messageId = event.messageId, navigateToChat = true)
+            }
+        }
+    }
+
+    // lifecycle
+
+    // called on first composition. Initiates the WebSocket connection
+    fun connect() {
+        if (repository.connectionState.value.isConnected || repository.connectionState.value.isInProgress) {
+            return
+        }
+
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        // fetch server details in background to ensure freshest server logo, name and description
+        viewModelScope.launch {
+            SharkordClient.currentServerUrl?.let { url ->
+                repository.fetchServerInfo(url)
             }
         }
 
@@ -459,7 +476,49 @@ class HomeViewModel : ViewModel() {
 
                 is ServerEvent.MessageReceived -> {
                     if (event.message.userId != data.ownUserId) {
-                        com.sharkord.android.audio.SoundEngine.playSound(com.sharkord.android.audio.SoundType.MESSAGE_RECEIVED)
+                        val prefs = SharkordClient.applicationContext.getSharedPreferences("SharkordSettings", android.content.Context.MODE_PRIVATE)
+                        val notifyAll = prefs.getBoolean("notif_all_messages", false)
+                        val notifyMentions = prefs.getBoolean("notif_mentions_only", false)
+                        val notifyDms = prefs.getBoolean("notif_dms", false)
+                        val notifyReplies = prefs.getBoolean("notif_replies", false)
+
+                        val channel = data.channels.find { it.id == event.message.channelId }
+                        val isDm = channel?.isDm == true
+                        val ownUser = data.users.find { it.id == data.ownUserId }
+
+                        val isReplyToMe = event.message.replyTo?.userId == data.ownUserId
+                        val isMention = ownUser != null && event.message.content.contains("@${ownUser.name}")
+
+                        val shouldNotify = when {
+                            isDm -> notifyDms || notifyAll
+                            notifyAll -> true
+                            notifyReplies && isReplyToMe -> true
+                            notifyMentions && isMention -> true
+                            else -> false
+                        }
+
+                        if (shouldNotify) {
+                            com.sharkord.android.audio.SoundEngine.playSound(com.sharkord.android.audio.SoundType.MESSAGE_RECEIVED)
+                            
+                            // Fire a local notification if we aren't looking at this channel
+                            if (SharkordClient.activeChannelId.value != event.message.channelId) {
+                                val channelName = channel?.name
+                                val senderName = data.users.find { it.id == event.message.userId }?.name ?: "Someone"
+                                val replyToUserId = event.message.replyTo?.userId
+                                val replyToName = if (replyToUserId != null) {
+                                    if (replyToUserId == data.ownUserId) "you" else data.users.find { it.id == replyToUserId }?.name
+                                } else null
+                                
+                                com.sharkord.android.utils.NotificationHelper.showNewMessageNotification(
+                                    context = SharkordClient.applicationContext,
+                                    channelId = event.message.channelId,
+                                    senderName = senderName,
+                                    messageContent = event.message.content,
+                                    channelName = channelName,
+                                    replyToName = replyToName
+                                )
+                            }
+                        }
                     }
                     state
                 }

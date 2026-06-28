@@ -1,4 +1,4 @@
-﻿package com.sharkord.android.ui.home
+package com.sharkord.android.ui.home
 
 import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.animation.core.Animatable
