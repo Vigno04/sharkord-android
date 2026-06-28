@@ -39,6 +39,7 @@
     <string name="common_copied">Copiato</string>
     <string name="common_copyDetails">Copia dettagli</string>
     <string name="common_couldNotOpenDM">Impossibile aprire il messaggio diretto</string>
+    <string name="common_createCategory">Crea Categoria</string>
     <string name="common_customTab">Personalizzate</string>
     <string name="common_delete">Elimina</string>
     <string name="common_deleteFileMsg">Sei sicuro di voler eliminare questo file?</string>
@@ -68,6 +69,7 @@
     <string name="common_fileDeleted">File eliminato</string>
     <string name="common_globalErrorDescription">Sharkord ha riscontrato un errore imprevisto. Ricarica l\'app. Se continua a succedere, apri una issue su GitHub con i dettagli dell\'errore.</string>
     <string name="common_globalErrorTitle">Ci dispiace, Sharkord si è arrestato e non è riuscito a riprendersi.</string>
+    <string name="common_grantPermissions">Concedi Permessi</string>
     <string name="common_invalidUrl">URL non valido</string>
     <string name="common_kick">Espelli</string>
     <string name="common_memberSince">Membro dal %1$s</string>
@@ -291,6 +293,16 @@
     <string name="disconnected_lostConnectionMessage">La connessione al server e stata persa in modo imprevisto.</string>
     <string name="disconnected_noReasonProvided">Nessun motivo fornito.</string>
     <string name="disconnected_time">Ora: %1$s</string>
+    <string name="login_biometricLoginSubtitle">Usa l\'impronta per accedere a Sharkord</string>
+    <string name="login_biometricLoginTitle">Accedi con Impronta</string>
+    <string name="login_biometricUnlockSubtitle">Conferma l\'identità per aprire Sharkord</string>
+    <string name="login_biometricUnlockTitle">Sblocco Applicazione</string>
+    <string name="notification_channel_desc">Notifiche per i nuovi messaggi</string>
+    <string name="notification_channel_name">Messaggi</string>
+    <string name="notification_mark_as_read">Segna come letto</string>
+    <string name="notification_title_channel">%1$s in #%2$s</string>
+    <string name="notification_title_reply">%1$s ha risposto a %2$s</string>
+    <string name="notification_title_reply_channel">%1$s ha risposto a %2$s in #%3$s</string>
     <string name="permissions_channelDescriptions_JOIN">Consente all\'utente di entrare nel canale.</string>
     <string name="permissions_channelDescriptions_SEND_MESSAGES">Consente all\'utente di inviare messaggi.</string>
     <string name="permissions_channelDescriptions_SHARE_SCREEN">Consente all\'utente di condividere il proprio schermo.</string>
@@ -365,6 +377,7 @@
     <string name="settings_askPasswordFirstJoinLabel">Richiedi password solo al primo accesso</string>
     <string name="settings_assignRoleTitle">Assegna ruolo</string>
     <string name="settings_assignedRoleLabel">Ruolo assegnato:</string>
+    <string name="settings_audioSettingsGroup">IMPOSTAZIONI AUDIO</string>
     <string name="settings_autoGainControlLabel">Controllo automatico del guadagno</string>
     <string name="settings_autoJoinLastChannelDesc">Ricollegati automaticamente all\'ultimo canale testuale alla connessione.</string>
     <string name="settings_autoJoinLastChannelLabel">Rientra automaticamente nell\'ultimo canale</string>
@@ -404,6 +417,7 @@
     <string name="settings_commandsBtn">Comandi</string>
     <string name="settings_compressMediaDesc">Comprimi le foto e i video della fotocamera prima di caricarli per risparmiare dati e tempo.</string>
     <string name="settings_compressMediaLabel">Comprimi prima di inviare</string>
+    <string name="settings_configurationGroup">CONFIGURAZIONE</string>
     <string name="settings_confirmNewPasswordLabel">Conferma nuova password</string>
     <string name="settings_copyInviteLink">Copia link invito</string>
     <string name="settings_createInviteBtn">Crea invito</string>
@@ -411,6 +425,7 @@
     <string name="settings_createRoleBtn">Crea Ruolo</string>
     <string name="settings_currentPasswordLabel">Password attuale</string>
     <string name="settings_currentVersionLabel">Versione corrente</string>
+    <string name="settings_dangerZoneGroup">ZONA PERICOLOSA</string>
     <string name="settings_defaultAudioRoute">Uscita audio predefinita</string>
     <string name="settings_defaultCamera">Fotocamera predefinita</string>
     <string name="settings_defaultMicrophone">Microfono predefinito</string>
@@ -588,6 +603,7 @@
     <string name="settings_maxFilesPerMessageLabel">Numero massimo file per messaggio</string>
     <string name="settings_maxUsesLabel">Usi massimi (0 per illimitati):</string>
     <string name="settings_mediaCodecLabel">Codec Media</string>
+    <string name="settings_mediaCompressionGroup">COMPRESSIONE MEDIA</string>
     <string name="settings_mediaQualityLabel">Qualità Media</string>
     <string name="settings_mentionsOnlyDesc">Invia una notifica solo quando vieni menzionato. Ignorato se e attivo \'Tutti i messaggi\'.</string>
     <string name="settings_mentionsOnlyLabel">Solo menzioni</string>
@@ -772,6 +788,7 @@ Rendilo privato nella scheda Generale per gestire i permessi specifici.</string>
     <string name="settings_saveChanges">Salva modifiche</string>
     <string name="settings_saveRoleBtn">Salva ruolo</string>
     <string name="settings_screenShareCodecLabel">Codec Condivisione Schermo</string>
+    <string name="settings_screenShareSettingsGroup">IMPOSTAZIONI CONDIVISIONE SCHERMO</string>
     <string name="settings_screenSharingLabel">Condivisione schermo</string>
     <string name="settings_screenSharingNote">Queste impostazioni di condivisione schermo sono best effort e potrebbero non essere supportate su tutte le piattaforme o browser; in alcuni casi risoluzione, framerate o codec effettivi possono differire da quelli selezionati. Alla fine, e il browser a gestire il flusso nel modo migliore in base a prestazioni del sistema e condizioni di rete.</string>
     <string name="settings_searchDesc">Consenti agli utenti di cercare messaggi e file in tutto il server.</string>
@@ -788,6 +805,7 @@ Rendilo privato nella scheda Generale per gestire i permessi specifici.</string>
     <string name="settings_searchRolesPlaceholder">Cerca ruoli...</string>
     <string name="settings_searchUsers">Cerca utenti...</string>
     <string name="settings_searchUsersPlaceholder">Cerca utenti per nome o identita...</string>
+    <string name="settings_securityAccessGroup">SICUREZZA E ACCESSO</string>
     <string name="settings_selectCodecPlaceholder">Seleziona codec</string>
     <string name="settings_selectRoleOrUser">Seleziona un ruolo o un utente per modificare i permessi, oppure aggiungi una nuova eccezione</string>
     <string name="settings_selectRoleToEdit">Seleziona un ruolo da modificare o creane uno nuovo</string>
@@ -831,6 +849,7 @@ Rendilo privato nella scheda Generale per gestire i permessi specifici.</string>
     <string name="settings_stopTestBtn">Ferma test</string>
     <string name="settings_stopVideoPreviewBtn">Ferma anteprima video</string>
     <string name="settings_storageDesc">Gestisci le impostazioni di archiviazione del server. Controlla come i dati vengono salvati, accessibili e gestiti. Qui puoi configurare limiti di spazio, opzioni di backup e politiche di conservazione dati per garantire prestazioni e affidabilita ottimali.</string>
+    <string name="settings_storagePreferencesGroup">PREFERENZE DI ARCHIVIAZIONE</string>
     <string name="settings_storageTab">Archiviazione</string>
     <string name="settings_storageTitle">Archiviazione</string>
     <string name="settings_suppressLocalAudioPlaybackCompatibilityLink">Controlla compatibilita browser.</string>
@@ -873,12 +892,14 @@ Rendilo privato nella scheda Generale per gestire i permessi specifici.</string>
     <string name="settings_updatesNotSupportedTitle">Aggiornamenti non supportati</string>
     <string name="settings_updatesTab">Aggiornamenti</string>
     <string name="settings_updatesTitle">Aggiornamenti</string>
+    <string name="settings_uploadBtn">Carica</string>
     <string name="settings_uploadEmojiBtn">Carica emoji</string>
     <string name="settings_uploadEmojiDesc">Seleziona un\'emoji da modificare o caricane di nuove per personalizzare il server</string>
     <string name="settings_uploadEmojiTitle">Carica emoji personalizzate</string>
     <string name="settings_usedSpace">Spazio utilizzato</string>
     <string name="settings_userIdLabel">ID utente</string>
     <string name="settings_userOverridesTitle">ECCEZIONI UTENTE</string>
+    <string name="settings_userProfileGroup">PROFILO UTENTE</string>
     <string name="settings_userSettingsTitle">Impostazioni utente</string>
     <string name="settings_usernameLabel">Nome utente</string>
     <string name="settings_usernamePlaceholder">Nome utente</string>
@@ -893,9 +914,11 @@ Rendilo privato nella scheda Generale per gestire i permessi specifici.</string>
     <string name="settings_usersTab">Utenti</string>
     <string name="settings_usersTitle">Utenti</string>
     <string name="settings_usersUserCol">Utente</string>
+    <string name="settings_versionInfoGroup">INFORMAZIONI VERSIONE</string>
     <string name="settings_videoCodecLabel">Codec Video</string>
     <string name="settings_videoFramerateLabel">Framerate Video</string>
     <string name="settings_videoResolutionLabel">Risoluzione Video</string>
+    <string name="settings_videoSettingsGroup">IMPOSTAZIONI VIDEO</string>
     <string name="settings_visitHomepage">Visita il sito</string>
     <string name="settings_voiceChannelActiveInfo">Sei in un canale vocale: le modifiche avranno effetto solo dopo essere uscito e rientrato nel canale.</string>
     <string name="settings_voiceControlsUnavailable">I controlli vocali non sono disponibili al momento.</string>

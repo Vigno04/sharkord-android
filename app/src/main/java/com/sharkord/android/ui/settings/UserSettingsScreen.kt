@@ -289,7 +289,7 @@ fun ProfileTabContent(
         }
     }
 
-    SettingsSection(title = "USER PROFILE", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_userProfileGroup), cardColor = cardColor, foregroundText = foregroundText) {
         
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Box(
@@ -447,7 +447,7 @@ fun ProfileTabContent(
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    SettingsSection(title = "DANGER ZONE", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_dangerZoneGroup), cardColor = cardColor, foregroundText = foregroundText) {
         Text(stringResource(R.string.settings_deleteAccount), color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
         Text(stringResource(R.string.settings_deleteAccountConfirm), color = primaryText, fontSize = 14.sp)
         Spacer(modifier = Modifier.height(16.dp))
@@ -565,7 +565,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
         }
     }
 
-    SettingsSection(title = "AUDIO SETTINGS", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_audioSettingsGroup), cardColor = cardColor, foregroundText = foregroundText) {
         ExposedDropdownMenuBox(
             expanded = expandedAudioRoute,
             onExpandedChange = { expandedAudioRoute = !expandedAudioRoute },
@@ -610,7 +610,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    SettingsSection(title = "VIDEO SETTINGS", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_videoSettingsGroup), cardColor = cardColor, foregroundText = foregroundText) {
         ExposedDropdownMenuBox(
             expanded = expandedCamera,
             onExpandedChange = { expandedCamera = !expandedCamera },
@@ -737,7 +737,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    SettingsSection(title = "SCREEN SHARE SETTINGS", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_screenShareSettingsGroup), cardColor = cardColor, foregroundText = foregroundText) {
         ExposedDropdownMenuBox(
             expanded = expandedScreenShareResolution,
             onExpandedChange = { expandedScreenShareResolution = !expandedScreenShareResolution },
@@ -824,7 +824,7 @@ fun PasswordTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foreg
     val confirm by viewModel.confirmNewPassword.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     
-    SettingsSection(title = "CHANGE PASSWORD", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_passwordTitle), cardColor = cardColor, foregroundText = foregroundText) {
         OutlinedTextField(
             value = current,
             onValueChange = { viewModel.currentPassword.value = it },
@@ -930,7 +930,7 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
         }
     }
 
-    SettingsSection(title = "NOTIFICATION PREFERENCES", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_notificationsTitle), cardColor = cardColor, foregroundText = foregroundText) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.settings_allMessagesLabel), color = foregroundText)
@@ -1015,7 +1015,7 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
                 value = syncFreq,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Pull Frequency") },
+                label = { Text(stringResource(com.sharkord.android.R.string.settings_pullFrequency)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFreq) },
                 modifier = Modifier.menuAnchor().fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
@@ -1086,7 +1086,7 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
         "${maxDiskCacheMb} MB"
     }
 
-    SettingsSection(title = "SECURITY & ACCESS", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_securityAccessGroup), cardColor = cardColor, foregroundText = foregroundText) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.connect_autoLoginLabel), color = foregroundText)
@@ -1119,7 +1119,7 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    SettingsSection(title = "STORAGE PREFERENCES", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_storagePreferencesGroup), cardColor = cardColor, foregroundText = foregroundText) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.settings_maxDiskCacheSize), color = foregroundText)
@@ -1149,7 +1149,7 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
     var expandedMediaCodec by remember { mutableStateOf(false) }
     var expandedMediaQuality by remember { mutableStateOf(false) }
 
-    SettingsSection(title = "MEDIA COMPRESSION", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_mediaCompressionGroup), cardColor = cardColor, foregroundText = foregroundText) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.settings_compressMediaLabel), color = foregroundText)

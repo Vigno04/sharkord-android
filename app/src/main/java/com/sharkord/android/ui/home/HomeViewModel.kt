@@ -131,6 +131,17 @@ class HomeViewModel : ViewModel() {
                 selectChannel(channelId = event.channelId, messageId = event.messageId, navigateToChat = true)
             }
         }
+
+        // observe explicit mark as read events (e.g. from notifications)
+        viewModelScope.launch {
+            SharkordClient.channelReadEvents.collect { channelId ->
+                _uiState.update { state ->
+                    val newMap = state.readStates.toMutableMap()
+                    newMap[channelId] = 0
+                    state.copy(readStates = newMap)
+                }
+            }
+        }
     }
 
     // lifecycle

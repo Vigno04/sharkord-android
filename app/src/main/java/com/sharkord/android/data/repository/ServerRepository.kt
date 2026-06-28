@@ -306,6 +306,7 @@ class ServerRepository {
                 addProperty("channelId", channelId)
             }
             webSocket.sendMutationAwait("channels.markAsRead", input)
+            com.sharkord.android.data.network.SharkordClient.channelReadEvents.tryEmit(channelId)
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to mark channel as read", e)

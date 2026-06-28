@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -93,7 +94,7 @@ fun CameraCaptureScreen(
                 Button(onClick = { 
                     permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO))
                 }) {
-                    Text("Grant Permissions")
+                    Text(stringResource(com.sharkord.android.R.string.common_grantPermissions))
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 TextButton(onClick = onClose) {

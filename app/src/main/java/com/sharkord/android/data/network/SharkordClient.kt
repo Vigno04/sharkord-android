@@ -63,6 +63,9 @@ object SharkordClient {
     // tracks the currently visible channel id in the UI, used to suppress foreground notifications
     val activeChannelId = MutableStateFlow<Int?>(null)
 
+    // emits channel IDs that have been explicitly marked as read by the user (e.g. via notification)
+    val channelReadEvents = kotlinx.coroutines.flow.MutableSharedFlow<Int>(extraBufferCapacity = 64)
+
     // initializes the client with an Android Context (required for SessionManager)
     // call this once from Application.onCreate() or the first Activity
     fun initialize(context: Context) {

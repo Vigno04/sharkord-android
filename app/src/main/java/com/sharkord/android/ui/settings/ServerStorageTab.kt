@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -85,19 +86,19 @@ fun ServerStorageTab(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        SettingsSection(title = "CONFIGURATION", cardColor = cardColor, foregroundText = foregroundText) {
+        SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_configurationGroup), cardColor = cardColor, foregroundText = foregroundText) {
             
             AdminSwitch(
-                title = "Enable Uploads",
-                description = "Allow users to upload files to the server.",
+                title = stringResource(com.sharkord.android.R.string.settings_allowUploadsLabel),
+                description = stringResource(com.sharkord.android.R.string.settings_allowUploadsDesc),
                 checked = adminSettings.storageUploadEnabled,
                 onCheckedChange = { viewModel.updateAdminSettings(adminSettings.copy(storageUploadEnabled = it)) },
                 foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor
             )
 
             AdminSwitch(
-                title = "File Sharing in DMs",
-                description = "Allow users to share files in direct messages.",
+                title = stringResource(com.sharkord.android.R.string.settings_allowFileSharingInDMsLabel),
+                description = stringResource(com.sharkord.android.R.string.settings_allowFileSharingInDMsDesc),
                 checked = adminSettings.storageFileSharingInDirectMessages,
                 onCheckedChange = { viewModel.updateAdminSettings(adminSettings.copy(storageFileSharingInDirectMessages = it)) },
                 foregroundText = if (isUploadsEnabled) foregroundText else primaryText.copy(alpha=0.5f), 
@@ -109,8 +110,8 @@ fun ServerStorageTab(
             Spacer(modifier = Modifier.height(16.dp))
 
             StorageSizeControl(
-                label = "Storage Quota",
-                description = "The maximum amount of storage space the entire server can use.",
+                label = stringResource(com.sharkord.android.R.string.settings_quotaLabel),
+                description = stringResource(com.sharkord.android.R.string.settings_quotaDesc),
                 value = adminSettings.storageQuota ?: (25 * StorageConstants.GIGABYTE),
                 minBytes = 1 * StorageConstants.GIGABYTE,
                 maxBytes = diskMetrics.totalSpace,
@@ -121,8 +122,8 @@ fun ServerStorageTab(
             )
 
             StorageSizeControl(
-                label = "Max File Size",
-                description = "The maximum size of a single file upload.",
+                label = stringResource(com.sharkord.android.R.string.settings_maxFileSizeLabel),
+                description = stringResource(com.sharkord.android.R.string.settings_maxFileSizeDesc),
                 value = adminSettings.storageUploadMaxFileSize ?: (100 * StorageConstants.MEGABYTE),
                 minBytes = 1 * StorageConstants.MEGABYTE,
                 maxBytes = 10 * StorageConstants.GIGABYTE,
@@ -132,8 +133,8 @@ fun ServerStorageTab(
             )
 
             StorageSizeControl(
-                label = "Max Avatar Size",
-                description = "The maximum size for user avatars.",
+                label = stringResource(com.sharkord.android.R.string.settings_maxAvatarSizeLabel),
+                description = stringResource(com.sharkord.android.R.string.settings_maxAvatarSizeDesc),
                 value = adminSettings.storageMaxAvatarSize ?: (3 * StorageConstants.MEGABYTE),
                 minBytes = 1 * StorageConstants.MEGABYTE,
                 maxBytes = 50 * StorageConstants.MEGABYTE,
@@ -143,8 +144,8 @@ fun ServerStorageTab(
             )
 
             StorageSizeControl(
-                label = "Max Banner Size",
-                description = "The maximum size for user banners.",
+                label = stringResource(com.sharkord.android.R.string.settings_maxBannerSizeLabel),
+                description = stringResource(com.sharkord.android.R.string.settings_maxBannerSizeDesc),
                 value = adminSettings.storageMaxBannerSize ?: (10 * StorageConstants.MEGABYTE),
                 minBytes = 1 * StorageConstants.MEGABYTE,
                 maxBytes = 50 * StorageConstants.MEGABYTE,
@@ -154,8 +155,8 @@ fun ServerStorageTab(
             )
 
             StorageSizeControl(
-                label = "Quota Per User",
-                description = "The maximum amount of storage space an individual user can use.",
+                label = stringResource(com.sharkord.android.R.string.settings_quotaPerUserLabel),
+                description = stringResource(com.sharkord.android.R.string.settings_quotaPerUserDesc),
                 value = adminSettings.storageSpaceQuotaByUser ?: 0L,
                 minBytes = 0L,
                 maxBytes = diskMetrics.totalSpace,
@@ -166,8 +167,8 @@ fun ServerStorageTab(
             )
 
             NumberWithPresetsControl(
-                label = "Max Files Per Message",
-                description = "The maximum number of files that can be attached to a single message.",
+                label = stringResource(com.sharkord.android.R.string.settings_maxFilesPerMessageLabel),
+                description = stringResource(com.sharkord.android.R.string.settings_maxFilesPerMessageDesc),
                 value = adminSettings.storageMaxFilesPerMessage.toLong(),
                 min = 1L,
                 max = 100L,
@@ -180,8 +181,8 @@ fun ServerStorageTab(
             Spacer(modifier = Modifier.height(16.dp))
 
             DropdownSetting(
-                label = "Overflow Action",
-                description = "What happens when the storage quota is reached.",
+                label = stringResource(com.sharkord.android.R.string.settings_overflowActionLabel),
+                description = stringResource(com.sharkord.android.R.string.settings_overflowActionDesc),
                 value = adminSettings.storageOverflowAction ?: "PREVENT_UPLOADS",
                 options = listOf("PREVENT_UPLOADS" to "Prevent Uploads", "DELETE_OLD_FILES" to "Delete Old Files"),
                 enabled = isUploadsEnabled,
@@ -194,8 +195,8 @@ fun ServerStorageTab(
             Spacer(modifier = Modifier.height(16.dp))
 
             AdminSwitch(
-                title = "Image Optimization",
-                description = "Enable server-side image compression and optimization.",
+                title = stringResource(com.sharkord.android.R.string.settings_imageOptimizationLabel),
+                description = stringResource(com.sharkord.android.R.string.settings_imageOptimizationDesc),
                 checked = adminSettings.storageImageOptimizationEnabled,
                 onCheckedChange = { viewModel.updateAdminSettings(adminSettings.copy(storageImageOptimizationEnabled = it)) },
                 foregroundText = if (isUploadsEnabled) foregroundText else primaryText.copy(alpha=0.5f), 
@@ -206,8 +207,8 @@ fun ServerStorageTab(
 
             if (adminSettings.storageImageOptimizationEnabled) {
                 SliderControl(
-                    label = "Image Quality",
-                    description = "The quality of the optimized image.",
+                    label = stringResource(com.sharkord.android.R.string.settings_imageQualityLabel),
+                    description = stringResource(com.sharkord.android.R.string.settings_imageQualityDesc),
                     value = adminSettings.storageImageOptimizationQuality.toLong(),
                     min = 1L,
                     max = 100L,
@@ -223,8 +224,8 @@ fun ServerStorageTab(
             Spacer(modifier = Modifier.height(16.dp))
 
             AdminSwitch(
-                title = "Signed URLs",
-                description = "Enable temporary signed URLs for file access.",
+                title = stringResource(com.sharkord.android.R.string.settings_signedUrlsLabel),
+                description = stringResource(com.sharkord.android.R.string.settings_signedUrlsDesc),
                 checked = adminSettings.storageSignedUrlsEnabled,
                 onCheckedChange = { viewModel.updateAdminSettings(adminSettings.copy(storageSignedUrlsEnabled = it)) },
                 foregroundText = foregroundText, primaryText = primaryText, accentColor = accentColor
@@ -232,8 +233,8 @@ fun ServerStorageTab(
 
             if (adminSettings.storageSignedUrlsEnabled) {
                 NumberWithPresetsControl(
-                    label = "Signed URL TTL",
-                    description = "How long a signed URL is valid for.",
+                    label = stringResource(com.sharkord.android.R.string.settings_signedUrlsTtlLabel),
+                    description = stringResource(com.sharkord.android.R.string.settings_signedUrlsTtlDesc),
                     value = adminSettings.storageSignedUrlsTtlSeconds.toLong() / 60L,
                     min = 1L,
                     max = 7 * 24 * 60L, // 1 week in minutes
@@ -255,7 +256,7 @@ fun ServerStorageTab(
                     CircularProgressIndicator(modifier = Modifier.size(16.dp), color = SharkordTheme.colors.foregroundText)
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text("Save Changes")
+                Text(stringResource(com.sharkord.android.R.string.settings_saveChanges))
             }
         }
     }

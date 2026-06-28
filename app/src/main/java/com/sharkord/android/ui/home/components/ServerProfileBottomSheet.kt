@@ -150,7 +150,7 @@ fun ServerProfileBottomSheet(
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
                                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Create Category")
+                                Text(stringResource(com.sharkord.android.R.string.common_createCategory))
                             }
                         }
                     }

@@ -79,6 +79,17 @@ object NotificationHelper {
 
         val parsedMessageContent = androidx.core.text.HtmlCompat.fromHtml(messageContent, androidx.core.text.HtmlCompat.FROM_HTML_MODE_COMPACT)
 
+        val markAsReadIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+            action = "com.sharkord.android.ACTION_MARK_AS_READ"
+            putExtra("channel_id", channelId)
+        }
+        val markAsReadPendingIntent: PendingIntent = PendingIntent.getBroadcast(
+            context,
+            channelId,
+            markAsReadIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_custom) // custom logo icon
             .setContentTitle(title)
@@ -87,6 +98,7 @@ object NotificationHelper {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
+            .addAction(0, "Mark as read", markAsReadPendingIntent)
 
         with(NotificationManagerCompat.from(context)) {
             // Using channelId as notification ID to group/replace notifications per channel
