@@ -331,4 +331,24 @@ class UserSettingsViewModel : ViewModel() {
             null
         }
     }
+
+    fun deleteAccount(onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null, successMessage = null)
+            try {
+                val userId = _uiState.value.user?.id ?: throw Exception("User not loaded")
+                val input = JsonObject().apply {
+                    addProperty("userId", userId)
+                    addProperty("wipe", false)
+                }
+                SharkordClient.webSocket.sendMutationAwait("users.delete", input)
+                SharkordClient.session.clearSession()
+                onSuccess()
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = e.message ?: "Failed to delete account")
+            } finally {
+                _uiState.value = _uiState.value.copy(isLoading = false)
+            }
+        }
+    }
 }

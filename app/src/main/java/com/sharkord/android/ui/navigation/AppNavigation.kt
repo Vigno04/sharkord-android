@@ -49,6 +49,11 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             UserSettingsScreen(
                 onBackClick = {
                     navController.popBackStack()
+                },
+                onAccountDeleted = {
+                    navController.navigate("login") {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
             )
         }

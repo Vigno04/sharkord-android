@@ -56,6 +56,7 @@ import org.webrtc.CameraEnumerationAndroid.CaptureFormat
 @Composable
 fun UserSettingsScreen(
     onBackClick: () -> Unit,
+    onAccountDeleted: () -> Unit,
     viewModel: UserSettingsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -179,7 +180,7 @@ fun UserSettingsScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         when (page) {
-                            0 -> ProfileTabContent(viewModel, cardColor, foregroundText, primaryText, accentColor)
+                            0 -> ProfileTabContent(viewModel, cardColor, foregroundText, primaryText, accentColor, onAccountDeleted)
                             1 -> DevicesTabContent(viewModel, cardColor, foregroundText, primaryText, accentColor)
                             2 -> PasswordTabContent(viewModel, cardColor, foregroundText, primaryText, accentColor)
                             3 -> NotificationsTabContent(cardColor, foregroundText, primaryText, accentColor)
@@ -210,7 +211,8 @@ fun ProfileTabContent(
     cardColor: Color, 
     foregroundText: Color, 
     primaryText: Color, 
-    accentColor: Color
+    accentColor: Color,
+    onAccountDeleted: () -> Unit
 ) {
     val name by viewModel.name.collectAsState()
     val bio by viewModel.bio.collectAsState()
@@ -447,12 +449,55 @@ fun ProfileTabContent(
 
     Spacer(modifier = Modifier.height(16.dp))
 
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var deleteConfirmed by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            containerColor = cardColor,
+            title = { Text(stringResource(R.string.settings_deleteAccount), color = foregroundText, fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.settings_deleteAccountConfirm), color = primaryText)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = deleteConfirmed,
+                            onCheckedChange = { deleteConfirmed = it },
+                            colors = CheckboxDefaults.colors(checkedColor = Color(0xFFEF4444), uncheckedColor = primaryText)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("I understand that this action is irreversible", color = foregroundText, fontSize = 14.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteDialog = false
+                        viewModel.deleteAccount(onSuccess = onAccountDeleted)
+                    },
+                    enabled = deleteConfirmed,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444), disabledContainerColor = cardColor, disabledContentColor = primaryText.copy(alpha = 0.5f))
+                ) {
+                    Text(stringResource(R.string.common_delete), color = if(deleteConfirmed) SharkordTheme.colors.foregroundText else primaryText.copy(alpha=0.5f))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(stringResource(R.string.common_cancel), color = primaryText)
+                }
+            }
+        )
+    }
+
     SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_dangerZoneGroup), cardColor = cardColor, foregroundText = foregroundText) {
         Text(stringResource(R.string.settings_deleteAccount), color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
         Text(stringResource(R.string.settings_deleteAccountConfirm), color = primaryText, fontSize = 14.sp)
         Spacer(modifier = Modifier.height(16.dp))
         Button(
-            onClick = { /*TODO*/ },
+            onClick = { showDeleteDialog = true },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
         ) {
             Text(stringResource(R.string.settings_deleteAccount), color = SharkordTheme.colors.foregroundText)
