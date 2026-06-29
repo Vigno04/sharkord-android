@@ -54,6 +54,14 @@
             android:name=".data.network.VoiceService"
             android:foregroundServiceType="microphone|mediaProjection"
             android:exported="false" />
+
+        <receiver
+            android:name=".utils.NotificationActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.sharkord.android.ACTION_MARK_AS_READ" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

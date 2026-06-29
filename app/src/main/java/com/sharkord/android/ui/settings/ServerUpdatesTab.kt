@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,7 +43,7 @@ fun ServerUpdatesTab(
                 CircularProgressIndicator(color = accentColor)
             }
         } else if (info != null) {
-            SettingsSection(title = "VERSION INFO", cardColor = cardColor, foregroundText = foregroundText) {
+            SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_versionInfoGroup), cardColor = cardColor, foregroundText = foregroundText) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Current Version", color = primaryText)
                     Text(info.currentVersion ?: "Unknown", color = foregroundText, fontWeight = FontWeight.SemiBold)
@@ -65,7 +66,7 @@ fun ServerUpdatesTab(
                         colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Update Server")
+                        Text(stringResource(com.sharkord.android.R.string.settings_updateServerBtn))
                     }
                 } else {
                     Text("Your server is up to date.", color = Color(0xFF4CAF50), fontSize = 14.sp)

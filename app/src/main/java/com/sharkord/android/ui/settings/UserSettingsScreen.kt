@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -288,7 +289,7 @@ fun ProfileTabContent(
         }
     }
 
-    SettingsSection(title = "USER PROFILE", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_userProfileGroup), cardColor = cardColor, foregroundText = foregroundText) {
         
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Box(
@@ -446,7 +447,7 @@ fun ProfileTabContent(
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    SettingsSection(title = "DANGER ZONE", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_dangerZoneGroup), cardColor = cardColor, foregroundText = foregroundText) {
         Text(stringResource(R.string.settings_deleteAccount), color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
         Text(stringResource(R.string.settings_deleteAccountConfirm), color = primaryText, fontSize = 14.sp)
         Spacer(modifier = Modifier.height(16.dp))
@@ -564,7 +565,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
         }
     }
 
-    SettingsSection(title = "AUDIO SETTINGS", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_audioSettingsGroup), cardColor = cardColor, foregroundText = foregroundText) {
         ExposedDropdownMenuBox(
             expanded = expandedAudioRoute,
             onExpandedChange = { expandedAudioRoute = !expandedAudioRoute },
@@ -609,7 +610,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    SettingsSection(title = "VIDEO SETTINGS", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_videoSettingsGroup), cardColor = cardColor, foregroundText = foregroundText) {
         ExposedDropdownMenuBox(
             expanded = expandedCamera,
             onExpandedChange = { expandedCamera = !expandedCamera },
@@ -736,7 +737,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    SettingsSection(title = "SCREEN SHARE SETTINGS", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_screenShareSettingsGroup), cardColor = cardColor, foregroundText = foregroundText) {
         ExposedDropdownMenuBox(
             expanded = expandedScreenShareResolution,
             onExpandedChange = { expandedScreenShareResolution = !expandedScreenShareResolution },
@@ -823,7 +824,7 @@ fun PasswordTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foreg
     val confirm by viewModel.confirmNewPassword.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     
-    SettingsSection(title = "CHANGE PASSWORD", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_passwordTitle), cardColor = cardColor, foregroundText = foregroundText) {
         OutlinedTextField(
             value = current,
             onValueChange = { viewModel.currentPassword.value = it },
@@ -878,20 +879,72 @@ fun PasswordTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foreg
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText: Color, accentColor: Color) {
-    var allMessages by remember { mutableStateOf(false) }
-    var mentionsOnly by remember { mutableStateOf(true) }
-    var dmNotifications by remember { mutableStateOf(true) }
-    var repliesNotifications by remember { mutableStateOf(true) }
-    var syncFreq by remember { mutableStateOf("Real-time (Push)") }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val prefs = remember { context.getSharedPreferences("SharkordSettings", android.content.Context.MODE_PRIVATE) }
+    
+    var allMessages by remember { mutableStateOf(prefs.getBoolean("notif_all_messages", false)) }
+    var mentionsOnly by remember { mutableStateOf(prefs.getBoolean("notif_mentions_only", false)) }
+    var dmNotifications by remember { mutableStateOf(prefs.getBoolean("notif_dms", false)) }
+    var repliesNotifications by remember { mutableStateOf(prefs.getBoolean("notif_replies", false)) }
+    var syncFreq by remember { mutableStateOf(prefs.getString("notif_sync_freq", "Off") ?: "Off") }
     var expandedFreq by remember { mutableStateOf(false) }
 
-    SettingsSection(title = "NOTIFICATION PREFERENCES", cardColor = cardColor, foregroundText = foregroundText) {
+    val notificationPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) {}
+
+    fun checkAndRequestPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
+    // Helper to schedule work
+    val updateWorkManager = { freq: String ->
+        if (freq != "Off") checkAndRequestPermission()
+        val workManager = androidx.work.WorkManager.getInstance(context)
+        when (freq) {
+            "15 minutes" -> {
+                val req = androidx.work.PeriodicWorkRequestBuilder<com.sharkord.android.data.network.MessageSyncWorker>(15, java.util.concurrent.TimeUnit.MINUTES)
+                    .setConstraints(androidx.work.Constraints.Builder().setRequiredNetworkType(androidx.work.NetworkType.CONNECTED).build())
+                    .build()
+                workManager.enqueueUniquePeriodicWork("MessageSync", androidx.work.ExistingPeriodicWorkPolicy.UPDATE, req)
+            }
+            "30 minutes" -> {
+                val req = androidx.work.PeriodicWorkRequestBuilder<com.sharkord.android.data.network.MessageSyncWorker>(30, java.util.concurrent.TimeUnit.MINUTES)
+                    .setConstraints(androidx.work.Constraints.Builder().setRequiredNetworkType(androidx.work.NetworkType.CONNECTED).build())
+                    .build()
+                workManager.enqueueUniquePeriodicWork("MessageSync", androidx.work.ExistingPeriodicWorkPolicy.UPDATE, req)
+            }
+            "1 Hour" -> {
+                val req = androidx.work.PeriodicWorkRequestBuilder<com.sharkord.android.data.network.MessageSyncWorker>(1, java.util.concurrent.TimeUnit.HOURS)
+                    .setConstraints(androidx.work.Constraints.Builder().setRequiredNetworkType(androidx.work.NetworkType.CONNECTED).build())
+                    .build()
+                workManager.enqueueUniquePeriodicWork("MessageSync", androidx.work.ExistingPeriodicWorkPolicy.UPDATE, req)
+            }
+            else -> {
+                workManager.cancelUniqueWork("MessageSync")
+            }
+        }
+    }
+
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_notificationsTitle), cardColor = cardColor, foregroundText = foregroundText) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.settings_allMessagesLabel), color = foregroundText)
                 Text(stringResource(R.string.settings_allMessagesDesc), color = primaryText, fontSize = 12.sp)
             }
-            Switch(checked = allMessages, onCheckedChange = { allMessages = it }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
+            Switch(
+                checked = allMessages, 
+                onCheckedChange = { 
+                    allMessages = it
+                    prefs.edit().putBoolean("notif_all_messages", it).apply()
+                    if (it) checkAndRequestPermission()
+                }, 
+                colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f))
+            )
         }
         Divider(modifier = Modifier.padding(vertical = 12.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
         
@@ -900,7 +953,15 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
                 Text(stringResource(R.string.settings_mentionsOnlyLabel), color = foregroundText)
                 Text(stringResource(R.string.settings_mentionsOnlyDesc), color = primaryText, fontSize = 12.sp)
             }
-            Switch(checked = mentionsOnly, onCheckedChange = { mentionsOnly = it }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
+            Switch(
+                checked = mentionsOnly, 
+                onCheckedChange = { 
+                    mentionsOnly = it
+                    prefs.edit().putBoolean("notif_mentions_only", it).apply()
+                    if (it) checkAndRequestPermission()
+                }, 
+                colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f))
+            )
         }
         Divider(modifier = Modifier.padding(vertical = 12.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
         
@@ -909,7 +970,15 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
                 Text(stringResource(R.string.settings_dmNotificationsLabel), color = foregroundText)
                 Text(stringResource(R.string.settings_dmNotificationsDesc), color = primaryText, fontSize = 12.sp)
             }
-            Switch(checked = dmNotifications, onCheckedChange = { dmNotifications = it }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
+            Switch(
+                checked = dmNotifications, 
+                onCheckedChange = { 
+                    dmNotifications = it
+                    prefs.edit().putBoolean("notif_dms", it).apply()
+                    if (it) checkAndRequestPermission()
+                }, 
+                colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f))
+            )
         }
         Divider(modifier = Modifier.padding(vertical = 12.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
         
@@ -918,13 +987,26 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
                 Text(stringResource(R.string.settings_repliesNotificationsLabel), color = foregroundText)
                 Text(stringResource(R.string.settings_repliesNotificationsDesc), color = primaryText, fontSize = 12.sp)
             }
-            Switch(checked = repliesNotifications, onCheckedChange = { repliesNotifications = it }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
+            Switch(
+                checked = repliesNotifications, 
+                onCheckedChange = { 
+                    repliesNotifications = it
+                    prefs.edit().putBoolean("notif_replies", it).apply()
+                    if (it) checkAndRequestPermission()
+                }, 
+                colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f))
+            )
         }
         
         Divider(modifier = Modifier.padding(vertical = 16.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
         
-        Text(stringResource(R.string.settings_syncFrequency), color = foregroundText, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(8.dp))
+        Text("BACKGROUND SYNC (PULL)", color = foregroundText, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            "Because there is no Push Notification payload waking up the app, the background worker has to temporarily connect to the server to check for unread messages. This will use a small amount of background data.",
+            color = primaryText, fontSize = 12.sp
+        )
+        Spacer(modifier = Modifier.height(12.dp))
         ExposedDropdownMenuBox(
             expanded = expandedFreq,
             onExpandedChange = { expandedFreq = !expandedFreq }
@@ -933,7 +1015,7 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
                 value = syncFreq,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text(stringResource(R.string.settings_pullFrequency)) },
+                label = { Text(stringResource(com.sharkord.android.R.string.settings_pullFrequency)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFreq) },
                 modifier = Modifier.menuAnchor().fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
@@ -942,8 +1024,48 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
                 )
             )
             ExposedDropdownMenu(expanded = expandedFreq, onDismissRequest = { expandedFreq = false }) {
-                listOf("Real-time (Push)", "Every 15 minutes", "Hourly", "Manual").forEach { freq ->
-                    DropdownMenuItem(text = { Text(freq) }, onClick = { syncFreq = freq; expandedFreq = false })
+                listOf("Off", "15 minutes", "30 minutes", "1 Hour").forEach { freq ->
+                    DropdownMenuItem(text = { Text(freq) }, onClick = { 
+                        syncFreq = freq
+                        expandedFreq = false
+                        prefs.edit().putString("notif_sync_freq", freq).apply()
+                        updateWorkManager(freq)
+                    })
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Battery optimization warning
+        if (syncFreq != "Off") {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(cardColor, RoundedCornerShape(8.dp))
+                    .padding(12.dp)
+            ) {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Warning, contentDescription = "Warning", tint = accentColor, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Battery Optimization", color = foregroundText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "Android may restrict background syncing if this app is battery optimized. For strictly reliable notifications, please disable battery optimization for Sharkord.",
+                        color = primaryText, fontSize = 12.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            val intent = android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                            context.startActivity(intent)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = accentColor)
+                    ) {
+                        Text("Open Settings", color = Color.White)
+                    }
                 }
             }
         }
@@ -964,7 +1086,7 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
         "${maxDiskCacheMb} MB"
     }
 
-    SettingsSection(title = "SECURITY & ACCESS", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_securityAccessGroup), cardColor = cardColor, foregroundText = foregroundText) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.connect_autoLoginLabel), color = foregroundText)
@@ -997,7 +1119,7 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    SettingsSection(title = "STORAGE PREFERENCES", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_storagePreferencesGroup), cardColor = cardColor, foregroundText = foregroundText) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.settings_maxDiskCacheSize), color = foregroundText)
@@ -1027,7 +1149,7 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
     var expandedMediaCodec by remember { mutableStateOf(false) }
     var expandedMediaQuality by remember { mutableStateOf(false) }
 
-    SettingsSection(title = "MEDIA COMPRESSION", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_mediaCompressionGroup), cardColor = cardColor, foregroundText = foregroundText) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.settings_compressMediaLabel), color = foregroundText)

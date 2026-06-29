@@ -59,6 +59,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 
 private val imgRegex = Regex("""<img\b[^>]*>""")
 private val classRegex = Regex("""class=["']([^"']+)["']""")
@@ -84,7 +86,8 @@ fun MessageItem(
     onReplyClick: (Int) -> Unit = {},
     onReactionClick: (Int, String) -> Unit = { _, _ -> },
     onMediaClick: (com.sharkord.android.data.model.FileInfo) -> Unit = {},
-    onMediaLongClick: (com.sharkord.android.data.model.FileInfo) -> Unit = {}
+    onMediaLongClick: (com.sharkord.android.data.model.FileInfo) -> Unit = {},
+    onUserClick: (Int) -> Unit = {}
 ) {
     val bgColor = SharkordTheme.colors.bgColor
     val textPrimary = SharkordTheme.colors.primaryText
@@ -120,9 +123,19 @@ fun MessageItem(
         }
     }
 
-    // pre-process HTML to preserve custom emojis as tokens before stripping tags
+    // pre-process HTML to preserve custom emojis and mentions as tokens before stripping tags
     val preProcessedHtml = remember(message.content) {
-        val raw = message.content ?: ""
+        var raw = message.content ?: ""
+        
+        val mentionRegex1 = Regex("""<span[^>]*data-type=["']mention["'][^>]*data-user-id=["'](\d+)["'][^>]*>(.*?)</span>""")
+        raw = mentionRegex1.replace(raw) { matchResult ->
+            "[[MENTION|${matchResult.groupValues[1]}|${matchResult.groupValues[2]}]]"
+        }
+        val mentionRegex2 = Regex("""<span[^>]*data-user-id=["'](\d+)["'][^>]*data-type=["']mention["'][^>]*>(.*?)</span>""")
+        raw = mentionRegex2.replace(raw) { matchResult ->
+            "[[MENTION|${matchResult.groupValues[1]}|${matchResult.groupValues[2]}]]"
+        }
+        
         imgRegex.replace(raw) { matchResult ->
             val imgTag = matchResult.value
             val clazz = classRegex.find(imgTag)?.groupValues?.get(1) ?: ""
@@ -143,32 +156,52 @@ fun MessageItem(
 
     val inlineContentMap = remember(textWithTokens) { mutableMapOf<String, InlineTextContent>() }
 
-    val annotatedContent = remember(textWithTokens) {
+    val accentColor = SharkordTheme.colors.accentColor
+    val accentBgColor = SharkordTheme.colors.accentColor.copy(alpha = 0.15f)
+
+    val annotatedContent = remember(textWithTokens, accentColor, accentBgColor) {
         buildAnnotatedString {
+            val combinedRegex = Regex("""\[\[(EMOJI|MENTION)\|(.*?)\|(.*?)\]\]""")
             var lastIndex = 0
-            tokenRegex.findAll(textWithTokens).forEach { matchResult ->
+            
+            combinedRegex.findAll(textWithTokens).forEach { matchResult ->
                 append(textWithTokens.substring(lastIndex, matchResult.range.first))
 
-                val alt = matchResult.groupValues[1]
-                val src = matchResult.groupValues[2]
-                val id = "emoji_${matchResult.range.first}"
-                
-                val safeAlt = alt.ifEmpty { "emoji" }
-                appendInlineContent(id, safeAlt)
+                val type = matchResult.groupValues[1]
+                if (type == "EMOJI") {
+                    val alt = matchResult.groupValues[2]
+                    val src = matchResult.groupValues[3]
+                    val id = "emoji_${matchResult.range.first}"
+                    
+                    val safeAlt = alt.ifEmpty { "emoji" }
+                    appendInlineContent(id, safeAlt)
 
-                val isEmojiOnly = tokenRegex.replace(textWithTokens, "").trim().isEmpty()
-                val size = if (isEmojiOnly) 48.sp else 24.sp
+                    val isEmojiOnly = tokenRegex.replace(textWithTokens, "").trim().isEmpty()
+                    val size = if (isEmojiOnly) 48.sp else 24.sp
 
-                inlineContentMap[id] = InlineTextContent(
-                    Placeholder(width = size, height = size, placeholderVerticalAlign = PlaceholderVerticalAlign.Center)
-                ) {
-                    val fullUrl = if (src.startsWith("http")) src else "${SharkordClient.currentServerUrl}$src"
-                    val painter = rememberAsyncImagePainter(fullUrl)
-                    if (painter != null) {
-                        Image(painter = painter, contentDescription = alt, modifier = Modifier.fillMaxSize())
-                    } else {
-                        Text(text = alt, fontSize = size * 0.5f)
+                    inlineContentMap[id] = InlineTextContent(
+                        Placeholder(width = size, height = size, placeholderVerticalAlign = PlaceholderVerticalAlign.Center)
+                    ) {
+                        val fullUrl = if (src.startsWith("http")) src else "${SharkordClient.currentServerUrl}$src"
+                        val painter = rememberAsyncImagePainter(fullUrl)
+                        if (painter != null) {
+                            Image(painter = painter, contentDescription = alt, modifier = Modifier.fillMaxSize())
+                        } else {
+                            Text(text = alt, fontSize = size * 0.5f)
+                        }
                     }
+                } else if (type == "MENTION") {
+                    val userId = matchResult.groupValues[2]
+                    val usernameText = matchResult.groupValues[3]
+                    
+                    pushStringAnnotation(tag = "mention", annotation = userId)
+                    pushStyle(androidx.compose.ui.text.SpanStyle(
+                        color = accentColor,
+                        background = accentBgColor,
+                        fontWeight = FontWeight.Bold
+                    ))
+                    append(usernameText)
+                    pop()
                 }
 
                 lastIndex = matchResult.range.last + 1
@@ -401,12 +434,31 @@ fun MessageItem(
                 if (annotatedContent.isNotEmpty()) {
                     val fontSize = if (isEmojiOnly) 36.sp else 15.sp
                     val lineHeight = if (isEmojiOnly) 44.sp else 21.sp
+                    var textLayoutResult by remember { mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null) }
+                    
                     Text(
                         text = annotatedContent,
                         color = textPrimary,
                         fontSize = fontSize,
                         lineHeight = lineHeight,
-                        inlineContent = inlineContentMap
+                        inlineContent = inlineContentMap,
+                        onTextLayout = { textLayoutResult = it },
+                        modifier = Modifier.pointerInput(Unit) {
+                            detectTapGestures(
+                                onLongPress = { pos: androidx.compose.ui.geometry.Offset -> onLongClick(message) },
+                                onTap = { pos: androidx.compose.ui.geometry.Offset ->
+                                    textLayoutResult?.let { layoutResult ->
+                                        val offset = layoutResult.getOffsetForPosition(pos)
+                                        annotatedContent.getStringAnnotations(tag = "mention", start = offset, end = offset)
+                                            .firstOrNull()?.let { annotation ->
+                                                annotation.item.toIntOrNull()?.let { userId ->
+                                                    onUserClick(userId)
+                                                }
+                                            }
+                                    }
+                                }
+                            )
+                        }
                     )
                 }
 

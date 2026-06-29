@@ -13,6 +13,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.horizontalScroll
@@ -63,6 +64,9 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.text.TextRange
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import com.sharkord.android.R
 import com.sharkord.android.data.model.User
 import com.sharkord.android.ui.components.AsyncImageState
@@ -255,6 +259,30 @@ fun ChatInputBar(
     }
 
     val focusRequester = remember { FocusRequester() }
+
+    val textBeforeCursor = inputText.text.substring(0, inputText.selection.start)
+    val lastAtSymbolIndex = textBeforeCursor.lastIndexOf('@')
+    val lastSpaceIndex = textBeforeCursor.lastIndexOf(' ')
+    val isValidMentionStart = lastAtSymbolIndex == 0 || (lastAtSymbolIndex > 0 && textBeforeCursor[lastAtSymbolIndex - 1].isWhitespace())
+    val mentionQuery = if (lastAtSymbolIndex != -1 && isValidMentionStart && lastAtSymbolIndex >= lastSpaceIndex) {
+        textBeforeCursor.substring(lastAtSymbolIndex + 1)
+    } else null
+
+    val filteredUsers = remember(mentionQuery, users) {
+        if (mentionQuery != null) {
+            users.filter { it.name.contains(mentionQuery, ignoreCase = true) }.take(10)
+        } else emptyList()
+    }
+
+    val processMentionsAndSend: (String) -> Unit = { rawText ->
+        var processedText = rawText
+        val sortedUsers = users.sortedByDescending { it.name.length }
+        sortedUsers.forEach { user ->
+            val mentionRegex = Regex("(?<=^|\\s)@${Regex.escape(user.name)}(?=\\s|$|\\p{Punct})")
+            processedText = processedText.replace(mentionRegex, """<span data-type="mention" class="mention" data-user-id="${user.id}">@${user.name}</span>""")
+        }
+        onSend(processedText)
+    }
 
     val hasText = inputText.text.isNotBlank()
 
@@ -590,6 +618,82 @@ fun ChatInputBar(
             )
         }
 
+        // Mention List
+        AnimatedVisibility(
+            visible = filteredUsers.isNotEmpty(),
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 200.dp)
+                    .background(
+                        color = cardColor,
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = textPrimary.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .padding(8.dp)
+                    .padding(bottom = 8.dp)
+            ) {
+                LazyColumn {
+                    items(filteredUsers) { user ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val textBeforeAt = textBeforeCursor.substring(0, lastAtSymbolIndex)
+                                    val textAfterCursor = inputText.text.substring(inputText.selection.start)
+                                    val newText = "$textBeforeAt@${user.name} $textAfterCursor"
+                                    val newCursor = textBeforeAt.length + user.name.length + 2
+                                    onInputTextChanged(TextFieldValue(newText, TextRange(newCursor)))
+                                }
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val avatarUrl = user.avatar?.name?.let { "${com.sharkord.android.data.network.SharkordClient.currentServerUrl}/public/$it" }
+                            val avatarPainter = com.sharkord.android.ui.components.rememberAsyncImagePainter(avatarUrl, fallbackResourceId = null)
+                            
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .background(SharkordTheme.colors.bgColor),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (avatarPainter != null) {
+                                    Image(
+                                        painter = avatarPainter,
+                                        contentDescription = "User Avatar",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Text(
+                                        text = user.name.take(1).uppercase(),
+                                        color = SharkordTheme.colors.foregroundText,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = user.name,
+                                color = textPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // input Field Row
         Row(
             modifier = Modifier
@@ -705,7 +809,7 @@ fun ChatInputBar(
                         if (isRecording && !isHoldToRecordMode) {
                             stopAndSendRecording()
                         } else {
-                            onSend(inputText.text)
+                            processMentionsAndSend(inputText.text)
                         }
                     },
                     enabled = !uiState.isSending

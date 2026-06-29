@@ -69,6 +69,7 @@ fun ChatPanel(
     customEmojis: List<Emoji>,
     isActive: Boolean = true,
     onBackClick: () -> Unit,
+    onUserClick: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ChatViewModel = viewModel(key = "chat_$channelId")
 ) {
@@ -434,6 +435,7 @@ fun ChatPanel(
                                     ownUserId = ownUserId,
                                     isHighlighted = message.id == playingHighlightId,
                                     fullscreenMediaId = uiState.viewingMediaFile?.id,
+                                    onUserClick = onUserClick,
                                     onLongClick = { target -> showMenuMessage = target },
                                     onReplyClick = { parentId ->
                                         val targetIndex = uiState.messages.indexOfFirst { it.id == parentId }

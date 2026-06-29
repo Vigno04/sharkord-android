@@ -301,10 +301,12 @@ class ServerRepository {
 
     suspend fun markChannelAsRead(channelId: Int): Result<Unit> {
         return try {
+            com.sharkord.android.utils.NotificationHelper.clearNotification(com.sharkord.android.data.network.SharkordClient.applicationContext, channelId)
             val input = com.google.gson.JsonObject().apply {
                 addProperty("channelId", channelId)
             }
             webSocket.sendMutationAwait("channels.markAsRead", input)
+            com.sharkord.android.data.network.SharkordClient.channelReadEvents.tryEmit(channelId)
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to mark channel as read", e)

@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -95,7 +96,7 @@ fun ServerEmojisTab(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                 ) {
-                    Text("Upload")
+                    Text(stringResource(com.sharkord.android.R.string.settings_uploadBtn))
                 }
             },
             dismissButton = {
@@ -122,7 +123,7 @@ fun ServerEmojisTab(
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add")
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Upload Emoji")
+                Text(stringResource(com.sharkord.android.R.string.settings_uploadEmojiBtn))
             }
         }
 

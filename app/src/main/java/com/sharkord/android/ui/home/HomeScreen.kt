@@ -1,4 +1,4 @@
-﻿package com.sharkord.android.ui.home
+package com.sharkord.android.ui.home
 
 import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.animation.core.Animatable
@@ -281,6 +281,7 @@ fun HomeScreen(
                                     onBackClick = {
                                         viewModel.setViewingVoiceChat(false)
                                     },
+                                    onUserClick = { userId -> viewModel.showProfileSheet(userId) },
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .pointerInput(uiState.activePanel) {
@@ -472,6 +473,7 @@ fun HomeScreen(
                                         viewModel.setPanel(if (isDmSelected) HomePanel.DMS_LIST else HomePanel.SERVER_LIST)
                                     }
                                 },
+                                onUserClick = { userId -> viewModel.showProfileSheet(userId) },
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .pointerInput(uiState.activePanel) {
@@ -876,9 +878,10 @@ fun HomeScreen(
                 }
 
                 // profile Bottom Sheet
-                if (uiState.showProfileSheet) {
+                if (uiState.profileSheetUserId != null) {
+                    val profileUser = data.users.find { it.id == uiState.profileSheetUserId } ?: if (uiState.profileSheetUserId == data.ownUserId) currentUser else null
                     ProfileBottomSheet(
-                        currentUser = currentUser,
+                        currentUser = profileUser,
                         userName = userName,
                         ownUserId = data.ownUserId,
                         serverName = data.serverName,

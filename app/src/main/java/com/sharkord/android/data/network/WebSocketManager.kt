@@ -165,6 +165,15 @@ class WebSocketManager(
     // throws [WebSocketNotConnectedException] if the socket is null,
     // or a [TrpcCallException] if the server returns an error
     suspend fun sendQueryAwait(path: String, input: com.google.gson.JsonElement = JsonObject()): JsonObject {
+        if (_connectionState.value !is ConnectionState.Connected) {
+            try {
+                withTimeout(15000) {
+                    _connectionState.first { it is ConnectionState.Connected }
+                }
+            } catch (e: TimeoutCancellationException) {
+                throw WebSocketNotConnectedException("WebSocket is not connected (timeout)")
+            }
+        }
         val id = TrpcProtocol.getNextId()
         val deferred = CompletableDeferred<JsonObject>()
         pendingCalls[id] = deferred
@@ -182,6 +191,15 @@ class WebSocketManager(
     // throws [WebSocketNotConnectedException] if the socket is null,
     // or a [TrpcCallException] if the server returns an error
     suspend fun sendMutationAwait(path: String, input: com.google.gson.JsonElement): JsonObject {
+        if (_connectionState.value !is ConnectionState.Connected) {
+            try {
+                withTimeout(15000) {
+                    _connectionState.first { it is ConnectionState.Connected }
+                }
+            } catch (e: TimeoutCancellationException) {
+                throw WebSocketNotConnectedException("WebSocket is not connected (timeout)")
+            }
+        }
         val id = TrpcProtocol.getNextId()
         val deferred = CompletableDeferred<JsonObject>()
         pendingCalls[id] = deferred
