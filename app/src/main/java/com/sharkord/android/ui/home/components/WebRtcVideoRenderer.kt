@@ -110,10 +110,9 @@ fun WebRtcVideoRenderer(
         AndroidView(
             factory = { context ->
                 SurfaceViewRenderer(context).apply {
-                    // MUST be true to prevent native crashes!
-                    // hardware scaling works by calling SurfaceHolder.setFixedSize() to
-                    // lock the buffer dimensions to the video resolution.
-                    setEnableHardwareScaler(true)
+                    // MUST be false to prevent black screens and BLASTBufferQueue rejections!
+                    // hardware scaling conflicts heavily with Compose's layout system.
+                    setEnableHardwareScaler(false)
                     
                     viewRef.set(this)
                     init(eglBaseContext, null)
@@ -122,15 +121,10 @@ fun WebRtcVideoRenderer(
                     clipToOutline = false
                     outlineProvider = null
 
-                    // DO NOT USE clipToOutline OR outlineProvider on SurfaceView!
-                    // surfaceView renders on a separate hardware window layer. Attempting to clip
-                    // its outline natively causes the fatal "No package ID ff found for resource
-                    // ID 0xffffffff" crash on many Android devices during reflows. The video
-                    // corners will be sharp, but it avoids the app crash
 
                     // defer addSink until the Surface is actually created
                     // calling addSink before surfaceCreated delivers frames to an
-                    // uninitialised surface which causes the same BLAST rejection
+                    // uninitialised surface which causes a BLAST rejection
                     holder.addCallback(object : android.view.SurfaceHolder.Callback {
                         override fun surfaceCreated(h: android.view.SurfaceHolder) {
                             surfaceReadyRef.set(true)
@@ -211,7 +205,7 @@ fun WebRtcVideoRenderer(
                     currentTrackRef.get()?.removeSink(statsSink)
                 } catch (_: Exception) {}
                 currentTrackRef.set(null)
-                // since we now use a proxySink to instantly cut off frames,
+                // since we use a proxySink to instantly cut off frames,
                 // the EGL render thread will NOT deadlock during surface destruction
                 // we must release synchronously on the main thread, otherwise releasing
                 // the EGL context on a background thread while surfaceDestroyed is called

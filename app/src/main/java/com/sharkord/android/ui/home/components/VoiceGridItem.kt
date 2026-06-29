@@ -77,8 +77,10 @@ fun VoiceGridItem(
     
     var isZoomedOut by remember { mutableStateOf(isScreenShare) }
     
-    val borderWidth by animateDpAsState(targetValue = if (displayItem.isSpeaking) 3.dp else 0.dp)
-    val borderColor = if (displayItem.isSpeaking) Color.Green else Color.Transparent
+    val defaultBorderWidth = 1.dp
+    val defaultBorderColor = colors.foregroundText.copy(alpha = 0.1f)
+    val borderWidth by animateDpAsState(targetValue = if (displayItem.isSpeaking) 3.dp else defaultBorderWidth)
+    val borderColor = if (displayItem.isSpeaking) Color.Green else defaultBorderColor
     
     Box(
         modifier = modifier

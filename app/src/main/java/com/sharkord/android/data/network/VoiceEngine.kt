@@ -455,10 +455,11 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         if (sendTransport == null) return
 
         val audioConstraints = MediaConstraints().apply {
-            mandatory.add(MediaConstraints.KeyValuePair("googEchoCancellation", "true"))
-            mandatory.add(MediaConstraints.KeyValuePair("googAutoGainControl", "true"))
-            mandatory.add(MediaConstraints.KeyValuePair("googNoiseSuppression", "true"))
-            mandatory.add(MediaConstraints.KeyValuePair("googHighpassFilter", "true"))
+            val session = SharkordClient.session
+            mandatory.add(MediaConstraints.KeyValuePair("googEchoCancellation", session.echoCancellation.toString()))
+            mandatory.add(MediaConstraints.KeyValuePair("googAutoGainControl", session.autoGainControl.toString()))
+            mandatory.add(MediaConstraints.KeyValuePair("googNoiseSuppression", session.noiseSuppression.toString()))
+            mandatory.add(MediaConstraints.KeyValuePair("googHighpassFilter", session.noiseSuppression.toString()))
         }
 
         localAudioSource = factory.createAudioSource(audioConstraints)
