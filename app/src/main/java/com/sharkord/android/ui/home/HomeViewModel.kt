@@ -41,7 +41,7 @@ data class HomeUiState(
     val collapsedCategories: Set<Int> = emptySet(),
     val errorMessage: String? = null,
     val reconnectAttempts: Int = 0,
-    val showProfileSheet: Boolean = false,
+    val profileSheetUserId: Int? = null,
     val showMembersSheet: Boolean = false,
     val showServerSheet: Boolean = false,
     val showSearchSheet: Boolean = false,
@@ -714,12 +714,13 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    fun showProfileSheet() {
-        _uiState.update { it.copy(showProfileSheet = true) }
+    fun showProfileSheet(userId: Int? = null) {
+        val idToUse = userId ?: _uiState.value.serverData?.ownUserId
+        _uiState.update { it.copy(profileSheetUserId = idToUse) }
     }
 
     fun dismissProfileSheet() {
-        _uiState.update { it.copy(showProfileSheet = false) }
+        _uiState.update { it.copy(profileSheetUserId = null) }
     }
 
     fun showMembersSheet(filterDms: Boolean = false) {
