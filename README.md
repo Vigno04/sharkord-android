@@ -1,17 +1,12 @@
-# Sharkord Android Client
+# Sharkord Android
 
-Unofficial **Sharkord Android Client**, native Android application designed to connect seamlessly with the [Sharkord Server](https://github.com/Sharkord/sharkord).
+A native Android client for the [Sharkord](https://github.com/Sharkord/sharkord) server.
+It lets you connect to a Sharkord server directly from your Android device to chat, call, and interact.
 
-## Project Status
+## Installation
 
-| Area | Progress |
-|------|----------|
-| Design | ████████░░ 80% |
-| Core connection | ██████████ 100% |
-| Messaging | █████░░░░░ 50% |
-| Voice Support | ░░░░░░░░░░ 00% |
-| Video Support | ░░░░░░░░░░ 00% |
-| Notifications | ░░░░░░░░░░ 00% |
-| Settings | ░░░░░░░░░░ 00% |
+You can download the latest version of the app as an APK file.
 
-> Current Stage: Alpha Development
+1. Go to the [Releases page](https://github.com/Vigno04/sharkord-android/releases).
+2. Download the `.apk` file from the latest release.
+3. Open the downloaded file on your Android device to install it (you may need to allow "Install from unknown sources" in your settings).
