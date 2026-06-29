@@ -1,5 +1,6 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -27,9 +28,7 @@ import com.sharkord.android.data.model.User
 import com.sharkord.android.data.network.SharkordClient
 import com.sharkord.android.ui.components.rememberAsyncImagePainter
 
-/**
- * Floating profile pill at the bottom of the home screen.
- */
+// floating profile pill at the bottom of the home screen
 @Composable
 fun BottomProfileBar(
     currentUser: User?,
@@ -38,28 +37,28 @@ fun BottomProfileBar(
     onProfileClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Layer the floating circular avatar on top of the background bar
+    // layer the floating circular avatar on top of the background bar
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onProfileClick() } // Open user settings profile sheet when clicked!
+            .clickable { onProfileClick() } // Open user settings profile sheet when clicked
             .padding(horizontal = 16.dp, vertical = 8.dp) // Outer spacing
     ) {
-        // The dark background bar
+        // the dark background bar
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(72.dp)
                 .padding(start = 20.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFF232428))
+                .background(SharkordTheme.colors.bgColor)
                 .border(
                     1.dp,
-                    Color.White.copy(alpha = 0.05f),
+                    SharkordTheme.colors.dividerColor,
                     RoundedCornerShape(16.dp)
                 )
         ) {
-            // Text details inside the bar (name & "Online" status)
+            // text details inside the bar (name & "Online" status)
             Column(
                 modifier = Modifier
                     .fillMaxHeight()
@@ -67,7 +66,7 @@ fun BottomProfileBar(
                 verticalArrangement = Arrangement.Center
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // User's name
+                    // user's name
                     Text(
                         text = userName,
                         color = foregroundText,
@@ -75,24 +74,24 @@ fun BottomProfileBar(
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    // Down-arrow indicating they can click it for menu
+                    // down-arrow indicating they can click it for menu
                     Icon(
                         Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
-                        tint = Color.Gray,
+                        tint = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                         modifier = Modifier.size(16.dp)
                     )
                 }
-                // Online label (to implement)
+                // online label (to implement)
                 Text(
                     text = stringResource(id = R.string.common_online),
-                    color = Color.Gray,
+                    color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
                     fontSize = 14.sp
                 )
             }
         }
 
-        // The Avatar (Floating on the left side of the bar)
+        // the Avatar (Floating on the left side of the bar)
         Box(
             modifier = Modifier
                 .align(Alignment.CenterStart)
@@ -101,12 +100,12 @@ fun BottomProfileBar(
             val avatarUrl = currentUser?.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }
             val avatarPainter = rememberAsyncImagePainter(avatarUrl)
             
-            // Draw the profile avatar image
+            // draw the profile avatar image
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(CircleShape)
-                    .background(Color.DarkGray),
+                    .background(SharkordTheme.colors.cardColor),
                 contentAlignment = Alignment.Center
             ) {
                 avatarPainter?.let {
@@ -118,14 +117,14 @@ fun BottomProfileBar(
                     )
                 }
             }
-            // Green Online Dot: small green circle in the bottom right corner of the avatar (to implement)
+            // green Online Dot: small green circle in the bottom right corner of the avatar (to implement)
             Box(
                 modifier = Modifier
                     .size(16.dp)
                     .clip(CircleShape)
                     .background(Color(0xFF23A559))
                     .align(Alignment.BottomEnd)
-                    .border(2.5.dp, Color(0xFF232428), CircleShape)
+                    .border(2.5.dp, SharkordTheme.colors.bgColor, CircleShape)
             )
         }
     }

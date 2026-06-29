@@ -1,78 +1,305 @@
 package com.sharkord.android.ui.home.components
 
+import com.sharkord.android.ui.theme.SharkordTheme
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.automirrored.filled.ScreenShare
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
+import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import androidx.compose.foundation.Image
 import com.sharkord.android.data.model.Channel
+import com.sharkord.android.data.model.User
+import com.sharkord.android.data.model.VoiceUserState
+import com.sharkord.android.data.network.SharkordClient
+import com.sharkord.android.ui.components.rememberAsyncImagePainter
+import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.HeadsetOff
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 
-/**
- * Isolated Component for a single channel item in the list.
- * This is just a neat little item that shows up in our channel list!
- */
+// isolated Component for a single channel item in the list
+// supports a long-press context menu for editing and deleting,
+// as well as drag-to-reorder
 @Composable
 fun ChannelItem(
     channel: Channel,
     isSelected: Boolean,
     onSelect: () -> Unit,
+    canManage: Boolean = false,
+    onEditClick: () -> Unit = {},
+    onDeleteClick: () -> Unit = {},
+    onLongPress: () -> Unit = {},
+    onDragStart: () -> Unit = {},
+    onDrag: (Float) -> Unit = {},
+    onDragEnd: () -> Unit = {},
+    isDragging: Boolean = false,
     foregroundText: Color,
-    primaryText: Color
+    primaryText: Color,
+    cardColor: Color = SharkordTheme.colors.cardColor,
+    unreadCount: Int = 0,
+    voiceUsers: List<VoiceUserDisplay> = emptyList()
 ) {
-    // This checks if the channel is for voice chat. If yes, it uses a speaker icon.
-    // Otherwise, it uses a hashtag (#) icon for standard text channels!
     val icon = if (channel.isVoice) Icons.Default.VolumeUp else Icons.Default.Tag
-
-    // If the user clicked this channel, we give it a subtle white background highlight so they know it's selected.
-    // If not, we just keep the background completely invisible/transparent.
-    val bg = if (isSelected) Color.White.copy(alpha = 0.08f) else Color.Transparent
-
-    // Let's color the icon! Bright text if selected, otherwise simple gray so it doesn't distract.
-    val tint = if (isSelected) foregroundText else Color.Gray
-
-    // We also make the text bold if selected so it stands out, otherwise just medium weight.
+    val bg = if (isSelected || isDragging) Color.White.copy(alpha = 0.08f) else Color.Transparent
+    val tint = if (isSelected) foregroundText else SharkordTheme.colors.primaryText.copy(alpha = 0.6f)
     val textWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
 
-    // This Row is a horizontal box that holds the icon and text together in a clickable bar.
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp)) // Round the corners so the highlight looks smooth
-            .background(bg) // Draw that highlight color we figured out above
-            .clickable { onSelect() } // When the user clicks this bar, trigger the select action!
-            .padding(vertical = 10.dp, horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically // Center items vertically so they align nicely
-    ) {
-        // Draw the speaker or hashtag icon here
-        Icon(
-            icon,
-            contentDescription = null,
-            tint = tint,
-            modifier = Modifier.size(20.dp)
-        )
-        
-        // Put a bit of space between the icon and the text
-        Spacer(modifier = Modifier.width(12.dp))
-        
-        // Draw the name of the channel!
-        Text(
-            text = channel.name,
-            color = if (isSelected) foregroundText else primaryText,
-            fontSize = 15.sp,
-            fontWeight = textWeight
-        )
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    val hasContextMenu = canManage || channel.isVoice
+
+    val currentOnSelect by rememberUpdatedState(onSelect)
+    val currentOnLongPress by rememberUpdatedState(onLongPress)
+    val currentOnDragStart by rememberUpdatedState(onDragStart)
+    val currentOnDrag by rememberUpdatedState(onDrag)
+    val currentOnDragEnd by rememberUpdatedState(onDragEnd)
+
+    Column(modifier = Modifier.zIndex(if (isDragging) 1f else 0f)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (isDragging) Modifier.shadow(8.dp, RoundedCornerShape(8.dp)) else Modifier)
+                .clip(RoundedCornerShape(8.dp))
+                .background(bg)
+                .pointerInput(channel.id, canManage) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            try {
+                                withTimeout(viewConfiguration.longPressTimeoutMillis) {
+                                    val up = waitForUpOrCancellation()
+                                    if (up != null) {
+                                        up.consume()
+                                        currentOnSelect()
+                                    }
+                                }
+                            } catch (e: PointerEventTimeoutCancellationException) {
+                                currentOnLongPress()
+                                if (hasContextMenu) {
+                                    menuExpanded = true
+                                }
+                                var dragStarted = false
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull { it.id == down.id }
+                                    if (change == null || change.changedToUp()) {
+                                        break
+                                    }
+                                    val panChange = change.positionChange().y
+                                    if (!dragStarted) {
+                                        if (canManage && kotlin.math.abs(change.position.y - down.position.y) > viewConfiguration.touchSlop) {
+                                            dragStarted = true
+                                            menuExpanded = false
+                                            currentOnDragStart()
+                                            currentOnDrag(panChange)
+                                            change.consume()
+                                        }
+                                    } else {
+                                        if (panChange != 0f) {
+                                            currentOnDrag(panChange)
+                                            change.consume()
+                                        }
+                                    }
+                                }
+                                if (dragStarted) {
+                                    currentOnDragEnd()
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(vertical = 10.dp, horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(20.dp)
+            )
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            Text(
+                text = channel.name,
+                color = if (isSelected) foregroundText else primaryText,
+                fontSize = 15.sp,
+                fontWeight = textWeight,
+                modifier = Modifier.weight(1f)
+            )
+
+            if (unreadCount > 0) {
+                Box(
+                    modifier = Modifier
+                        .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(SharkordTheme.colors.primaryText) // Snow/porcelain color
+                        .padding(horizontal = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = unreadCount.toString(),
+                        color = SharkordTheme.colors.cardColor, // Dark text for contrast
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // VOICE USERS LIST
+        if (channel.isVoice && voiceUsers.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 32.dp, top = 2.dp, bottom = 6.dp)
+            ) {
+                voiceUsers.forEach { voiceUser ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val avatarUrl = voiceUser.user.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }
+                        val avatarPainter = rememberAsyncImagePainter(avatarUrl, fallbackResourceId = null)
+
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(SharkordTheme.colors.cardColor),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (avatarPainter != null) {
+                                Image(
+                                    painter = avatarPainter,
+                                    contentDescription = "User Avatar",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Text(
+                                    text = voiceUser.user.name.take(1).uppercase(),
+                                    color = SharkordTheme.colors.foregroundText,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.width(8.dp))
+                        
+                        Text(
+                            text = voiceUser.user.name,
+                            color = primaryText,
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            modifier = Modifier.weight(1f)
+                        )
+                        
+                        // icons for video, mute/deafen
+                        if (voiceUser.state.sharingScreen) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ScreenShare,
+                                contentDescription = "Screen Share Active",
+                                tint = SharkordTheme.colors.accentColor,
+                                modifier = Modifier.size(16.dp).padding(end = 4.dp)
+                            )
+                        }
+                        if (voiceUser.state.webcamEnabled) {
+                            Icon(
+                                Icons.Default.Videocam,
+                                contentDescription = "Camera Active",
+                                tint = SharkordTheme.colors.accentColor,
+                                modifier = Modifier.size(16.dp).padding(end = 4.dp)
+                            )
+                        }
+                        if (voiceUser.state.micMuted) {
+                            Icon(
+                                Icons.Default.MicOff,
+                                contentDescription = "Muted",
+                                tint = Color.Red.copy(alpha = 0.8f),
+                                modifier = Modifier.size(16.dp).padding(end = 4.dp)
+                            )
+                        }
+                        if (voiceUser.state.soundMuted) {
+                            Icon(
+                                Icons.Default.HeadsetOff,
+                                contentDescription = "Deafened",
+                                tint = Color.Red.copy(alpha = 0.8f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        DropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = { menuExpanded = false },
+            modifier = Modifier.background(cardColor)
+        ) {
+            if (channel.isVoice) {
+                DropdownMenuItem(
+                    text = { Text("Open Chat", color = foregroundText) },
+                    leadingIcon = { Icon(Icons.Default.ChatBubbleOutline, contentDescription = null, tint = foregroundText) },
+                    onClick = {
+                        menuExpanded = false
+                        onSelect() // Voice channel selection opens its chat
+                    }
+                )
+            }
+            if (canManage) {
+                DropdownMenuItem(
+                    text = { Text("Edit Channel", color = foregroundText) },
+                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = foregroundText) },
+                    onClick = {
+                        menuExpanded = false
+                        onEditClick()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Delete Channel", color = Color(0xFFED4245)) },
+                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFED4245)) },
+                    onClick = {
+                        menuExpanded = false
+                    }
+                )
+            }
+        }
     }
 }
 
+data class VoiceUserDisplay(
+    val user: User,
+    val state: VoiceUserState,
+    val isSpeaking: Boolean = false
+)

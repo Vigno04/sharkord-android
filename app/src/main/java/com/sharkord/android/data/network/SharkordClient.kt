@@ -1,72 +1,81 @@
 package com.sharkord.android.data.network
 
 import android.content.Context
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.sharkord.android.data.session.SessionManager
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.flow.MutableStateFlow
 
-/**
- * Lightweight facade that provides access to the Sharkord networking layer.
- *
- * Previously this was a monolithic 250+ line object containing all HTTP calls,
- * WebSocket management, tRPC protocol handling, and mutable global state.
- * Now it's a thin coordinator that owns the shared OkHttpClient and provides
- * access to the specialized components.
- *
- * Usage:
- * ```
- * SharkordClient.initialize(context)
- * val info = SharkordClient.http.fetchServerInfo(url)
- * SharkordClient.webSocket.connect(url, token)
- * ```
- */
+// lightweight facade that provides access to the Sharkord networking layer
+// usage:
+// ```
+// sharkordClient.initialize(context)
+// val info = SharkordClient.http.fetchServerInfo(url)
+// sharkordClient.webSocket.connect(url, token)
+// ```
 object SharkordClient {
 
-    /** Shared OkHttpClient instance with appropriate timeouts and keepalive. */
+    // shared OkHttpClient instance with appropriate timeouts and keepalive
+    // note: readTimeout and writeTimeout are set to 0 (disabled) to prevent the WebSocket
+    // reader from timing out during prolonged idle periods
     val okHttpClient: OkHttpClient = OkHttpClient.Builder()
-        .pingInterval(15, TimeUnit.SECONDS)
         .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(0, TimeUnit.SECONDS)
+        .writeTimeout(0, TimeUnit.SECONDS)
+        .pingInterval(20, TimeUnit.SECONDS)
         .build()
 
-    /** HTTP REST API client for /login, /info, etc. */
+    // http REST API client for /login, /info, etc
     val http: SharkordHttpClient = SharkordHttpClient(okHttpClient)
 
-    /** WebSocket manager for tRPC connection lifecycle. */
+    // webSocket manager for tRPC connection lifecycle
     val webSocket: WebSocketManager = WebSocketManager(okHttpClient)
 
-    /** Session/preferences manager. Initialized lazily via [initialize]. */
+    // voice engine managing mediasoup WebRTC pipeline
+    lateinit var voiceEngine: VoiceEngine
+        private set
+
+    val isVoiceEngineInitialized: Boolean
+        get() = this::voiceEngine.isInitialized
+
+    // session/preferences manager. Initialized lazily via [initialize]
     lateinit var session: SessionManager
         private set
 
-    /**
-     * Current server URL (kept in memory for convenience during a session).
-     * This is the canonical source during an active session.
-     */
+    // global application context, initialized lazily
+    lateinit var applicationContext: Context
+        private set
+
+    // current server URL (kept in memory for convenience during a session)
+    // this is the canonical source during an active session
     var currentServerUrl: String? = null
 
-    /**
-     * Current auth token (kept in memory for the active session).
-     */
+    // current auth token (kept in memory for the active session)
     var currentToken: String? = null
 
-    /**
-     * Current server logo URL (derived from /info response + server URL).
-     */
-    var currentServerLogoUrl: String? = null
+    // current server logo URL (derived from /info response + server URL)
+    // exposed as a Compose reactive state so components automatically recompose when updated
+    var currentServerLogoUrl: String? by mutableStateOf(null)
 
-    /**
-     * Initializes the client with an Android Context (required for SessionManager).
-     * Call this once from Application.onCreate() or the first Activity.
-     */
+    // tracks the currently visible channel id in the UI, used to suppress foreground notifications
+    val activeChannelId = MutableStateFlow<Int?>(null)
+
+    // emits channel IDs that have been explicitly marked as read by the user (e.g. via notification)
+    val channelReadEvents = kotlinx.coroutines.flow.MutableSharedFlow<Int>(extraBufferCapacity = 64)
+
+    // initializes the client with an Android Context (required for SessionManager)
+    // call this once from Application.onCreate() or the first Activity
     fun initialize(context: Context) {
-        session = SessionManager(context.applicationContext)
+        applicationContext = context.applicationContext
+        session = SessionManager(applicationContext)
+        voiceEngine = VoiceEngine(applicationContext, webSocket)
+        com.sharkord.android.utils.NotificationHelper.createNotificationChannel(applicationContext)
     }
 
-    /**
-     * Clears all in-memory state. Call on logout.
-     */
+    // clears all in-memory state. Call on logout
     fun clearState() {
         currentServerUrl = null
         currentToken = null
@@ -74,3 +83,4 @@ object SharkordClient {
         webSocket.disconnect()
     }
 }
+

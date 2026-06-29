@@ -1,0 +1,354 @@
+package com.sharkord.android.ui.settings
+
+import android.content.Context
+import android.net.Uri
+import android.util.Log
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.google.gson.JsonObject
+import com.sharkord.android.data.model.User
+import com.sharkord.android.data.network.SharkordClient
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+data class UserSettingsState(
+    val user: User? = null,
+    val isLoading: Boolean = false,
+    val isSavingProfile: Boolean = false,
+    val isSavingPassword: Boolean = false,
+    val error: String? = null,
+    val successMessage: String? = null
+)
+
+class UserSettingsViewModel : ViewModel() {
+    private val _uiState = MutableStateFlow(UserSettingsState())
+    val uiState: StateFlow<UserSettingsState> = _uiState.asStateFlow()
+
+    // profile Fields
+    var name = MutableStateFlow("")
+    var bio = MutableStateFlow("")
+    var bannerColor = MutableStateFlow("#FFFFFF")
+
+    // password Fields
+    var currentPassword = MutableStateFlow("")
+    var newPassword = MutableStateFlow("")
+    var confirmNewPassword = MutableStateFlow("")
+
+    // app Settings
+    var maxDiskCacheMb = MutableStateFlow(250)
+    var autoLogin = MutableStateFlow(false)
+    var alwaysRequireBiometrics = MutableStateFlow(false)
+    var hasBiometrics = MutableStateFlow(false)
+
+    // media compression
+    var compressMedia = MutableStateFlow(false)
+    var mediaCodec = MutableStateFlow("H.264")
+    var mediaQuality = MutableStateFlow("Medium")
+
+    // devices Settings
+    var defaultAudioRoute = MutableStateFlow("None")
+    var echoCancellation = MutableStateFlow(true)
+    var noiseSuppression = MutableStateFlow(true)
+    var autoGainControl = MutableStateFlow(true)
+    var defaultCamera = MutableStateFlow("Front")
+    var frontVideoResolution = MutableStateFlow("1280x720")
+    var frontVideoFps = MutableStateFlow(30)
+    var backVideoResolution = MutableStateFlow("1280x720")
+    var backVideoFps = MutableStateFlow(30)
+    var mirrorFrontCamera = MutableStateFlow(true)
+    var screenShareResolution = MutableStateFlow("1280x720")
+    var screenShareFps = MutableStateFlow(30)
+    
+    var videoCodec = MutableStateFlow("VP8")
+    var availableVideoCodecs = MutableStateFlow<List<String>>(emptyList())
+
+    init {
+        maxDiskCacheMb.value = SharkordClient.session.maxDiskCacheMb
+        autoLogin.value = SharkordClient.session.autoLogin
+        alwaysRequireBiometrics.value = SharkordClient.session.alwaysRequireBiometrics
+        hasBiometrics.value = SharkordClient.session.hasBiometricCredentials()
+        
+        compressMedia.value = SharkordClient.session.compressMedia
+        mediaCodec.value = SharkordClient.session.mediaCodec
+        mediaQuality.value = SharkordClient.session.mediaQuality
+        
+        defaultAudioRoute.value = SharkordClient.session.defaultAudioRoute
+        echoCancellation.value = SharkordClient.session.echoCancellation
+        noiseSuppression.value = SharkordClient.session.noiseSuppression
+        autoGainControl.value = SharkordClient.session.autoGainControl
+        defaultCamera.value = SharkordClient.session.defaultCamera
+        frontVideoResolution.value = SharkordClient.session.frontVideoResolution
+        frontVideoFps.value = SharkordClient.session.frontVideoFps
+        backVideoResolution.value = SharkordClient.session.backVideoResolution
+        backVideoFps.value = SharkordClient.session.backVideoFps
+        mirrorFrontCamera.value = SharkordClient.session.mirrorFrontCamera
+        screenShareResolution.value = SharkordClient.session.screenShareResolution
+        screenShareFps.value = SharkordClient.session.screenShareFps
+        
+        val codecs = if (SharkordClient.isVoiceEngineInitialized) {
+            SharkordClient.voiceEngine.supportedVideoCodecs
+        } else {
+            listOf("VP8", "VP9", "H264")
+        }
+        availableVideoCodecs.value = codecs
+        videoCodec.value = SharkordClient.session.getVideoCodec(codecs)
+        
+        loadUser()
+    }
+
+    private fun loadUser() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            SharkordClient.webSocket.serverData.collect { joinData ->
+                val currentUser = joinData.users.find { it.id == joinData.ownUserId }
+                if (currentUser != null && _uiState.value.user?.id != currentUser.id) {
+                    name.value = currentUser.name
+                    bio.value = currentUser.bio ?: ""
+                    bannerColor.value = currentUser.bannerColor ?: "#FFFFFF"
+                }
+                _uiState.value = _uiState.value.copy(
+                    user = currentUser,
+                    isLoading = false
+                )
+            }
+        }
+    }
+
+    fun clearMessages() {
+        _uiState.value = _uiState.value.copy(error = null, successMessage = null)
+    }
+
+    fun saveProfile() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSavingProfile = true, error = null, successMessage = null)
+            try {
+                val input = JsonObject().apply {
+                    addProperty("name", name.value)
+                    addProperty("bio", bio.value)
+                    addProperty("bannerColor", bannerColor.value)
+                }
+                SharkordClient.webSocket.sendMutationAwait("users.update", input)
+                _uiState.value = _uiState.value.copy(successMessage = "Profile updated successfully")
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = e.message ?: "Failed to update profile")
+            } finally {
+                _uiState.value = _uiState.value.copy(isSavingProfile = false)
+            }
+        }
+    }
+
+    fun updatePassword() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSavingPassword = true, error = null, successMessage = null)
+            try {
+                val input = JsonObject().apply {
+                    addProperty("currentPassword", currentPassword.value)
+                    addProperty("newPassword", newPassword.value)
+                    addProperty("confirmNewPassword", confirmNewPassword.value)
+                }
+                SharkordClient.webSocket.sendMutationAwait("users.updatePassword", input)
+                _uiState.value = _uiState.value.copy(successMessage = "Password updated successfully")
+                currentPassword.value = ""
+                newPassword.value = ""
+                confirmNewPassword.value = ""
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = e.message ?: "Failed to update password")
+            } finally {
+                _uiState.value = _uiState.value.copy(isSavingPassword = false)
+            }
+        }
+    }
+
+    fun saveMaxDiskCacheMb(value: Int) {
+        maxDiskCacheMb.value = value
+        SharkordClient.session.maxDiskCacheMb = value
+    }
+
+    fun saveAutoLogin(value: Boolean) {
+        autoLogin.value = value
+        SharkordClient.session.autoLogin = value
+    }
+
+    fun saveAlwaysRequireBiometrics(value: Boolean) {
+        alwaysRequireBiometrics.value = value
+        SharkordClient.session.alwaysRequireBiometrics = value
+    }
+
+    fun saveCompressMedia(value: Boolean) {
+        compressMedia.value = value
+        SharkordClient.session.compressMedia = value
+    }
+
+    fun saveMediaCodec(value: String) {
+        mediaCodec.value = value
+        SharkordClient.session.mediaCodec = value
+    }
+
+    fun saveMediaQuality(value: String) {
+        mediaQuality.value = value
+        SharkordClient.session.mediaQuality = value
+    }
+
+    fun removeBiometrics() {
+        SharkordClient.session.clearBiometricCredentials()
+        hasBiometrics.value = false
+        alwaysRequireBiometrics.value = false
+        SharkordClient.session.alwaysRequireBiometrics = false
+    }
+
+    fun saveDefaultAudioRoute(value: String) {
+        defaultAudioRoute.value = value
+        SharkordClient.session.defaultAudioRoute = value
+    }
+
+    fun saveEchoCancellation(value: Boolean) {
+        echoCancellation.value = value
+        SharkordClient.session.echoCancellation = value
+    }
+
+    fun saveNoiseSuppression(value: Boolean) {
+        noiseSuppression.value = value
+        SharkordClient.session.noiseSuppression = value
+    }
+
+    fun saveAutoGainControl(value: Boolean) {
+        autoGainControl.value = value
+        SharkordClient.session.autoGainControl = value
+    }
+
+    fun saveDefaultCamera(value: String) {
+        defaultCamera.value = value
+        SharkordClient.session.defaultCamera = value
+    }
+
+    fun saveFrontVideoResolution(value: String) {
+        frontVideoResolution.value = value
+        SharkordClient.session.frontVideoResolution = value
+    }
+
+    fun saveFrontVideoFps(value: Int) {
+        frontVideoFps.value = value
+        SharkordClient.session.frontVideoFps = value
+    }
+
+    fun saveBackVideoResolution(value: String) {
+        backVideoResolution.value = value
+        SharkordClient.session.backVideoResolution = value
+    }
+
+    fun saveBackVideoFps(value: Int) {
+        backVideoFps.value = value
+        SharkordClient.session.backVideoFps = value
+    }
+
+    fun saveMirrorFrontCamera(value: Boolean) {
+        mirrorFrontCamera.value = value
+        SharkordClient.session.mirrorFrontCamera = value
+    }
+
+    fun saveScreenShareResolution(value: String) {
+        screenShareResolution.value = value
+        SharkordClient.session.screenShareResolution = value
+    }
+
+    fun saveScreenShareFps(value: Int) {
+        screenShareFps.value = value
+        SharkordClient.session.screenShareFps = value
+    }
+
+    fun saveVideoCodec(value: String) {
+        videoCodec.value = value
+        SharkordClient.session.setVideoCodec(value)
+    }
+
+    fun uploadAvatar(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSavingProfile = true, error = null, successMessage = null)
+            try {
+                val fileId = uploadImage(context, uri)
+                if (fileId != null) {
+                    val input = JsonObject().apply { addProperty("fileId", fileId) }
+                    SharkordClient.webSocket.sendMutationAwait("users.changeAvatar", input)
+                    _uiState.value = _uiState.value.copy(successMessage = "Avatar updated")
+                } else {
+                    _uiState.value = _uiState.value.copy(error = "Failed to upload image")
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = e.message ?: "Failed to upload avatar")
+            } finally {
+                _uiState.value = _uiState.value.copy(isSavingProfile = false)
+            }
+        }
+    }
+
+    fun uploadBanner(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSavingProfile = true, error = null, successMessage = null)
+            try {
+                val fileId = uploadImage(context, uri)
+                if (fileId != null) {
+                    val input = JsonObject().apply { addProperty("fileId", fileId) }
+                    SharkordClient.webSocket.sendMutationAwait("users.changeBanner", input)
+                    _uiState.value = _uiState.value.copy(successMessage = "Banner updated")
+                } else {
+                    _uiState.value = _uiState.value.copy(error = "Failed to upload image")
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = e.message ?: "Failed to upload banner")
+            } finally {
+                _uiState.value = _uiState.value.copy(isSavingProfile = false)
+            }
+        }
+    }
+
+    private suspend fun uploadImage(context: Context, uri: Uri): String? {
+        return try {
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val bytes = inputStream?.readBytes()
+            inputStream?.close()
+
+            if (bytes != null) {
+                val serverUrl = SharkordClient.currentServerUrl ?: return null
+                val token = SharkordClient.currentToken ?: return null
+                
+                // get filename from uri or fallback
+                val fileName = "upload.jpg"
+                
+                val result = SharkordClient.http.uploadFile(serverUrl, token, fileName, bytes)
+                if (result.isSuccess) {
+                    result.getOrNull()?.id
+                } else {
+                    Log.e("UserSettings", "Upload failed: ${result.exceptionOrNull()?.message}")
+                    null
+                }
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e("UserSettings", "Upload error", e)
+            null
+        }
+    }
+
+    fun deleteAccount(onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null, successMessage = null)
+            try {
+                val userId = _uiState.value.user?.id ?: throw Exception("User not loaded")
+                val input = JsonObject().apply {
+                    addProperty("userId", userId)
+                    addProperty("wipe", false)
+                }
+                SharkordClient.webSocket.sendMutationAwait("users.delete", input)
+                SharkordClient.session.clearSession()
+                onSuccess()
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = e.message ?: "Failed to delete account")
+            } finally {
+                _uiState.value = _uiState.value.copy(isLoading = false)
+            }
+        }
+    }
+}

@@ -1,6 +1,7 @@
 package com.sharkord.android.ui.login
 
 import android.content.Context
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -16,12 +17,9 @@ enum class LoginStep {
     CREDENTIALS
 }
 
-/**
- * ViewModel for the login flow (server URL entry + credentials).
- *
- * Uses [ServerRepository] for all network operations instead of directly
- * calling SharkordClient. Uses coroutines instead of callback chains.
- */
+// viewModel for the login flow (server URL entry + credentials)
+// uses [ServerRepository] for all network operations instead of directly
+// calling SharkordClient. Uses coroutines instead of callback chains
 class LoginViewModel : ViewModel() {
 
     private val repository = ServerRepository()
@@ -35,31 +33,49 @@ class LoginViewModel : ViewModel() {
     var errorMessage by mutableStateOf<String?>(null)
     var loginSuccess by mutableStateOf(false)
 
+    var showBiometricSavePrompt by mutableStateOf(false)
+    var showBiometricLaunchPrompt by mutableStateOf(false)
+    var pendingSuccessAction: (() -> Unit)? = null
+
+    var showInsecureConnectionPrompt by mutableStateOf(false)
+    var pendingInsecureUrl by mutableStateOf<String?>(null)
+
     var currentStep by mutableStateOf(LoginStep.URL)
     var serverLogoUrl by mutableStateOf<String?>(null)
     var serverName by mutableStateOf("Sharkord")
     var serverDescription by mutableStateOf<String?>(null)
 
-    /**
-     * Called once on first composition to restore saved state and
-     * optionally trigger auto-login.
-     */
+    // tracks whether we are currently performing an automatic login transition
+    var isAutoLoggingIn by mutableStateOf(false)
+        private set
+        
+    var hideSplashScreen by mutableStateOf(false)
+
+    // called once on first composition to restore saved state and
+    // optionally trigger auto-login
     fun initialize(context: Context, onAutoLoginSuccess: () -> Unit) {
-        // Ensure SharkordClient is initialized
+        // ensure SharkordClient is initialized
         SharkordClient.initialize(context)
 
-        // Restore auto-login preference
+        // restore auto-login preference
         autoLogin = repository.isAutoLoginEnabled()
 
-        // Try to auto-login if we have a saved session
+        // try to auto-login if a saved session exists
         if (repository.restoreSession()) {
+            isAutoLoggingIn = true
             serverUrl = SharkordClient.currentServerUrl ?: ""
             fetchServerDetails(serverUrl)
-            onAutoLoginSuccess()
+
+            if (SharkordClient.session.alwaysRequireBiometrics && SharkordClient.session.hasBiometricCredentials() && isBiometricSupported(context)) {
+                pendingSuccessAction = onAutoLoginSuccess
+                showBiometricLaunchPrompt = true
+            } else {
+                onAutoLoginSuccess()
+            }
             return
         }
 
-        // Try to pre-fill the server URL from saved preferences
+        // try to pre-fill the server URL from saved preferences
         val savedUrl = repository.getSavedServerUrl()
         if (!savedUrl.isNullOrBlank()) {
             serverUrl = savedUrl
@@ -70,45 +86,53 @@ class LoginViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Fetches server info (name, description, logo) for display.
-     * Silently ignores errors — this is a best-effort cosmetic operation.
-     */
+    // fetches server info (name, description, logo) for display
+    // silently ignores errors — this is a best-effort cosmetic operation
     private fun fetchServerDetails(url: String) {
         viewModelScope.launch {
             repository.fetchServerInfo(url).onSuccess { info ->
                 val cleanUrl = url.trimEnd('/')
-                serverLogoUrl = info.logo?.name?.let { "$cleanUrl/public/$it" }
+                serverLogoUrl = info.logo?.name?.let { name ->
+                    val encodedName = android.net.Uri.encode(name)
+                    "$cleanUrl/public/$encodedName"
+                }
+                Log.d("LoginViewModel", "fetchServerDetails success: logoUrl=$serverLogoUrl")
                 serverName = info.name
                 serverDescription = info.description
+            }.onFailure { error ->
+                Log.e("LoginViewModel", "fetchServerDetails failure: ${error.message}", error)
             }
-            // Errors are silently ignored for cosmetic server info fetching
         }
     }
 
-    /**
-     * Step 1: User taps "Next" after entering a server URL.
-     * Validates the URL by fetching server info.
-     */
-    fun onNextClick(context: Context) {
+    // step 1: User taps "Next" after entering a server URL
+    // validates the URL by fetching server info
+    fun onNextClick(context: Context, isRetry: Boolean = false) {
         if (serverUrl.isBlank()) {
             errorMessage = context.getString(R.string.connect_invalidUrlError)
             return
         }
 
+        val originalUrl = serverUrl.trim()
+        val hasScheme = originalUrl.startsWith("http://", ignoreCase = true) || originalUrl.startsWith("https://", ignoreCase = true)
+        val attemptUrl = if (hasScheme || isRetry) originalUrl else "https://$originalUrl"
+
         isLoading = true
         errorMessage = null
 
         viewModelScope.launch {
-            repository.fetchServerInfo(serverUrl).fold(
+            repository.fetchServerInfo(attemptUrl).fold(
                 onSuccess = { info ->
                     isLoading = false
-                    val cleanUrl = serverUrl.trimEnd('/')
-                    serverLogoUrl = info.logo?.name?.let { "$cleanUrl/public/$it" }
+                    val cleanUrl = attemptUrl.trimEnd('/')
+                    serverLogoUrl = info.logo?.name?.let { name ->
+                        val encodedName = android.net.Uri.encode(name)
+                        "$cleanUrl/public/$encodedName"
+                    }
                     serverName = info.name
                     serverDescription = info.description
 
-                    // Save the validated URL
+                    // save the validated URL
                     repository.saveServerUrl(cleanUrl)
                     serverUrl = cleanUrl
 
@@ -116,18 +140,35 @@ class LoginViewModel : ViewModel() {
                 },
                 onFailure = { error ->
                     isLoading = false
-                    errorMessage = context.getString(
-                        R.string.connect_connectError,
-                        error.message ?: context.getString(R.string.settings_errorBadge)
-                    )
+                    if (!hasScheme && !isRetry) {
+                        pendingInsecureUrl = "http://$originalUrl"
+                        showInsecureConnectionPrompt = true
+                    } else {
+                        errorMessage = context.getString(
+                            R.string.connect_connectError,
+                            error.message ?: context.getString(R.string.settings_errorBadge)
+                        )
+                    }
                 }
             )
         }
     }
 
-    /**
-     * Step 1b: User taps "Back" to change the server URL.
-     */
+    fun onInsecureConnectionConfirm(context: Context) {
+        showInsecureConnectionPrompt = false
+        pendingInsecureUrl?.let {
+            serverUrl = it
+            onNextClick(context, isRetry = true)
+        }
+        pendingInsecureUrl = null
+    }
+
+    fun onInsecureConnectionCancel() {
+        showInsecureConnectionPrompt = false
+        pendingInsecureUrl = null
+    }
+
+    // step 1b: User taps "Back" to change the server URL
     fun changeServer() {
         errorMessage = null
         currentStep = LoginStep.URL
@@ -136,10 +177,8 @@ class LoginViewModel : ViewModel() {
         serverLogoUrl = null
     }
 
-    /**
-     * Step 2: User taps "Connect" with identity + password.
-     */
-    fun onLoginClick(context: Context, onSuccess: () -> Unit) {
+    // step 2: User taps "Connect" with identity + password
+    fun onLoginClick(context: Context, onSuccess: () -> Unit, isBiometric: Boolean = false) {
         if (serverUrl.isBlank() || identity.isBlank() || password.isBlank()) {
             errorMessage = context.getString(R.string.settings_errorBadge)
             return
@@ -158,13 +197,54 @@ class LoginViewModel : ViewModel() {
                 onSuccess = {
                     isLoading = false
                     loginSuccess = true
-                    onSuccess()
+                    
+                    if (!isBiometric && !SharkordClient.session.hasBiometricCredentials() && isBiometricSupported(context)) {
+                        pendingSuccessAction = onSuccess
+                        showBiometricSavePrompt = true
+                    } else {
+                        onSuccess()
+                    }
                 },
                 onFailure = { error ->
                     isLoading = false
-                    errorMessage = error.message ?: context.getString(R.string.settings_errorBadge)
+                    if (isBiometric) {
+                        errorMessage = "Credenziali scadute o errate. Effettua il login manualmente."
+                        SharkordClient.session.clearBiometricCredentials()
+                        password = ""
+                    } else {
+                        errorMessage = error.message ?: context.getString(R.string.settings_errorBadge)
+                    }
                 }
             )
         }
+    }
+
+    fun onBiometricSaveAnswer(save: Boolean) {
+        if (save) {
+            SharkordClient.session.saveBiometricCredentials(identity, password)
+        }
+        showBiometricSavePrompt = false
+        pendingSuccessAction?.invoke()
+        pendingSuccessAction = null
+    }
+
+    fun onBiometricLaunchSuccess() {
+        showBiometricLaunchPrompt = false
+        pendingSuccessAction?.invoke()
+        pendingSuccessAction = null
+    }
+
+    fun onBiometricLaunchCancel() {
+        showBiometricLaunchPrompt = false
+        pendingSuccessAction = null
+        SharkordClient.session.clearSession()
+        isAutoLoggingIn = false
+        hideSplashScreen = true
+        currentStep = LoginStep.CREDENTIALS
+    }
+
+    fun isBiometricSupported(context: Context): Boolean {
+        val biometricManager = androidx.biometric.BiometricManager.from(context)
+        return biometricManager.canAuthenticate(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK) == androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS
     }
 }

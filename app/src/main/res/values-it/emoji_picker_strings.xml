@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="no_emoji_found">Nessuna emoji trovata.</string>
+    <string name="search">Cerca</string>
+
+    <string name="category_recent">Recenti</string>
+
+    <string name="category_smileys_and_people">Faccine e persone</string>
+    <string name="category_animals_and_nature">Animali e natura</string>
+    <string name="category_food_and_drink">Cibo e bevande</string>
+    <string name="category_travel_and_places">Viaggi e luoghi</string>
+    <string name="category_activity">Attività</string>
+    <string name="category_objects">Oggetti</string>
+    <string name="category_symbols">Simboli</string>
+    <string name="category_flags">Bandiere</string>
+</resources>
