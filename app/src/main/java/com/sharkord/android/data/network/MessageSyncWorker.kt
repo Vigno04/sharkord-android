@@ -38,7 +38,7 @@ class MessageSyncWorker(
             return Result.failure()
         }
 
-        // Use a short-lived OkHttpClient for background sync to not conflict with foreground client
+        // use a short-lived OkHttpClient for background sync to not conflict with foreground client
         val bgClient = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
@@ -49,7 +49,7 @@ class MessageSyncWorker(
         try {
             webSocketManager.connect(serverUrl, token)
             
-            // Wait up to 15 seconds for connection
+            // wait up to 15 seconds for connection
             val connectedState = withTimeoutOrNull(15000) {
                 webSocketManager.connectionState.first { it.isConnected || it is ConnectionState.Error }
             }
@@ -59,7 +59,7 @@ class MessageSyncWorker(
                 return Result.retry()
             }
 
-            // Connection successful! We have JoinServerData.
+            // connection successful! we have JoinServerData
             val joinData = (connectedState as ConnectionState.Connected).serverData
             val readStates = joinData.readStates ?: emptyMap<String, Int>()
             
@@ -77,7 +77,7 @@ class MessageSyncWorker(
 
             var hasNewMessages = false
 
-            // Compare current read states with last known read states
+            // compare current read states with last known read states
             for ((channelIdStr, count) in readStates) {
                 val lastCount = lastCounts[channelIdStr] ?: 0
                 if (count > lastCount) {
@@ -91,7 +91,7 @@ class MessageSyncWorker(
                     try {
                         val input = JsonObject().apply {
                             addProperty("channelId", channelId)
-                            addProperty("limit", delta.coerceAtMost(10)) // Fetch up to 10 latest messages to be safe
+                            addProperty("limit", delta.coerceAtMost(10)) // fetch up to 10 latest messages to be safe
                         }
                         val response = webSocketManager.sendQueryAwait("messages.get", input)
                         val page = gson.fromJson(response, MessagesPage::class.java)
@@ -130,7 +130,7 @@ class MessageSyncWorker(
                                     replyToName = replyToName
                                 )
                                 hasNewMessages = true
-                                break // Only show the latest matching message for this channel
+                                break // only show the latest matching message for this channel
                             }
                         }
                     } catch (e: Exception) {
@@ -139,7 +139,7 @@ class MessageSyncWorker(
                 }
             }
 
-            // Save new states
+            // save new states
             prefs.edit().putString(KEY_LAST_COUNTS, gson.toJson(readStates)).apply()
             
             Log.d(TAG, "Sync complete. Found new messages: $hasNewMessages")
@@ -149,7 +149,7 @@ class MessageSyncWorker(
             Log.e(TAG, "Error during sync", e)
             return Result.retry()
         } finally {
-            // CRITICAL: Disconnect immediately to save battery and network
+            // critical: disconnect immediately to save battery and network
             webSocketManager.disconnect()
         }
     }

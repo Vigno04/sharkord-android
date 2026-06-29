@@ -97,7 +97,6 @@ data class Invite(
 // channels
 
 // channel model matching the server's TChannel schema
-// the server returns more fields than before; we capture the ones we need
 data class Channel(
     val id: Int,
     val name: String,

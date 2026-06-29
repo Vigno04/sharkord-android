@@ -90,9 +90,9 @@ class HomeViewModel : ViewModel() {
         get() = repository.connectionState
 
     init {
-        // Voice-related initialization moved to VoiceViewModel
+        // voice-related initialization moved to VoiceViewModel
         
-        // Sync active channel to SharkordClient for notifications
+        // sync active channel to SharkordClient for notifications
         viewModelScope.launch {
             uiState.collect { state ->
                 val activeChannel = if (state.activePanel == com.sharkord.android.ui.home.HomePanel.SERVER_CHAT) {
@@ -511,7 +511,7 @@ class HomeViewModel : ViewModel() {
                         if (shouldNotify) {
                             com.sharkord.android.audio.SoundEngine.playSound(com.sharkord.android.audio.SoundType.MESSAGE_RECEIVED)
                             
-                            // Fire a local notification if we aren't looking at this channel
+                            // fire a local notification if we aren't looking at this channel
                             if (SharkordClient.activeChannelId.value != event.message.channelId) {
                                 val channelName = channel?.name
                                 val senderName = data.users.find { it.id == event.message.userId }?.name ?: "Someone"
@@ -630,7 +630,7 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    // UI Actions
+    // UI actions
 
     fun selectChannel(channelId: Int, messageId: Int? = null, navigateToChat: Boolean = true) {
         val channel = _uiState.value.serverData?.channels?.find { it.id == channelId }

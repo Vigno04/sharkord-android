@@ -171,6 +171,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
             .createPeerConnectionFactory()
     }
 
+    // joins a voice channel and initializes mediasoup and webrtc components
     fun joinChannel(channelId: Int, routerRtpCapabilities: JsonObject) {
         if (_connectionState.value == VoiceConnectionState.CONNECTING ||
             _connectionState.value == VoiceConnectionState.CONNECTED
@@ -496,7 +497,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
             val response = webSocketManager.sendQueryAwait("voice.getProducers", JsonObject())
             val data = gson.fromJson(response, JsonObject::class.java)
 
-            // IMPORTANT: consume sequentially — concurrent consumption causes SDP m-line
+            // important: consume sequentially — concurrent consumption causes SDP m-line
             // ordering conflicts in WebRTC ("order of m-lines in answer doesn't match offer")
             val remoteAudioIds = data.getAsJsonArray("remoteAudioIds")
             remoteAudioIds?.forEach {
@@ -615,6 +616,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         }
     }
 
+    // stops consuming and removes a specific remote producer
     fun removeRemoteProducer(remoteId: Int, kind: StreamKind) {
         scope.launch {
             consumeMutex.withLock {
@@ -646,6 +648,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         }
     }
 
+    // removes all active audio and video consumers for a specific user
     fun clearRemoteProducersForUser(userId: Int) {
         scope.launch {
             consumeMutex.withLock {
@@ -675,6 +678,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         }
     }
 
+    // mutes or unmutes the local microphone
     fun setMicEnabled(enabled: Boolean) {
         isMicMuted = !enabled
         localAudioTrack?.setEnabled(enabled)
@@ -685,6 +689,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         }
     }
 
+    // mutes or unmutes all remote audio consumers
     fun setSoundEnabled(enabled: Boolean) {
         isSoundMuted = !enabled
         consumers.values.forEach { consumer ->
@@ -698,14 +703,17 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         }
     }
 
+    // enables or disables the local camera video track
     fun setCameraEnabled(context: Context, enabled: Boolean) {
         videoEngine.setCameraEnabled(context, enabled, peerConnectionFactory, sendTransport)
     }
 
+    // enables or disables local screen sharing
     fun setScreenShareEnabled(context: Context, intent: android.content.Intent?, enabled: Boolean) {
         videoEngine.setScreenShareEnabled(context, enabled, intent, peerConnectionFactory, sendTransport)
     }
 
+    // switches between front and back camera if video is currently active
     fun switchCamera(context: Context) {
         videoEngine.switchCamera(context, peerConnectionFactory, sendTransport)
     }
@@ -769,6 +777,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         }
     }
 
+    // leaves the current voice channel and disposes of all active resources
     fun leaveChannel() {
         statsJob?.cancel()
         statsJob = null
@@ -820,7 +829,7 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
         scope.launch {
             videoEngine.dispose()
 
-            delay(800) // Ensure UI unmounts AND VideoEngine finishes its 500ms cleanup
+            delay(800) // ensure UI unmounts AND VideoEngine finishes its 500ms cleanup
             
             // close producers
             oldMicProducer?.let { if (!it.isClosed) it.close() }

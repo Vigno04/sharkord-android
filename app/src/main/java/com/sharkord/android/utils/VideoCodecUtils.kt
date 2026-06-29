@@ -17,7 +17,7 @@ object VideoCodecUtils {
         for (codecInfo in codecList.codecInfos) {
             if (!codecInfo.isEncoder) continue
             
-            // We only want hardware accelerated encoders for optimal performance and battery
+            // we only want hardware accelerated encoders for optimal performance and battery
             val isHardwareAccelerated = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 codecInfo.isHardwareAccelerated
             } else {
@@ -33,12 +33,12 @@ object VideoCodecUtils {
             if (types.contains("video/avc")) hasH264 = true
         }
 
-        // Order by efficiency / modern standard
+        // order by efficiency / modern standard
         if (hasAV1) supportedCodecs.add("AV1")
         if (hasHEVC) supportedCodecs.add("HEVC")
         if (hasH264) supportedCodecs.add("H.264")
         
-        // Fallback if no hardware encoders found, software fallback might still work for these
+        // fallback if no hardware encoders found, software fallback might still work for these
         if (supportedCodecs.isEmpty()) {
             supportedCodecs.addAll(listOf("AV1", "HEVC", "H.264"))
         }

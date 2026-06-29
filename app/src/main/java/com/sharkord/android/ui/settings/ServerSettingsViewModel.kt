@@ -437,7 +437,7 @@ class ServerSettingsViewModel(
             val result = repository.updatePluginSetting(pluginId, key, value)
             if (result.isSuccess) {
                 _uiState.update { it.copy(isLoading = false, successMessage = "Setting updated") }
-                fetchPluginSettings(pluginId) // Reload
+                fetchPluginSettings(pluginId) // reload
             } else {
                 _uiState.update { it.copy(isLoading = false, error = "Failed to update setting") }
             }
@@ -524,7 +524,7 @@ class ServerSettingsViewModel(
             val result = repository.kickUser(userId, reason)
             if (result.isSuccess) {
                 _uiState.update { it.copy(successMessage = "User kicked") }
-                openModView(userId) // Reload
+                openModView(userId) // reload
             } else {
                 _uiState.update { it.copy(isModViewLoading = false, error = "Failed to kick user") }
             }
@@ -537,7 +537,7 @@ class ServerSettingsViewModel(
             val result = repository.banUser(userId, reason)
             if (result.isSuccess) {
                 _uiState.update { it.copy(successMessage = "User banned") }
-                openModView(userId) // Reload
+                openModView(userId) // reload
             } else {
                 _uiState.update { it.copy(isModViewLoading = false, error = "Failed to ban user") }
             }
@@ -550,7 +550,7 @@ class ServerSettingsViewModel(
             val result = repository.unbanUser(userId)
             if (result.isSuccess) {
                 _uiState.update { it.copy(successMessage = "User unbanned") }
-                openModView(userId) // Reload
+                openModView(userId) // reload
             } else {
                 _uiState.update { it.copy(isModViewLoading = false, error = "Failed to unban user") }
             }
@@ -563,7 +563,7 @@ class ServerSettingsViewModel(
             val result = repository.addUserRole(userId, roleId)
             if (result.isSuccess) {
                 _uiState.update { it.copy(successMessage = "Role added") }
-                openModView(userId) // Reload
+                openModView(userId) // reload
             } else {
                 _uiState.update { it.copy(isModViewLoading = false, error = "Failed to add role") }
             }
@@ -576,7 +576,7 @@ class ServerSettingsViewModel(
             val result = repository.removeUserRole(userId, roleId)
             if (result.isSuccess) {
                 _uiState.update { it.copy(successMessage = "Role removed") }
-                openModView(userId) // Reload
+                openModView(userId) // reload
             } else {
                 _uiState.update { it.copy(isModViewLoading = false, error = "Failed to remove role") }
             }

@@ -66,6 +66,7 @@ class VoiceService : Service() {
         return START_NOT_STICKY
     }
 
+    // starts the foreground service and shows the ongoing notification
     private fun startForegroundService() {
         createNotificationChannel()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -84,6 +85,7 @@ class VoiceService : Service() {
         }
     }
 
+    // builds the notification for the foreground service
     private fun buildNotification(): Notification {
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
@@ -142,6 +144,7 @@ class VoiceService : Service() {
             .build()
     }
 
+    // toggles the microphone mute state
     private fun toggleMic() {
         if (!SharkordClient.isVoiceEngineInitialized) return
         val newMuted = !SharkordClient.voiceEngine.isMicMuted
@@ -153,6 +156,7 @@ class VoiceService : Service() {
         updateVoiceState(newMuted, newDeafened)
     }
 
+    // toggles the deafen state
     private fun toggleDeafen() {
         if (!SharkordClient.isVoiceEngineInitialized) return
         val newDeafened = !SharkordClient.voiceEngine.isSoundMuted
@@ -161,6 +165,7 @@ class VoiceService : Service() {
         updateVoiceState(newMuted, newDeafened)
     }
 
+    // updates the voice engine state and syncs with the server
     private fun updateVoiceState(micMuted: Boolean, soundMuted: Boolean) {
         SharkordClient.voiceEngine.setMicEnabled(!micMuted)
         SharkordClient.voiceEngine.setSoundEnabled(!soundMuted)
@@ -183,6 +188,7 @@ class VoiceService : Service() {
         }
     }
 
+    // stops the foreground service and leaves the active voice channel
     private fun stopForegroundService() {
         scope.launch {
             try {
@@ -223,6 +229,7 @@ class VoiceService : Service() {
         stopForegroundService()
     }
 
+    // creates the notification channel for modern android versions
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(

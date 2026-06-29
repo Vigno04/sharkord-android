@@ -21,8 +21,8 @@ object ParallelDownloader {
     ): Boolean = withContext(Dispatchers.IO) {
         val safeUrl = url.replace(" ", "%20")
         
-        // Try to get file size and check range support using a 0-0 byte GET request
-        // This avoids HEAD requests which some servers return 404 for.
+        // try to get file size and check range support using a 0-0 byte GET request
+        // head requests are not supported by server
         val checkRequest = Request.Builder()
             .url(safeUrl)
             .header("Range", "bytes=0-0")
@@ -40,8 +40,6 @@ object ParallelDownloader {
         }
 
         if (response.code == 200) {
-            // Server ignored the Range header and sent the whole file. 
-            // We can just save it sequentially right now!
             return@withContext try {
                 response.body?.let { body ->
                     destFile.outputStream().use { out ->
@@ -56,22 +54,22 @@ object ParallelDownloader {
             }
         }
 
-        // Response is 206 Partial Content
+        // response is 206 Partial Content
         var contentLength = -1L
         val contentRange = response.header("Content-Range")
         if (contentRange != null && contentRange.contains("/")) {
             contentLength = contentRange.substringAfter("/").toLongOrNull() ?: -1L
         }
         
-        // Close the check response
+        // close the check response
         response.close()
 
         if (contentLength <= 0 || contentLength <= minChunkSize) {
-            // Fallback to sequential download
+            // fallback to sequential download
             return@withContext downloadSequential(client, url, destFile)
         }
 
-        // Parallel download using HTTP Range
+        // parallel download using HTTP Range
         val chunkSize = maxOf(minChunkSize, contentLength / maxConcurrency)
         val chunks = mutableListOf<Pair<Long, Long>>()
         var start = 0L
@@ -182,8 +180,7 @@ object ParallelDownloader {
                         true
                     } ?: false
                 } else if (response.code == 416) {
-                    // If the file is smaller than the requested range, some servers return 416.
-                    // We can just download the entire file sequentially since it's small!
+                    // if the file is smaller than the requested range, some servers return 416
                     response.close()
                     downloadSequential(client, url, destFile)
                 } else {

@@ -63,7 +63,7 @@ class VideoEngine(
     private var screenCapturer: VideoCapturer? = null
     private var screenSurfaceTextureHelper: SurfaceTextureHelper? = null
 
-    // Cache settings to prevent crashes if they change mid-call
+    // cache settings to prevent crashes if they change mid-call
     private var cachedFrontRes = "1280x720"
     private var cachedBackRes = "1280x720"
     private var cachedFrontFps = 30
@@ -72,6 +72,7 @@ class VideoEngine(
     private var cachedScreenFps = 30
     private var cachedDefaultCamera = "Front"
 
+    // updates cached resolution and fps settings from the active session
     fun refreshSettings() {
         cachedFrontRes = SharkordClient.session.frontVideoResolution
         cachedBackRes = SharkordClient.session.backVideoResolution
@@ -82,24 +83,28 @@ class VideoEngine(
         cachedDefaultCamera = SharkordClient.session.defaultCamera
     }
 
+    // adds a remote video track to the state flow for UI rendering
     fun addRemoteVideoTrack(remoteId: String, track: VideoTrack) {
         _remoteVideoTracks.update { map ->
             map.toMutableMap().also { it[remoteId] = track }
         }
     }
 
+    // removes a remote video track from the state flow
     fun removeRemoteVideoTrack(remoteId: String) {
         _remoteVideoTracks.update { map ->
             map.toMutableMap().also { it.remove(remoteId) }
         }
     }
 
+    // clears all remote video tracks from the state flow
     fun clearRemoteVideoTracks() {
         _remoteVideoTracks.value = emptyMap()
     }
 
     private val cameraMutex = kotlinx.coroutines.sync.Mutex()
 
+    // toggles local camera capture and starts or stops video production
     fun setCameraEnabled(
         activeContext: Context,
         enabled: Boolean,
@@ -248,6 +253,7 @@ class VideoEngine(
         }
     }
 
+    // stops the local video capturer and closes the video producer
     fun stopLocalVideo() {
         cameraEnabled = false
         scope.launch {
@@ -257,6 +263,7 @@ class VideoEngine(
         }
     }
 
+    // disposes all video engine resources and stops all captures
     suspend fun dispose() {
         cameraEnabled = false
         screenShareEnabled = false
@@ -266,6 +273,7 @@ class VideoEngine(
         }
     }
 
+    // switches between front and back facing cameras during an active capture
     fun switchCamera(
         activeContext: Context,
         factory: PeerConnectionFactory?,
@@ -337,6 +345,7 @@ class VideoEngine(
         oldSurfaceTextureHelper?.dispose()
     }
 
+    // toggles local screen sharing capture and production
     fun setScreenShareEnabled(
         activeContext: Context,
         enabled: Boolean,

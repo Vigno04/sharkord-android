@@ -132,7 +132,7 @@ class VoiceViewModel : ViewModel() {
                 SharkordClient.voiceEngine.setSoundEnabled(true)
                 
                 viewModelScope.launch {
-                    delay(800) // Wait for hardware audio routing to settle into MODE_IN_COMMUNICATION
+                    delay(800) // wait for hardware audio routing to settle into MODE_IN_COMMUNICATION
                     com.sharkord.android.audio.SoundEngine.playSound(com.sharkord.android.audio.SoundType.OWN_USER_JOINED_VOICE_CHANNEL)
                     
                     _uiState.update { 
@@ -228,7 +228,7 @@ class VoiceViewModel : ViewModel() {
 
         // note: Optimistic UI state updates for other components (like voice user lists)
         // are handled by the ServerEvent system when the WebSocket pushes the state update back.
-        // We do play the sound effect immediately:
+        // we do play the sound effect immediately:
         com.sharkord.android.audio.SoundEngine.playSound(
             if (micMuted) com.sharkord.android.audio.SoundType.OWN_USER_MUTED_MIC else com.sharkord.android.audio.SoundType.OWN_USER_UNMUTED_MIC
         )

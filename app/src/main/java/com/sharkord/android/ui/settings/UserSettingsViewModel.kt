@@ -314,7 +314,7 @@ class UserSettingsViewModel : ViewModel() {
                 val token = SharkordClient.currentToken ?: return null
                 
                 // get filename from uri or fallback
-                val fileName = "upload.jpg" // Could extract real name
+                val fileName = "upload.jpg"
                 
                 val result = SharkordClient.http.uploadFile(serverUrl, token, fileName, bytes)
                 if (result.isSuccess) {

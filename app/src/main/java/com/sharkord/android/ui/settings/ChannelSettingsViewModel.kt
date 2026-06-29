@@ -104,7 +104,7 @@ class ChannelSettingsViewModel(private val channelId: Int) : ViewModel() {
 
             val result = repository.updateChannelPermissions(channelId, roleId, userId, isCreate, permissions)
             if (result.isSuccess) {
-                loadPermissions() // Reload to get fresh state
+                loadPermissions() // reload to get fresh state
             } else {
                 // revert
                 _uiState.update { it.copy(rolePermissions = oldRolePerms, userPermissions = oldUserPerms, errorMessage = result.exceptionOrNull()?.message ?: "Failed to update permissions") }
@@ -127,7 +127,7 @@ class ChannelSettingsViewModel(private val channelId: Int) : ViewModel() {
 
             val result = repository.deleteChannelPermissions(channelId, roleId, userId)
             if (result.isSuccess) {
-                loadPermissions() // Reload to get fresh state
+                loadPermissions() // reload to get fresh state
             } else {
                 // revert
                 _uiState.update { it.copy(rolePermissions = oldRolePerms, userPermissions = oldUserPerms, errorMessage = result.exceptionOrNull()?.message ?: "Failed to delete permissions") }

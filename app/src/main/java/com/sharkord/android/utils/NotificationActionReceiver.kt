@@ -16,7 +16,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
             val channelId = intent.getIntExtra("channel_id", -1)
             if (channelId == -1) return
 
-            // Immediately clear the notification for responsive UI
+            // immediately clear the notification for responsive UI
             NotificationHelper.clearNotification(context, channelId)
 
             val pendingResult = goAsync()

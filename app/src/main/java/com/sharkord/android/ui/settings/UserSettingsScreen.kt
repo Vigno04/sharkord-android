@@ -492,7 +492,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
 
     val context = LocalContext.current
     
-    // Screen share options derived from device capabilities
+    // screen share options derived from device capabilities
     val availableScreenShareResolutions = remember {
         val displayMetrics = context.resources.displayMetrics
         val w = displayMetrics.widthPixels
@@ -889,6 +889,21 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
     var syncFreq by remember { mutableStateOf(prefs.getString("notif_sync_freq", "Off") ?: "Off") }
     var expandedFreq by remember { mutableStateOf(false) }
 
+    var isBatteryOptimized by remember { mutableStateOf(true) }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                val powerManager = context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+                isBatteryOptimized = !powerManager.isIgnoringBatteryOptimizations(context.packageName)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     val notificationPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
     ) {}
@@ -901,7 +916,7 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
         }
     }
 
-    // Helper to schedule work
+    // helper to schedule work
     val updateWorkManager = { freq: String ->
         if (freq != "Off") checkAndRequestPermission()
         val workManager = androidx.work.WorkManager.getInstance(context)
@@ -1037,8 +1052,8 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Battery optimization warning
-        if (syncFreq != "Off") {
+        // battery optimization warning
+        if (syncFreq != "Off" && isBatteryOptimized) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

@@ -21,8 +21,6 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 // handles all HTTP REST API calls to the Sharkord server
-// uses Kotlin coroutines instead of callbacks — callers get clean `Result<T>` returns
-// no Android Context dependency; error mapping happens at the ViewModel layer
 class SharkordHttpClient(private val client: OkHttpClient) {
 
     private val gson = Gson()
@@ -34,7 +32,7 @@ class SharkordHttpClient(private val client: OkHttpClient) {
 
     // public API
 
-    // POST /login — authenticate with identity and password
+    // post /login — authenticate with identity and password
     // @return [Result.success] with the JWT token string on success,
     // [Result.failure] with a descriptive [SharkordApiException] on failure
     suspend fun login(serverUrl: String, identity: String, password: String): Result<String> {
@@ -86,7 +84,7 @@ class SharkordHttpClient(private val client: OkHttpClient) {
         }
     }
 
-    // GET /info — fetch server metadata (name, description, logo, version)
+    // get /info — fetch server metadata (name, description, logo, version)
     suspend fun fetchServerInfo(serverUrl: String): Result<ServerInfoResponse> {
         val cleanUrl = serverUrl.trimEnd('/')
         val requestUrl = "$cleanUrl/info"
@@ -120,7 +118,7 @@ class SharkordHttpClient(private val client: OkHttpClient) {
         }
     }
 
-    // POST /upload — upload a raw file attachment
+    // post /upload — upload a raw file attachment
     suspend fun uploadFile(
         serverUrl: String,
         token: String,

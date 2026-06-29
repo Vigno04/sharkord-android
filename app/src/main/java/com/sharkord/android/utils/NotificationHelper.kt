@@ -52,7 +52,7 @@ object NotificationHelper {
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            // We can add extras here to route to the specific channel if the Navigation system supports it
+            // we can add extras here to route to the specific channel if the Navigation system supports it
             putExtra("target_channel_id", channelId)
         }
         
@@ -101,7 +101,7 @@ object NotificationHelper {
             .addAction(0, "Mark as read", markAsReadPendingIntent)
 
         with(NotificationManagerCompat.from(context)) {
-            // Using channelId as notification ID to group/replace notifications per channel
+            // using channelId as notification ID to group/replace notifications per channel
             notify(channelId, builder.build())
         }
     }

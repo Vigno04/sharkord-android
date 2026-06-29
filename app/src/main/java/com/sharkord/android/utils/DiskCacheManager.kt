@@ -10,12 +10,12 @@ import java.io.File
 object DiskCacheManager {
     private const val TAG = "DiskCacheManager"
 
-    // Base score for priorities:
-    // Text/Structure = 300
-    // Previews (.img_cache) = 200
-    // Images = 100
-    // Documents/Others = 50
-    // Videos/Audio = 0
+    // base score for priorities:
+    // text/Structure = 300
+    // previews (.img_cache) = 200
+    // images = 100
+    // documents/Others = 50
+    // videos/Audio = 0
     private fun getFileBaseScore(file: File): Float {
         val name = file.name.lowercase()
         return when {
