@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -33,6 +34,9 @@ fun ChatTopBar(
     showPinnedMessages: Boolean,
     onBackClick: () -> Unit,
     onTogglePinnedMessages: () -> Unit,
+    isTablet: Boolean = false,
+    isChatFullScreen: Boolean = false,
+    onToggleFullScreen: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val headerColor = SharkordTheme.colors.bgColor
@@ -48,22 +52,41 @@ fun ChatTopBar(
                 .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .clickable(onClick = onBackClick)
-                    .padding(8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back to Channels",
-                    tint = textPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
+            if (!isTablet) {
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable(onClick = onBackClick)
+                        .padding(8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back to Channels",
+                        tint = textPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
             }
 
-            Spacer(modifier = Modifier.width(4.dp))
+            if (isTablet && onToggleFullScreen != null) {
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable(onClick = onToggleFullScreen)
+                        .padding(8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isChatFullScreen) Icons.AutoMirrored.Filled.ArrowForward else Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Toggle Full Screen",
+                        tint = textPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+            }
 
             if (isDm && dmUser != null) {
                 val avatarUrl = dmUser.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }

@@ -4,8 +4,9 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -17,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.sharkord.android.R
 import com.sharkord.android.data.model.Emoji
@@ -29,7 +31,7 @@ import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ChatBottomPanel(
     isEmojiPickerOpen: Boolean,
@@ -63,7 +65,7 @@ fun ChatBottomPanel(
     LaunchedEffect(imeAboveNavPx) {
         val minKbPx = with(density) { 150.dp.toPx() }
         if (imeAboveNavPx > minKbPx) {
-            kotlinx.coroutines.delay(250)
+            delay(250)
             if (storedKbAboveNavPx != imeAboveNavPx) {
                 storedKbAboveNavPx = imeAboveNavPx
                 prefs.edit().putInt("keyboard_height_above_nav", imeAboveNavPx).apply()
@@ -74,7 +76,7 @@ fun ChatBottomPanel(
     // emoji → Keyboard: close emoji after the keyboard has appeared
     LaunchedEffect(isImeVisible) {
         if (isImeVisible && isEmojiPickerOpen) {
-            kotlinx.coroutines.delay(300)
+            delay(300)
             onCloseEmojiPicker()
         }
     }
@@ -140,7 +142,7 @@ fun ChatBottomPanel(
         ) {
             if (isEmojiPickerOpen) {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    TabRow(
+                    PrimaryTabRow(
                         selectedTabIndex = if (selectedEmojiTab == "standard") 0 else 1,
                         containerColor = cardColor,
                         contentColor = textPrimary

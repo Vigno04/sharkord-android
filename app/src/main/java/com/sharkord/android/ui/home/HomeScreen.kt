@@ -1,6 +1,10 @@
 package com.sharkord.android.ui.home
 
-import com.sharkord.android.ui.theme.SharkordTheme
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -10,7 +14,6 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -29,6 +32,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -39,21 +43,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sharkord.android.R
 import com.sharkord.android.data.model.Channel
 import com.sharkord.android.data.network.SharkordClient
 import com.sharkord.android.ui.components.rememberAsyncImagePainter
 import com.sharkord.android.ui.components.rememberExtendedImageState
 import com.sharkord.android.ui.home.components.*
+import com.sharkord.android.ui.theme.SharkordTheme
 import kotlinx.coroutines.launch
+
+/** Tolerance in px used to detect when the voice panel is fully covering the chat pane. */
+private const val VOICE_FULLSCREEN_THRESHOLD_PX = 10f
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,7 +68,7 @@ fun HomeScreen(
     voiceViewModel: com.sharkord.android.ui.voice.VoiceViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     
     // collect uiState
     val uiState by viewModel.uiState.collectAsState()
@@ -131,6 +133,11 @@ fun HomeScreen(
                 val density = LocalDensity.current
                 val screenWidthPx = remember(screenWidthDp) { with(density) { screenWidthDp.toPx() } }
                 
+                val isTablet = screenWidthDp >= 600.dp
+                val leftPaneWidthDp = 320.dp
+                val halfScreenWidthDp = screenWidthDp / 2
+                val splitOffset = if (isTablet) -screenWidthPx + with(density) { leftPaneWidthDp.toPx() } else -screenWidthPx
+                
                 // track dynamic swipe-to-dismiss offset of the Channels List in pixels
                 val serverSwipeOffset = remember { Animatable(if (uiState.activePanel == HomePanel.SERVER_LIST) 0f else -screenWidthPx) }
                 val dmsSwipeOffset = remember { Animatable(if (uiState.activePanel == HomePanel.SERVER_LIST || uiState.activePanel == HomePanel.DMS_LIST) 0f else -screenWidthPx) }
@@ -143,33 +150,17 @@ fun HomeScreen(
                     when (uiState.activePanel) {
                         HomePanel.SERVER_LIST -> {
                             keyboardController?.hide()
-                            coroutineScope.launch { 
-                                kotlinx.coroutines.delay(10)
-                                serverSwipeOffset.animateTo(0f) 
-                            }
-                            if (uiState.isDmsListSelected) dmsSwipeOffset.snapTo(0f) else dmsSwipeOffset.snapTo(-screenWidthPx)
+                            dmsSwipeOffset.snapTo(-screenWidthPx)
                         }
                         HomePanel.DMS_LIST -> {
                             keyboardController?.hide()
-                            dmsSwipeOffset.snapTo(0f)
-                            coroutineScope.launch { 
-                                kotlinx.coroutines.delay(10)
-                                serverSwipeOffset.animateTo(-screenWidthPx) 
-                            }
+                            serverSwipeOffset.snapTo(-screenWidthPx)
                         }
                         HomePanel.SERVER_CHAT -> {
                             dmsSwipeOffset.snapTo(-screenWidthPx)
-                            coroutineScope.launch { 
-                                kotlinx.coroutines.delay(25)
-                                serverSwipeOffset.animateTo(-screenWidthPx) 
-                            }
                         }
                         HomePanel.DM_CHAT -> {
                             serverSwipeOffset.snapTo(-screenWidthPx)
-                            coroutineScope.launch { 
-                                kotlinx.coroutines.delay(25)
-                                dmsSwipeOffset.animateTo(-screenWidthPx) 
-                            }
                         }
                     }
                 }
@@ -194,8 +185,14 @@ fun HomeScreen(
                             dmsSwipeOffset.snapTo(0f)
                         }
                         HomePanel.SERVER_CHAT, HomePanel.DM_CHAT -> {
-                            serverSwipeOffset.snapTo(-screenWidthPx)
-                            dmsSwipeOffset.snapTo(-screenWidthPx)
+                            val target = if (isTablet && !uiState.isChatFullScreen) splitOffset else -screenWidthPx
+                            if (uiState.isDmsListSelected) {
+                                dmsSwipeOffset.snapTo(target)
+                                serverSwipeOffset.snapTo(-screenWidthPx)
+                            } else {
+                                serverSwipeOffset.snapTo(target)
+                                dmsSwipeOffset.snapTo(-screenWidthPx)
+                            }
                         }
                     }
                     
@@ -224,6 +221,90 @@ fun HomeScreen(
                     viewModel.setPanel(HomePanel.DMS_LIST)
                 }
 
+                LaunchedEffect(screenWidthPx, isTablet, uiState.activePanel, uiState.isChatFullScreen) {
+                    val targetOffset = if (uiState.activePanel in listOf(HomePanel.SERVER_LIST, HomePanel.DMS_LIST)) {
+                        0f
+                    } else if (isTablet && !uiState.isChatFullScreen) {
+                        splitOffset
+                    } else {
+                        -screenWidthPx
+                    }
+                    val activeOffset = if (uiState.isDmsListSelected) dmsSwipeOffset else serverSwipeOffset
+                    if (activeOffset.value != targetOffset) {
+                        activeOffset.animateTo(targetOffset)
+                    }
+                }
+
+                val handleDragEnd: (androidx.compose.animation.core.Animatable<Float, androidx.compose.animation.core.AnimationVector1D>, Float, Boolean) -> Unit = { offset, totalDrag, isDm ->
+                    val activeId = if (isDm) uiState.selectedDmChannelId else uiState.selectedServerChannelId
+                    val isVoice = activeId?.let { id -> data.channels.find { it.id == id }?.isVoice == true } == true
+
+                    val anchors = if (isTablet) listOf(0f, splitOffset, -screenWidthPx) else listOf(0f, -screenWidthPx)
+                    val currentAnchorIndex = when {
+                        uiState.activePanel in listOf(HomePanel.SERVER_LIST, HomePanel.DMS_LIST) -> 0
+                        isTablet && !uiState.isChatFullScreen -> 1
+                        else -> anchors.lastIndex
+                    }
+                    
+                    var targetIndex = if (isTablet) {
+                        if (offset.value > splitOffset) {
+                            // Segment A: Dragging between 0 and splitOffset
+                            val segmentAnchors = listOf(0f, splitOffset)
+                            val closestSegmentOffset = segmentAnchors.minByOrNull { kotlin.math.abs(it - offset.value) } ?: 0f
+                            var localTarget = if (closestSegmentOffset == 0f) 0 else 1
+                            
+                            if (localTarget == currentAnchorIndex) {
+                                if (totalDrag < -20) localTarget = 1
+                                else if (totalDrag > 20) localTarget = 0
+                            }
+                            localTarget
+                        } else {
+                            // Segment B: Dragging between splitOffset and -screenWidthPx
+                            val segmentAnchors = listOf(splitOffset, -screenWidthPx)
+                            val closestSegmentOffset = segmentAnchors.minByOrNull { kotlin.math.abs(it - offset.value) } ?: splitOffset
+                            var localTarget = if (closestSegmentOffset == splitOffset) 1 else 2
+                            
+                            if (localTarget == currentAnchorIndex) {
+                                if (totalDrag < -20) localTarget = 2
+                                else if (totalDrag > 20) localTarget = 1
+                            }
+                            localTarget
+                        }
+                    } else {
+                        // Phone logic
+                        val closestOffset = anchors.minByOrNull { kotlin.math.abs(it - offset.value) } ?: anchors[currentAnchorIndex]
+                        var localTarget = anchors.indexOf(closestOffset)
+                        
+                        if (localTarget == currentAnchorIndex) {
+                            if (totalDrag < -20) {
+                                localTarget = (currentAnchorIndex + 1).coerceAtMost(anchors.lastIndex)
+                            } else if (totalDrag > 20) {
+                                localTarget = (currentAnchorIndex - 1).coerceAtLeast(0)
+                            }
+                        }
+                        localTarget
+                    }
+                    
+                    if (isTablet && isVoice && targetIndex == 1) {
+                        targetIndex = if (totalDrag < 0) 2 else 0
+                    }
+                    
+                    // Update state immediately. LaunchedEffect will handle the animation.
+                    if (targetIndex == 0) {
+                        viewModel.setPanel(if (isDm) HomePanel.DMS_LIST else HomePanel.SERVER_LIST)
+                    } else if (isTablet && targetIndex == 1) {
+                        viewModel.setPanel(if (isDm) HomePanel.DM_CHAT else HomePanel.SERVER_CHAT)
+                        viewModel.setChatFullScreen(false)
+                    } else {
+                        viewModel.setPanel(if (isDm) HomePanel.DM_CHAT else HomePanel.SERVER_CHAT)
+                        if (isTablet) viewModel.setChatFullScreen(true)
+                    }
+
+                    coroutineScope.launch {
+                        offset.animateTo(anchors[targetIndex])
+                    }
+                }
+
                 Box(modifier = Modifier.fillMaxSize()) {
                     // LAYER 1: CHAT PANEL (BOTTOM)
                     val activeChannelId = if (uiState.isDmsListSelected) uiState.selectedDmChannelId else uiState.selectedServerChannelId
@@ -231,11 +312,11 @@ fun HomeScreen(
                     if (activeChannelId != null) {
                         val activeChannel = data.channels.find { it.id == activeChannelId }
                         val isDm = activeChannel?.isDm == true
-                        val otherUser = if (isDm && activeChannel != null) {
-                            val parts = activeChannel.name.removePrefix("DM - ").split(":")
+                        val otherUser = activeChannel?.takeIf { isDm }?.run {
+                            val parts = name.removePrefix("DM - ").split(":")
                             val otherUserId = parts.firstOrNull { it != data.ownUserId.toString() }?.toIntOrNull()
                             data.users.find { it.id == otherUserId }
-                        } else null
+                        }
                         
                         val displayName = if (isDm) {
                             otherUser?.name ?: activeChannel?.name ?: ""
@@ -265,6 +346,17 @@ fun HomeScreen(
                                 }
                             }
 
+                            val voiceSplitOffset = -screenWidthPx / 3f
+                            val vActiveOffset = voiceSwipeOffset.value
+                            
+                            val voiceChatWidthDp = if (isTablet) {
+                                with(density) { kotlin.math.max(screenWidthPx / 3f, -vActiveOffset).toDp() }
+                            } else screenWidthDp
+
+                            val voiceChatOffsetDp = if (isTablet) {
+                                with(density) { kotlin.math.min(screenWidthPx * 2/3f, vActiveOffset + screenWidthPx).toDp() }
+                            } else 0.dp
+
                             Box(modifier = Modifier.fillMaxSize()) {
                                 // chat Panel (underneath)
                                 ChatPanel(
@@ -278,32 +370,70 @@ fun HomeScreen(
                                     roles = data.roles ?: emptyList(),
                                     customEmojis = data.emojis ?: emptyList(),
                                     isActive = (uiState.activePanel == HomePanel.SERVER_CHAT || uiState.activePanel == HomePanel.DM_CHAT) && uiState.isViewingVoiceChat,
+                                    isTablet = isTablet,
+                                    isChatFullScreen = voiceSwipeOffset.value <= -screenWidthPx + VOICE_FULLSCREEN_THRESHOLD_PX,
+                                    onToggleFullScreen = {
+                                        coroutineScope.launch {
+                                            if (voiceSwipeOffset.value <= -screenWidthPx + VOICE_FULLSCREEN_THRESHOLD_PX) {
+                                                voiceSwipeOffset.animateTo(voiceSplitOffset)
+                                            } else {
+                                                voiceSwipeOffset.animateTo(-screenWidthPx)
+                                            }
+                                        }
+                                    },
                                     onBackClick = {
                                         viewModel.setViewingVoiceChat(false)
+                                        coroutineScope.launch {
+                                            voiceSwipeOffset.animateTo(0f)
+                                        }
                                     },
                                     onUserClick = { userId -> viewModel.showProfileSheet(userId) },
                                     modifier = Modifier
-                                        .fillMaxSize()
+                                        .then(if (isTablet) Modifier.offset(x = voiceChatOffsetDp).width(voiceChatWidthDp).fillMaxHeight() else Modifier.fillMaxSize())
                                         .pointerInput(uiState.activePanel) {
                                             if (uiState.activePanel == HomePanel.SERVER_CHAT || uiState.activePanel == HomePanel.DM_CHAT) {
+                                                var totalDrag = 0f
                                                 detectHorizontalDragGestures(
                                                     onDragEnd = {
                                                         coroutineScope.launch {
-                                                            if (voiceSwipeOffset.value > -screenWidthPx * 2 / 3) {
-                                                                voiceSwipeOffset.animateTo(0f)
-                                                                viewModel.setViewingVoiceChat(false)
+                                                            if (isTablet) {
+                                                                var targetIndex = 0
+                                                                if (voiceSwipeOffset.value > voiceSplitOffset) {
+                                                                    targetIndex = if (totalDrag < -20) 1 else if (totalDrag > 20) 0 else if (voiceSwipeOffset.value < voiceSplitOffset / 2) 1 else 0
+                                                                } else {
+                                                                    targetIndex = if (totalDrag < -20) 2 else if (totalDrag > 20) 1 else if (voiceSwipeOffset.value < (voiceSplitOffset - screenWidthPx) / 2) 2 else 1
+                                                                }
+
+                                                                when (targetIndex) {
+                                                                    0 -> voiceSwipeOffset.animateTo(0f)
+                                                                    1 -> voiceSwipeOffset.animateTo(voiceSplitOffset)
+                                                                    2 -> voiceSwipeOffset.animateTo(-screenWidthPx)
+                                                                }
+                                                            } else {
+                                                                val target = if (totalDrag < -20) -screenWidthPx else if (totalDrag > 20) 0f else if (voiceSwipeOffset.value < -screenWidthPx / 2) -screenWidthPx else 0f
+                                                                voiceSwipeOffset.animateTo(target)
+                                                                if (target == 0f) viewModel.setViewingVoiceChat(false)
+                                                            }
+                                                        }
+                                                        totalDrag = 0f
+                                                    },
+                                                    onDragCancel = {
+                                                        totalDrag = 0f
+                                                        coroutineScope.launch {
+                                                            if (isTablet) {
+                                                                if (voiceSwipeOffset.value > voiceSplitOffset) {
+                                                                    voiceSwipeOffset.animateTo(0f)
+                                                                } else {
+                                                                    voiceSwipeOffset.animateTo(-screenWidthPx)
+                                                                }
                                                             } else {
                                                                 voiceSwipeOffset.animateTo(-screenWidthPx)
                                                             }
                                                         }
                                                     },
-                                                    onDragCancel = {
-                                                        coroutineScope.launch {
-                                                            voiceSwipeOffset.animateTo(-screenWidthPx)
-                                                        }
-                                                    },
                                                     onHorizontalDrag = { change, dragAmount ->
                                                         change.consume()
+                                                        totalDrag += dragAmount
                                                         coroutineScope.launch {
                                                             if (dragAmount > 0 || voiceSwipeOffset.value > -screenWidthPx) {
                                                                 val newOffset = (voiceSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
@@ -317,7 +447,14 @@ fun HomeScreen(
                                 )
 
                                 // voice Panel (sliding on top)
-                                val vOffset = with(density) { voiceSwipeOffset.value.toDp() }
+                                val voiceWidthDp = if (isTablet) {
+                                    with(density) { kotlin.math.max(screenWidthPx * 2/3f, vActiveOffset + screenWidthPx).toDp() }
+                                } else screenWidthDp
+
+                                val voiceOffsetDp = if (isTablet) {
+                                    with(density) { kotlin.math.min(0f, vActiveOffset - voiceSplitOffset).toDp() }
+                                } else with(density) { vActiveOffset.toDp() }
+
                                 VoicePanel(
                                     channelName = displayName,
                                     voiceUsers = if (data.voiceMap != null) {
@@ -380,23 +517,49 @@ fun HomeScreen(
                                         voiceViewModel.switchCamera(context)
                                     },
                                     onOpenChatClick = {
-                                        viewModel.setViewingVoiceChat(true)
+                                        if (voiceSwipeOffset.value < 0f) {
+                                            coroutineScope.launch {
+                                                voiceSwipeOffset.animateTo(0f)
+                                                viewModel.setViewingVoiceChat(false)
+                                            }
+                                        } else {
+                                            viewModel.setViewingVoiceChat(true)
+                                            coroutineScope.launch {
+                                                voiceSwipeOffset.animateTo(if (isTablet) voiceSplitOffset else -screenWidthPx)
+                                            }
+                                        }
                                     },
                                     onBackClick = {
                                         coroutineScope.launch {
                                             serverSwipeOffset.animateTo(0f)
                                             dmsSwipeOffset.animateTo(0f)
+                                            voiceSwipeOffset.snapTo(0f)
                                             viewModel.setPanel(if (isDmSelected) HomePanel.DMS_LIST else HomePanel.SERVER_LIST)
+                                            if (isTablet) viewModel.setChatFullScreen(false)
                                         }
                                     },
                                     modifier = Modifier
-                                        .fillMaxSize()
-                                        .offset(x = vOffset)
+                                        .then(
+                                            if (isTablet) Modifier.width(voiceWidthDp).fillMaxHeight().offset(x = voiceOffsetDp)
+                                            else Modifier.fillMaxSize().offset(x = voiceOffsetDp)
+                                        )
                                         .drawBehind {
+                                            val shadowWidth = 12.dp.toPx()
+                                            val shadowAlpha = if (colors.isLight) 0.15f else 0.5f
+                                            val shadowColor = Color.Black.copy(alpha = shadowAlpha)
+                                            drawRect(
+                                                brush = Brush.horizontalGradient(
+                                                    colors = listOf(shadowColor, Color.Transparent),
+                                                    startX = size.width,
+                                                    endX = size.width + shadowWidth
+                                                ),
+                                                topLeft = Offset(size.width, 0f),
+                                                size = androidx.compose.ui.geometry.Size(shadowWidth, size.height)
+                                            )
                                             val strokeWidth = 1.dp.toPx()
                                             val x = size.width - strokeWidth / 2
                                             drawLine(
-                                                color = Color.Black.copy(alpha = 0.6f),
+                                                color = Color.Black.copy(alpha = if (colors.isLight) 0.1f else 0.3f),
                                                 start = Offset(x, 0f),
                                                 end = Offset(x, size.height),
                                                 strokeWidth = strokeWidth
@@ -404,47 +567,84 @@ fun HomeScreen(
                                         }
                                         .pointerInput(uiState.activePanel) {
                                             if (uiState.activePanel == HomePanel.SERVER_CHAT || uiState.activePanel == HomePanel.DM_CHAT) {
+                                                var totalDrag = 0f
                                                 detectHorizontalDragGestures(
                                                     onDragEnd = {
                                                         coroutineScope.launch {
-                                                            val offsetToCheck = if (isDmSelected) dmsSwipeOffset else serverSwipeOffset
-                                                            if (offsetToCheck.value > -screenWidthPx * 2 / 3 && offsetToCheck.value != -screenWidthPx) {
-                                                                offsetToCheck.animateTo(0f)
-                                                                viewModel.setPanel(if (isDmSelected) HomePanel.DMS_LIST else HomePanel.SERVER_LIST)
-                                                            } else if (offsetToCheck.value > -screenWidthPx) {
-                                                                offsetToCheck.animateTo(-screenWidthPx)
-                                                            } else if (voiceSwipeOffset.value < -screenWidthPx / 3 && voiceSwipeOffset.value != 0f) {
-                                                                voiceSwipeOffset.animateTo(-screenWidthPx)
-                                                                viewModel.setViewingVoiceChat(true)
-                                                            } else if (voiceSwipeOffset.value < 0f) {
+                                                            if (isTablet) {
+                                                                var targetIndex = 0
+                                                                if (voiceSwipeOffset.value > voiceSplitOffset) {
+                                                                    targetIndex = if (totalDrag < -20) 1 else if (totalDrag > 20) 0 else if (voiceSwipeOffset.value < voiceSplitOffset / 2) 1 else 0
+                                                                } else {
+                                                                    targetIndex = if (totalDrag < -20) 2 else if (totalDrag > 20) 1 else if (voiceSwipeOffset.value < (voiceSplitOffset - screenWidthPx) / 2) 2 else 1
+                                                                }
+
+                                                                when (targetIndex) {
+                                                                    0 -> voiceSwipeOffset.animateTo(0f)
+                                                                    1 -> {
+                                                                        voiceSwipeOffset.animateTo(voiceSplitOffset)
+                                                                        viewModel.setViewingVoiceChat(true)
+                                                                    }
+                                                                    2 -> {
+                                                                        voiceSwipeOffset.animateTo(-screenWidthPx)
+                                                                        viewModel.setViewingVoiceChat(true)
+                                                                    }
+                                                                }
+                                                            } else {
+                                                                val offsetToCheck = if (isDmSelected) dmsSwipeOffset else serverSwipeOffset
+                                                                if (offsetToCheck.value > -screenWidthPx) {
+                                                                    val target = if (totalDrag < -20) -screenWidthPx else if (totalDrag > 20) 0f else if (offsetToCheck.value > -screenWidthPx / 2) 0f else -screenWidthPx
+                                                                    offsetToCheck.animateTo(target)
+                                                                    if (target == 0f) viewModel.setPanel(if (isDmSelected) HomePanel.DMS_LIST else HomePanel.SERVER_LIST)
+                                                                } else {
+                                                                    val target = if (totalDrag < -20) -screenWidthPx else if (totalDrag > 20) 0f else if (voiceSwipeOffset.value < -screenWidthPx / 2) -screenWidthPx else 0f
+                                                                    voiceSwipeOffset.animateTo(target)
+                                                                    if (target == -screenWidthPx) viewModel.setViewingVoiceChat(true)
+                                                                }
+                                                            }
+                                                        }
+                                                        totalDrag = 0f
+                                                    },
+                                                    onDragCancel = {
+                                                        totalDrag = 0f
+                                                        coroutineScope.launch {
+                                                            if (isTablet) {
+                                                                if (voiceSwipeOffset.value > voiceSplitOffset) {
+                                                                    voiceSwipeOffset.animateTo(0f)
+                                                                } else {
+                                                                    voiceSwipeOffset.animateTo(-screenWidthPx)
+                                                                }
+                                                            } else {
+                                                                serverSwipeOffset.animateTo(-screenWidthPx)
+                                                                dmsSwipeOffset.animateTo(-screenWidthPx)
                                                                 voiceSwipeOffset.animateTo(0f)
                                                             }
                                                         }
                                                     },
-                                                    onDragCancel = {
-                                                        coroutineScope.launch {
-                                                            serverSwipeOffset.animateTo(-screenWidthPx)
-                                                            dmsSwipeOffset.animateTo(-screenWidthPx)
-                                                            voiceSwipeOffset.animateTo(0f)
-                                                        }
-                                                    },
                                                     onHorizontalDrag = { change, dragAmount ->
                                                         change.consume()
+                                                        totalDrag += dragAmount
                                                         coroutineScope.launch {
-                                                            val activeOffset = if (isDmSelected) dmsSwipeOffset else serverSwipeOffset
-                                                            if (activeOffset.value > -screenWidthPx) {
-                                                                val newOffset = (activeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
-                                                                activeOffset.snapTo(newOffset)
-                                                            } else if (voiceSwipeOffset.value < 0f) {
-                                                                val newOffset = (voiceSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
-                                                                voiceSwipeOffset.snapTo(newOffset)
-                                                            } else {
-                                                                if (dragAmount > 0) {
-                                                                    val newOffset = (activeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
-                                                                    activeOffset.snapTo(newOffset)
-                                                                } else {
+                                                            if (isTablet) {
+                                                                if (dragAmount > 0 || voiceSwipeOffset.value > -screenWidthPx) {
                                                                     val newOffset = (voiceSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
                                                                     voiceSwipeOffset.snapTo(newOffset)
+                                                                    if (newOffset < 0f) viewModel.setViewingVoiceChat(true)
+                                                                }
+                                                            } else {
+                                                                val activeOffset = if (isDmSelected) dmsSwipeOffset else serverSwipeOffset
+                                                                if (activeOffset.value > -screenWidthPx) {
+                                                                    val newOffset = (activeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                                                    activeOffset.snapTo(newOffset)
+                                                                } else if (voiceSwipeOffset.value < 0f) {
+                                                                    val newOffset = (voiceSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                                                    voiceSwipeOffset.snapTo(newOffset)
+                                                                } else if (dragAmount < 0) {
+                                                                    val newOffset = (voiceSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                                                    voiceSwipeOffset.snapTo(newOffset)
+                                                                } else if (dragAmount > 0) {
+                                                                    val newOffset = (activeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                                                    activeOffset.snapTo(newOffset)
                                                                 }
                                                             }
                                                         }
@@ -466,6 +666,9 @@ fun HomeScreen(
                                 roles = data.roles ?: emptyList(),
                                 customEmojis = data.emojis ?: emptyList(),
                                 isActive = uiState.activePanel == HomePanel.SERVER_CHAT || uiState.activePanel == HomePanel.DM_CHAT,
+                                isTablet = isTablet,
+                                isChatFullScreen = uiState.isChatFullScreen,
+                                onToggleFullScreen = { viewModel.setChatFullScreen(!uiState.isChatFullScreen) },
                                 onBackClick = {
                                     coroutineScope.launch {
                                         val offsetToAnimate = if (isDmSelected) dmsSwipeOffset else serverSwipeOffset
@@ -475,35 +678,33 @@ fun HomeScreen(
                                 },
                                 onUserClick = { userId -> viewModel.showProfileSheet(userId) },
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .pointerInput(uiState.activePanel) {
+                                    .then(
+                                        if (isTablet) {
+                                            val activeSwipeOffset = if (uiState.isDmsListSelected) dmsSwipeOffset.value else serverSwipeOffset.value
+                                            val chatWidthDp = with(density) { kotlin.math.max(screenWidthPx - leftPaneWidthDp.toPx(), -activeSwipeOffset).toDp() }
+                                            val chatOffsetDp = with(density) { kotlin.math.min(leftPaneWidthDp.toPx(), activeSwipeOffset + screenWidthPx).toDp() }
+                                            Modifier.offset(x = chatOffsetDp).width(chatWidthDp).fillMaxHeight()
+                                        } else Modifier.fillMaxSize()
+                                    )
+                                    .pointerInput(uiState.activePanel, isTablet) {
                                         if (uiState.activePanel == HomePanel.SERVER_CHAT || uiState.activePanel == HomePanel.DM_CHAT) {
+                                            var totalDrag = 0f
                                             detectHorizontalDragGestures(
                                                 onDragEnd = {
-                                                    coroutineScope.launch {
-                                                        val activeOffset = if (isDmSelected) dmsSwipeOffset else serverSwipeOffset
-                                                        if (activeOffset.value > -screenWidthPx * 2 / 3) {
-                                                            activeOffset.animateTo(0f)
-                                                            viewModel.setPanel(if (isDmSelected) HomePanel.DMS_LIST else HomePanel.SERVER_LIST)
-                                                        } else {
-                                                            activeOffset.animateTo(-screenWidthPx)
-                                                        }
-                                                    }
+                                                    val offset = if (isDmSelected) dmsSwipeOffset else serverSwipeOffset
+                                                    handleDragEnd(offset, totalDrag, isDmSelected)
+                                                    totalDrag = 0f
                                                 },
                                                 onDragCancel = {
-                                                    coroutineScope.launch {
-                                                        serverSwipeOffset.animateTo(-screenWidthPx)
-                                                        dmsSwipeOffset.animateTo(-screenWidthPx)
-                                                    }
+                                                    totalDrag = 0f
                                                 },
                                                 onHorizontalDrag = { change, dragAmount ->
                                                     change.consume()
+                                                    totalDrag += dragAmount
                                                     coroutineScope.launch {
                                                         val activeOffset = if (isDmSelected) dmsSwipeOffset else serverSwipeOffset
-                                                        if (dragAmount > 0 || activeOffset.value > -screenWidthPx) {
-                                                            val newOffset = (activeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
-                                                            activeOffset.snapTo(newOffset)
-                                                        }
+                                                        val newOffset = (activeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                                        activeOffset.snapTo(newOffset)
                                                     }
                                                 }
                                             )
@@ -514,8 +715,21 @@ fun HomeScreen(
                     }
 
                     // LAYER 2: DMS LIST PANEL (MIDDLE)
-                    val dmsOffsetDp = with(density) { dmsSwipeOffset.value.toDp() }
-                    Box(modifier = Modifier.fillMaxSize().offset(x = dmsOffsetDp)) {
+                    val isCurrentServerChannelVoice = uiState.selectedServerChannelId?.let { id -> data.channels.find { it.id == id }?.isVoice == true } == true
+                    val isCurrentDmChannelVoice = uiState.selectedDmChannelId?.let { id -> data.channels.find { it.id == id }?.isVoice == true } == true
+
+                    val dmsWidthTabletDp = if (isTablet) {
+                        with(density) { kotlin.math.max(320f, dmsSwipeOffset.value + screenWidthPx).toDp() }
+                    } else screenWidthDp
+
+                    val dmsOffsetDp = if (isTablet) {
+                        with(density) { kotlin.math.min(0f, dmsSwipeOffset.value - splitOffset).toDp() }
+                    } else with(density) { dmsSwipeOffset.value.toDp() }
+                    
+                    Box(modifier = Modifier
+                        .then(if (isTablet) Modifier.width(dmsWidthTabletDp).fillMaxHeight() else Modifier.fillMaxSize())
+                        .offset(x = dmsOffsetDp)
+                    ) {
                         DmsListPanel(
                             data = data,
                             uiState = uiState,
@@ -525,54 +739,64 @@ fun HomeScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .drawBehind {
+                                    val shadowWidth = 12.dp.toPx()
+                                    val shadowAlpha = if (colors.isLight) 0.15f else 0.5f
+                                    val shadowColor = Color.Black.copy(alpha = shadowAlpha)
+                                    drawRect(
+                                        brush = Brush.horizontalGradient(
+                                            colors = listOf(shadowColor, Color.Transparent),
+                                            startX = size.width,
+                                            endX = size.width + shadowWidth
+                                        ),
+                                        topLeft = Offset(size.width, 0f),
+                                        size = androidx.compose.ui.geometry.Size(shadowWidth, size.height)
+                                    )
                                     val strokeWidth = 1.dp.toPx()
                                     val x = size.width - strokeWidth / 2
                                     drawLine(
-                                        color = Color.Black.copy(alpha = 0.6f),
+                                        color = Color.Black.copy(alpha = if (colors.isLight) 0.1f else 0.3f),
                                         start = Offset(x, 0f),
                                         end = Offset(x, size.height),
                                         strokeWidth = strokeWidth
                                     )
                                 }
-                                .pointerInput(uiState.activePanel) {
-                                    if (uiState.activePanel == HomePanel.DMS_LIST) {
+                                .pointerInput(uiState.activePanel, isTablet, isCurrentDmChannelVoice) {
+                            if (uiState.activePanel == HomePanel.DMS_LIST || (isTablet && uiState.activePanel == HomePanel.DM_CHAT && !isCurrentDmChannelVoice)) {
+                                var totalDrag = 0f
+                                // Track which offset we actually moved so we can snap it on release
+                                var movedServerOffset = false
                                         detectHorizontalDragGestures(
                                             onDragEnd = {
-                                                coroutineScope.launch {
-                                                    if (dmsSwipeOffset.value < -screenWidthPx / 3) {
-                                                        // swipe left to open selected DM chat (if one is selected)
-                                                        if (uiState.selectedDmChannelId != null) {
-                                                            dmsSwipeOffset.animateTo(-screenWidthPx)
-                                                            viewModel.setPanel(HomePanel.DM_CHAT)
-                                                        } else {
-                                                            dmsSwipeOffset.animateTo(0f)
-                                                        }
-                                                    } else if (serverSwipeOffset.value > -screenWidthPx * 2 / 3) {
-                                                        // swipe right to go back to Server list
-                                                        serverSwipeOffset.animateTo(0f)
-                                                        viewModel.exitDmsListToServer()
-                                                    } else {
-                                                        // return to current DMS list position
-                                                        dmsSwipeOffset.animateTo(0f)
-                                                        serverSwipeOffset.animateTo(-screenWidthPx)
-                                                    }
+                                                if (movedServerOffset) {
+                                                    // User dragged right into the server panel - snap it
+                                                    handleDragEnd(serverSwipeOffset, totalDrag, false)
+                                                } else {
+                                                    handleDragEnd(dmsSwipeOffset, totalDrag, true)
                                                 }
+                                                movedServerOffset = false
+                                                totalDrag = 0f
                                             },
                                             onDragCancel = {
+                                                totalDrag = 0f
+                                                movedServerOffset = false
                                                 coroutineScope.launch {
-                                                    dmsSwipeOffset.animateTo(0f)
-                                                    serverSwipeOffset.animateTo(-screenWidthPx)
+                                                    // Snap both offsets back to their nearest anchor
+                                                    val anchors = if (isTablet) listOf(0f, splitOffset, -screenWidthPx) else listOf(0f, -screenWidthPx)
+                                                    val dmsTarget = anchors.minByOrNull { kotlin.math.abs(it - dmsSwipeOffset.value) } ?: dmsSwipeOffset.value
+                                                    val srvTarget = anchors.minByOrNull { kotlin.math.abs(it - serverSwipeOffset.value) } ?: serverSwipeOffset.value
+                                                    launch { dmsSwipeOffset.animateTo(dmsTarget) }
+                                                    launch { serverSwipeOffset.animateTo(srvTarget) }
                                                 }
                                             },
                                             onHorizontalDrag = { change, dragAmount ->
                                                 change.consume()
+                                                totalDrag += dragAmount
                                                 coroutineScope.launch {
                                                     if (dragAmount > 0) {
-                                                        // drag right -> bring server list in
+                                                        movedServerOffset = true
                                                         val newOffset = (serverSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
                                                         serverSwipeOffset.snapTo(newOffset)
                                                     } else if (dragAmount < 0 && uiState.selectedDmChannelId != null) {
-                                                        // drag left -> move dms list out to reveal chat
                                                         val newOffset = (dmsSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
                                                         dmsSwipeOffset.snapTo(newOffset)
                                                     }
@@ -585,54 +809,67 @@ fun HomeScreen(
                     }
 
                     // LAYER 3: SERVER LIST PANEL (TOP)
-                    val channelsOffset = with(density) { serverSwipeOffset.value.toDp() }
+                    val channelsWidthTabletDp = if (isTablet) {
+                        with(density) { kotlin.math.max(320f, serverSwipeOffset.value + screenWidthPx).toDp() }
+                    } else screenWidthDp
+
+                    val channelsOffsetDp = if (isTablet) {
+                        with(density) { kotlin.math.min(0f, serverSwipeOffset.value - splitOffset).toDp() }
+                    } else with(density) { serverSwipeOffset.value.toDp() }
 
                     Column(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .offset(x = channelsOffset)
+                            .then(if (isTablet) Modifier.width(channelsWidthTabletDp).fillMaxHeight() else Modifier.fillMaxSize())
+                            .offset(x = channelsOffsetDp)
                             .background(bgColor)
                             .drawBehind {
+                                val shadowWidth = 12.dp.toPx()
+                                val shadowAlpha = if (colors.isLight) 0.15f else 0.5f
+                                val shadowColor = Color.Black.copy(alpha = shadowAlpha)
+                                drawRect(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(shadowColor, Color.Transparent),
+                                        startX = size.width,
+                                        endX = size.width + shadowWidth
+                                    ),
+                                    topLeft = Offset(size.width, 0f),
+                                    size = androidx.compose.ui.geometry.Size(shadowWidth, size.height)
+                                )
                                 val strokeWidth = 1.dp.toPx()
                                 val x = size.width - strokeWidth / 2
                                 drawLine(
-                                    color = Color.Black.copy(alpha = 0.6f),
+                                    color = Color.Black.copy(alpha = if (colors.isLight) 0.1f else 0.3f),
                                     start = Offset(x, 0f),
                                     end = Offset(x, size.height),
                                     strokeWidth = strokeWidth
                                 )
                             }
-                            .pointerInput(screenWidthPx) {
-                                detectHorizontalDragGestures(
-                                    onDragEnd = {
-                                        coroutineScope.launch {
-                                            if (serverSwipeOffset.value < -screenWidthPx / 3) {
-                                                // complete swipe back to chat or dm panel
-                                                serverSwipeOffset.animateTo(-screenWidthPx)
-                                                if (uiState.isDmsListSelected) {
-                                                    viewModel.setPanel(HomePanel.DMS_LIST)
-                                                } else {
-                                                    viewModel.setPanel(HomePanel.SERVER_CHAT)
-                                                }
-                                            } else {
-                                                // return to current server panel position
-                                                serverSwipeOffset.animateTo(0f)
+                            .pointerInput(uiState.activePanel, isTablet, isCurrentServerChannelVoice) {
+                                if (uiState.activePanel == HomePanel.SERVER_LIST || (isTablet && uiState.activePanel == HomePanel.SERVER_CHAT && !isCurrentServerChannelVoice)) {
+                                    var totalDrag = 0f
+                                    detectHorizontalDragGestures(
+                                        onDragEnd = {
+                                            handleDragEnd(serverSwipeOffset, totalDrag, false)
+                                            totalDrag = 0f
+                                        },
+                                        onDragCancel = {
+                                            totalDrag = 0f
+                                            coroutineScope.launch {
+                                                val anchors = if (isTablet) listOf(0f, splitOffset, -screenWidthPx) else listOf(0f, -screenWidthPx)
+                                                val target = anchors.minByOrNull { kotlin.math.abs(it - serverSwipeOffset.value) } ?: serverSwipeOffset.value
+                                                serverSwipeOffset.animateTo(target)
+                                            }
+                                        },
+                                        onHorizontalDrag = { change, dragAmount ->
+                                            change.consume()
+                                            totalDrag += dragAmount
+                                            coroutineScope.launch {
+                                                val newOffset = (serverSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                                serverSwipeOffset.snapTo(newOffset)
                                             }
                                         }
-                                    },
-                                    onDragCancel = {
-                                        coroutineScope.launch {
-                                            serverSwipeOffset.animateTo(0f)
-                                        }
-                                    },
-                                    onHorizontalDrag = { change, dragAmount ->
-                                        change.consume()
-                                        coroutineScope.launch {
-                                            val newOffset = (serverSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
-                                            serverSwipeOffset.snapTo(newOffset)
-                                        }
-                                    }
-                                )
+                                    )
+                                }
                             },
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -677,7 +914,13 @@ fun HomeScreen(
                                     .clickable {
                                         val errorMsg = uiState.errorMessage
                                         if (errorMsg != null) {
-                                            clipboardManager.setText(AnnotatedString(errorMsg))
+                                            coroutineScope.launch {
+                                                clipboard.setClipEntry(
+                                                    androidx.compose.ui.platform.ClipEntry(
+                                                        android.content.ClipData.newPlainText("error", errorMsg)
+                                                    )
+                                                )
+                                            }
                                             android.widget.Toast.makeText(context, context.getString(R.string.common_errorDetailsCopied), android.widget.Toast.LENGTH_SHORT).show()
                                         }
                                     }

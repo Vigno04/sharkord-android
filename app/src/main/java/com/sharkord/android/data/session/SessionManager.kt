@@ -12,10 +12,26 @@ class SessionManager(context: Context) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     private val securePrefs: SharedPreferences by lazy {
+        try {
+            createEncryptedPrefs(context)
+        } catch (e: Exception) {
+            // Handle Keystore corruption (e.g. AEADBadTagException, KeyStoreException)
+            context.deleteSharedPreferences("secret_biometric_prefs")
+            try {
+                val keyStore = java.security.KeyStore.getInstance("AndroidKeyStore")
+                keyStore.load(null)
+                keyStore.deleteEntry(androidx.security.crypto.MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+            } catch (ignored: Exception) {
+            }
+            createEncryptedPrefs(context)
+        }
+    }
+
+    private fun createEncryptedPrefs(context: Context): SharedPreferences {
         val masterKey = androidx.security.crypto.MasterKey.Builder(context.applicationContext)
             .setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM)
             .build()
-        androidx.security.crypto.EncryptedSharedPreferences.create(
+        return androidx.security.crypto.EncryptedSharedPreferences.create(
             context.applicationContext,
             "secret_biometric_prefs",
             masterKey,
