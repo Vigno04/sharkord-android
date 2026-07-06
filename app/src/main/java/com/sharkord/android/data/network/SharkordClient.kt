@@ -69,6 +69,7 @@ object SharkordClient {
     // initializes the client with an Android Context (required for SessionManager)
     // call this once from Application.onCreate() or the first Activity
     fun initialize(context: Context) {
+        if (this::applicationContext.isInitialized) return
         applicationContext = context.applicationContext
         session = SessionManager(applicationContext)
         voiceEngine = VoiceEngine(applicationContext, webSocket)
