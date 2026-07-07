@@ -85,6 +85,7 @@ fun VoiceGridItem(
     Box(
         modifier = modifier
             .height(itemHeight)
+            .clip(RoundedCornerShape(16.dp))
             .background(colors.cardColor, RoundedCornerShape(16.dp))
             .border(borderWidth, borderColor, RoundedCornerShape(16.dp))
             .clickable(enabled = !isScreenShare) { isZoomedOut = !isZoomedOut },
@@ -163,7 +164,8 @@ fun VoiceGridItem(
                 videoTrack = videoTrack,
                 eglBaseContext = eglBaseContext,
                 isZoomedOut = isZoomedOut || isScreenShare,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                cornerRadiusDp = if (isZoomedOut || isScreenShare) 0f else 16f
             )
         }
         

@@ -1139,6 +1139,7 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
     val autoLogin by viewModel.autoLogin.collectAsState()
     val alwaysRequireBiometrics by viewModel.alwaysRequireBiometrics.collectAsState()
     val hasBiometrics by viewModel.hasBiometrics.collectAsState()
+    val enableFloatingPip by viewModel.enableFloatingPip.collectAsState()
 
     val displaySize = if (maxDiskCacheMb >= 1024) {
         String.format(java.util.Locale.US, "%.1f GB", maxDiskCacheMb / 1024f)
@@ -1174,6 +1175,18 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
             ) {
                 Text(stringResource(R.string.settings_removeBiometrics), color = SharkordTheme.colors.foregroundText)
             }
+        }
+    }
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    SettingsSection(title = "App Features", cardColor = cardColor, foregroundText = foregroundText) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Floating PiP Window", color = foregroundText)
+                Text("Show a floating video window when you leave the app during a call.", color = primaryText, fontSize = 12.sp)
+            }
+            Switch(checked = enableFloatingPip, onCheckedChange = { viewModel.saveEnableFloatingPip(it) }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
         }
     }
 

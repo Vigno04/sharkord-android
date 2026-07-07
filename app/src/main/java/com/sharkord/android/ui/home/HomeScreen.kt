@@ -65,8 +65,7 @@ fun HomeScreen(
     onNavigateToServerSettings: () -> Unit,
     onNavigateToChannelSettings: (channelId: Int) -> Unit,
     viewModel: HomeViewModel = viewModel(),
-    voiceViewModel: com.sharkord.android.ui.voice.VoiceViewModel = viewModel(),
-    isPipMode: Boolean = false
+    voiceViewModel: com.sharkord.android.ui.voice.VoiceViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
@@ -456,9 +455,8 @@ fun HomeScreen(
                                     with(density) { kotlin.math.min(0f, vActiveOffset - voiceSplitOffset).toDp() }
                                 } else with(density) { vActiveOffset.toDp() }
 
-                                if (!isPipMode) {
-                                    VoicePanel(
-                                        channelName = displayName,
+                                VoicePanel(
+                                    channelName = displayName,
                                         voiceUsers = if (data.voiceMap != null) {
                                             channelUsers.mapNotNull { (userIdStr, state) ->
                                                 val user = data.users.find { it.id.toString() == userIdStr }
@@ -655,7 +653,6 @@ fun HomeScreen(
                                                 }
                                             }
                                     )
-                                }
                             }
                         } else {
                             ChatPanel(

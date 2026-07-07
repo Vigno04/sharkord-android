@@ -55,6 +55,7 @@ fun FullscreenScreenShareDialog(
                 videoTrack = videoTrack,
                 eglBaseContext = eglBaseContext,
                 isZoomedOut = true,
+                setZOrderMediaOverlay = true,
                 modifier = Modifier
                     .fillMaxSize()
                     .pointerInput(Unit) {

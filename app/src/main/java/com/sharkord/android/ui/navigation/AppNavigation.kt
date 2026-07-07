@@ -12,8 +12,7 @@ import com.sharkord.android.ui.settings.UserSettingsScreen
 @Composable
 fun AppNavigation(
     modifier: Modifier = Modifier,
-    voiceViewModel: com.sharkord.android.ui.voice.VoiceViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
-    isPipMode: Boolean = false
+    voiceViewModel: com.sharkord.android.ui.voice.VoiceViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val navController = rememberNavController()
 
@@ -47,8 +46,7 @@ fun AppNavigation(
                 onNavigateToChannelSettings = { channelId ->
                     navController.navigate("channel_settings/$channelId")
                 },
-                voiceViewModel = voiceViewModel,
-                isPipMode = isPipMode
+                voiceViewModel = voiceViewModel
             )
         }
         composable("user_settings") {

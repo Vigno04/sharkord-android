@@ -37,7 +37,9 @@ fun WebRtcVideoRenderer(
     videoTrack: VideoTrack,
     eglBaseContext: EglBase.Context,
     isZoomedOut: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    cornerRadiusDp: Float = 0f,
+    setZOrderMediaOverlay: Boolean = false
 ) {
     var videoWidth by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var videoHeight by remember { androidx.compose.runtime.mutableIntStateOf(0) }
@@ -119,13 +121,23 @@ fun WebRtcVideoRenderer(
                     // MUST be true to prevent black screens and BLASTBufferQueue rejections
                     // on modern Android (Android 11+) which enforce buffer size matching.
                     setEnableHardwareScaler(true)
+                    setZOrderMediaOverlay(setZOrderMediaOverlay)
                     
                     viewRef.set(this)
                     init(eglBaseContext, null)
                     setScalingType(if (isZoomedOut) ScalingType.SCALE_ASPECT_FIT else ScalingType.SCALE_ASPECT_FILL)
                     
-                    clipToOutline = false
-                    outlineProvider = null
+                    if (cornerRadiusDp > 0f) {
+                        clipToOutline = true
+                        outlineProvider = object : android.view.ViewOutlineProvider() {
+                            override fun getOutline(view: android.view.View, outline: android.graphics.Outline) {
+                                outline.setRoundRect(0, 0, view.width, view.height, cornerRadiusDp * resources.displayMetrics.density)
+                            }
+                        }
+                    } else {
+                        clipToOutline = false
+                        outlineProvider = null
+                    }
 
 
                     // defer addSink until the Surface is actually created
@@ -164,8 +176,17 @@ fun WebRtcVideoRenderer(
             },
             update = { view ->
                 view.setScalingType(if (isZoomedOut) ScalingType.SCALE_ASPECT_FIT else ScalingType.SCALE_ASPECT_FILL)
-                view.clipToOutline = false
-                view.outlineProvider = null
+                if (cornerRadiusDp > 0f) {
+                    view.clipToOutline = true
+                    view.outlineProvider = object : android.view.ViewOutlineProvider() {
+                        override fun getOutline(v: android.view.View, outline: android.graphics.Outline) {
+                            outline.setRoundRect(0, 0, v.width, v.height, cornerRadiusDp * v.resources.displayMetrics.density)
+                        }
+                    }
+                } else {
+                    view.clipToOutline = false
+                    view.outlineProvider = null
+                }
                 view.requestLayout()
                 // if the video track changed, rebind (only if surface is ready)
                 val prevTrack = currentTrackRef.get()
@@ -198,7 +219,9 @@ fun WebRtcVideoRenderer(
                 
                 if (constraintWidth > 0 && constraintHeight > 0) {
                     val constraintAspectRatio = constraintWidth.toFloat() / constraintHeight
-                    if (isZoomedOut) { // FIT
+                    if (isZoomedOut) { 
+                        // FIT mode: shrink the SurfaceView to match the video aspect ratio precisely,
+                        // so it doesn't paint black bars that hide the background avatar.
                         if (videoAspectRatio > constraintAspectRatio) {
                             targetWidth = constraintWidth
                             targetHeight = (constraintWidth / videoAspectRatio).toInt()
@@ -206,22 +229,29 @@ fun WebRtcVideoRenderer(
                             targetHeight = constraintHeight
                             targetWidth = (constraintHeight * videoAspectRatio).toInt()
                         }
-                    } else { // FILL
-                        if (videoAspectRatio > constraintAspectRatio) {
-                            targetHeight = constraintHeight
-                            targetWidth = (constraintHeight * videoAspectRatio).toInt()
-                        } else {
-                            targetWidth = constraintWidth
-                            targetHeight = (constraintWidth / videoAspectRatio).toInt()
-                        }
+                    } else { 
+                        // FILL mode: SurfaceView takes exact container size. 
+                        // SurfaceViewRenderer's SCALE_ASPECT_FILL will crop the video internally.
+                        targetWidth = constraintWidth
+                        targetHeight = constraintHeight
                     }
                 }
                 
-                // Force AndroidView to measure exactly targetWidth x targetHeight
+                // In FIT mode, exactConstraints will be smaller than container.
+                // In FILL mode, exactConstraints will be exactly the container size.
                 val exactConstraints = androidx.compose.ui.unit.Constraints.fixed(targetWidth, targetHeight)
                 val placeable = measurable.measure(exactConstraints)
-                layout(placeable.width, placeable.height) {
-                    placeable.place(0, 0)
+                
+                // Report the CONTAINER size to parent so we never expand the grid cell.
+                val layoutWidth = if (constraintWidth > 0) constraintWidth else targetWidth
+                val layoutHeight = if (constraintHeight > 0) constraintHeight else targetHeight
+                
+                layout(layoutWidth, layoutHeight) {
+                    // Center the view within the container
+                    placeable.place(
+                        (layoutWidth - placeable.width) / 2,
+                        (layoutHeight - placeable.height) / 2
+                    )
                 }
             },
             onRelease = { view ->

@@ -82,6 +82,13 @@ object SharkordClient {
         currentToken = null
         currentServerLogoUrl = null
         webSocket.disconnect()
+        
+        try {
+            val intent = android.content.Intent(applicationContext, VoiceService::class.java)
+            applicationContext.stopService(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }
 

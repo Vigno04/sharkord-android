@@ -221,6 +221,10 @@ class SessionManager(context: Context) {
         get() = prefs.getString(KEY_MEDIA_QUALITY, "Medium") ?: "Medium"
         set(value) = prefs.edit().putString(KEY_MEDIA_QUALITY, value).apply()
 
+    var enableFloatingPip: Boolean
+        get() = prefs.getBoolean(KEY_ENABLE_FLOATING_PIP, true)
+        set(value) = prefs.edit().putBoolean(KEY_ENABLE_FLOATING_PIP, value).apply()
+
     companion object {
         private const val PREFS_NAME = "sharkord_prefs"
         private const val KEY_TOKEN = "login_token"
@@ -249,5 +253,6 @@ class SessionManager(context: Context) {
         private const val KEY_COMPRESS_MEDIA = "compress_media"
         private const val KEY_MEDIA_CODEC = "app_media_codec"
         private const val KEY_MEDIA_QUALITY = "app_media_quality"
+        private const val KEY_ENABLE_FLOATING_PIP = "enable_floating_pip"
     }
 }

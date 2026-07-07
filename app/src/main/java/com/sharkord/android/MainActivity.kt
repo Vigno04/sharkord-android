@@ -25,12 +25,7 @@ import com.sharkord.android.ui.navigation.AppNavigation
 import com.sharkord.android.ui.theme.SharkordTheme
 
 class MainActivity : FragmentActivity() {
-    private var isInPipMode by mutableStateOf(false)
 
-    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
-        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
-        isInPipMode = isInPictureInPictureMode
-    }
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
@@ -38,14 +33,14 @@ class MainActivity : FragmentActivity() {
             com.sharkord.android.data.network.SharkordClient.voiceEngine.isConnected.value
         } else false
         
-        if (isCallGoing) {
+        if (isCallGoing && com.sharkord.android.data.network.SharkordClient.session.enableFloatingPip) {
             val hasVideo = com.sharkord.android.data.network.SharkordClient.voiceEngine.videoEngine.remoteVideoTracks.value.isNotEmpty()
             if (hasVideo) {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    val params = android.app.PictureInPictureParams.Builder()
-                        .setAspectRatio(android.util.Rational(16, 9))
-                        .build()
-                    enterPictureInPictureMode(params)
+                if (android.provider.Settings.canDrawOverlays(this)) {
+                    val intent = Intent(this, com.sharkord.android.data.network.VoiceService::class.java).apply {
+                        action = com.sharkord.android.data.network.VoiceService.ACTION_SHOW_OVERLAY
+                    }
+                    startService(intent)
                 }
             }
         }
@@ -58,6 +53,31 @@ class MainActivity : FragmentActivity() {
         window.setBackgroundDrawableResource(android.R.color.transparent)
         setContent {
             val voiceViewModel: com.sharkord.android.ui.voice.VoiceViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+            val voiceUiState by voiceViewModel.uiState.collectAsState()
+            val context = androidx.compose.ui.platform.LocalContext.current
+            
+            val overlayPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+            ) {
+                if (android.provider.Settings.canDrawOverlays(context)) {
+                    com.sharkord.android.data.network.SharkordClient.session.enableFloatingPip = true
+                }
+            }
+
+            val isConnected = voiceUiState.activeVoiceChannelId != null
+
+            androidx.compose.runtime.LaunchedEffect(isConnected) {
+                if (isConnected && com.sharkord.android.data.network.SharkordClient.session.enableFloatingPip) {
+                    if (!android.provider.Settings.canDrawOverlays(context)) {
+                        com.sharkord.android.data.network.SharkordClient.session.enableFloatingPip = false
+                        val intent = Intent(
+                            android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            android.net.Uri.parse("package:${context.packageName}")
+                        )
+                        overlayPermissionLauncher.launch(intent)
+                    }
+                }
+            }
             
             SharkordTheme {
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -69,12 +89,8 @@ class MainActivity : FragmentActivity() {
                             modifier = Modifier
                                 .padding(innerPadding)
                                 .consumeWindowInsets(innerPadding),
-                            voiceViewModel = voiceViewModel,
-                            isPipMode = isInPipMode
+                            voiceViewModel = voiceViewModel
                         )
-                    }
-                    if (isInPipMode) {
-                        com.sharkord.android.ui.pip.PipVideoScreen(voiceViewModel = voiceViewModel)
                     }
                 }
             }
@@ -110,9 +126,41 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        val intent = Intent(this, com.sharkord.android.data.network.VoiceService::class.java).apply {
+            action = com.sharkord.android.data.network.VoiceService.ACTION_SET_APP_VISIBLE
+            putExtra("EXTRA_VISIBLE", true)
+        }
+        try {
+            startService(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        val intent = Intent(this, com.sharkord.android.data.network.VoiceService::class.java).apply {
+            action = com.sharkord.android.data.network.VoiceService.ACTION_SET_APP_VISIBLE
+            putExtra("EXTRA_VISIBLE", false)
+        }
+        try {
+            startService(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         // force immediate reconnect if we were disconnected (e.g., from network loss or screen off)
         com.sharkord.android.data.network.SharkordClient.webSocket.resumeConnection()
+        
+        val intent = Intent(this, com.sharkord.android.data.network.VoiceService::class.java).apply {
+            action = com.sharkord.android.data.network.VoiceService.ACTION_SET_APP_VISIBLE
+            putExtra("EXTRA_VISIBLE", true)
+        }
+        startService(intent)
     }
 }

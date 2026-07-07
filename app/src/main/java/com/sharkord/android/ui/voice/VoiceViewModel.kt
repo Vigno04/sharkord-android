@@ -79,52 +79,65 @@ class VoiceViewModel : ViewModel() {
         prominentTrackJob = viewModelScope.launch {
             var currentProminentUserId: String? = null
             var lastSpeakerSwitchTime = 0L
-            val SWITCH_DELAY_MS = 1500L
+            var lastCurrentSpeakerActiveTime = 0L
+            val SWITCH_DELAY_MS = 2000L    // minimum time to show current speaker before switching
+            val SILENCE_GRACE_MS = 2000L   // how long to keep current speaker after they go silent
 
             kotlinx.coroutines.flow.combine(
                 SharkordClient.voiceEngine.audioLevels,
                 SharkordClient.voiceEngine.videoEngine.remoteVideoTracks
             ) { levels, tracks ->
-                val speakers = levels.filter { it.value > 0.02f || it.value > 5f }.keys.filter { it != "local" }
+                val speakers = levels.filter { it.value > 0.02f }.keys.filter { it != "local" }
                 Pair(speakers, tracks)
             }.collect { (speakers, tracks) ->
                 if (tracks.isEmpty()) {
                     if (_uiState.value.prominentVideoTrackId != null) {
                         _uiState.update { it.copy(prominentVideoTrackId = null, prominentVideoTrack = null) }
                     }
+                    currentProminentUserId = null
                     return@collect
                 }
 
                 val now = System.currentTimeMillis()
+
+                // Track when the current prominent user was last speaking
+                if (currentProminentUserId != null && speakers.contains(currentProminentUserId)) {
+                    lastCurrentSpeakerActiveTime = now
+                }
+
                 var newProminentUserId = currentProminentUserId
 
-                // Determine if we need to switch the prominent user based on active speakers
                 if (speakers.isNotEmpty()) {
-                    // if current prominent user is not speaking, or we don't have one, pick a new one
-                    if (currentProminentUserId == null || !speakers.contains(currentProminentUserId)) {
-                        // Pick the first speaker that has a video track
-                        val speakingUserWithVideo = speakers.firstOrNull { speakerId -> 
-                            tracks.keys.any { it.startsWith("$speakerId:") }
-                        }
-                        
+                    // Only switch away from the current speaker if they have been silent for the grace period
+                    val currentSpeakerSilentFor = now - lastCurrentSpeakerActiveTime
+                    val canSwitch = currentProminentUserId == null
+                        || !speakers.contains(currentProminentUserId) && currentSpeakerSilentFor >= SILENCE_GRACE_MS
+                        || now - lastSpeakerSwitchTime >= SWITCH_DELAY_MS
+
+                    if (canSwitch) {
+                        // Pick the loudest speaker that has a video track (not the current one unless they are still speaking)
+                        val speakingUserWithVideo = speakers
+                            .filter { speakerId -> tracks.keys.any { it.startsWith("$speakerId:") } }
+                            .firstOrNull { it != currentProminentUserId }
+                            ?: speakers.firstOrNull { speakerId -> tracks.keys.any { it.startsWith("$speakerId:") } }
+
                         if (speakingUserWithVideo != null && speakingUserWithVideo != currentProminentUserId) {
-                            if (currentProminentUserId == null || now - lastSpeakerSwitchTime >= SWITCH_DELAY_MS) {
-                                newProminentUserId = speakingUserWithVideo
-                                lastSpeakerSwitchTime = now
-                            }
+                            newProminentUserId = speakingUserWithVideo
+                            lastSpeakerSwitchTime = now
+                            lastCurrentSpeakerActiveTime = now
                         }
                     }
                 }
 
-                // If we don't have a prominent user, just pick someone with video randomly (first available)
+                // If we have no prominent user at all, pick someone with video (initialization only)
                 if (newProminentUserId == null || !tracks.keys.any { it.startsWith("$newProminentUserId:") }) {
                     val firstTrackKey = tracks.keys.firstOrNull()
-                    if (firstTrackKey != null) {
-                        newProminentUserId = firstTrackKey.substringBefore(":")
-                    } else {
-                        newProminentUserId = null
-                    }
+                    newProminentUserId = firstTrackKey?.substringBefore(":")
+                    lastSpeakerSwitchTime = now
+                    lastCurrentSpeakerActiveTime = now
                 }
+                // NOTE: if newProminentUserId is non-null and their track still exists but they stopped talking,
+                // we intentionally keep them — don't fall back to firstOrNull here
 
                 currentProminentUserId = newProminentUserId
 
@@ -151,7 +164,6 @@ class VoiceViewModel : ViewModel() {
                             newProminentTrack = tracks[externalVideoKey]
                         }
                         else -> {
-                            // Should not happen based on earlier checks, but fallback
                             newProminentTrackId = tracks.keys.firstOrNull { it.startsWith("$currentProminentUserId:") }
                             newProminentTrack = newProminentTrackId?.let { tracks[it] }
                         }
