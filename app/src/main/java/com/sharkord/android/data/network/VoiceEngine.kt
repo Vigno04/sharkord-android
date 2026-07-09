@@ -609,6 +609,20 @@ class VoiceEngine(private val context: Context, private val webSocketManager: We
                         track.setEnabled(true)
                         videoEngine.addRemoteVideoTrack(consumerKey, track)
                         Log.d(TAG, "Remote video consumer ready for $remoteId")
+
+                        // Request maximum quality from the server
+                        scope.launch {
+                            try {
+                                val qualityInput = com.google.gson.JsonObject().apply {
+                                    addProperty("remoteId", remoteId)
+                                    addProperty("kind", kind.value)
+                                    add("quality", com.google.gson.JsonObject().apply { addProperty("mode", "auto") })
+                                }
+                                webSocketManager.sendMutationAwait("voice.setConsumerQuality", qualityInput)
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed to set consumer quality: ${e.message}")
+                            }
+                        }
                     }
                 }
             } catch (e: Exception) {
