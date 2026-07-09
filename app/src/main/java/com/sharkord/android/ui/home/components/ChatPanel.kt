@@ -21,16 +21,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -68,13 +66,16 @@ fun ChatPanel(
     roles: List<Role>,
     customEmojis: List<Emoji>,
     isActive: Boolean = true,
+    isTablet: Boolean = false,
+    isChatFullScreen: Boolean = false,
+    onToggleFullScreen: (() -> Unit)? = null,
     onBackClick: () -> Unit,
     onUserClick: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ChatViewModel = viewModel(key = "chat_$channelId")
 ) {
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val bgColor = SharkordTheme.colors.bgColor
     val cardColor = SharkordTheme.colors.cardColor
     val textPrimary = SharkordTheme.colors.primaryText
@@ -105,6 +106,20 @@ fun ChatPanel(
     }
 
     val keyboardController = LocalSoftwareKeyboardController.current
+
+    // helper to close the keyboard
+    val dismissInputPanel = {
+        if (isEmojiPickerOpen) {
+            isEmojiPickerOpen = false
+        }
+        keyboardController?.hide()
+    }
+
+    LaunchedEffect(isActive) {
+        if (!isActive) {
+            dismissInputPanel()
+        }
+    }
 
     // initialize ViewModel
     LaunchedEffect(channelId, targetMessageId, jumpTrigger) {
@@ -245,13 +260,7 @@ fun ChatPanel(
         }
     }
 
-    // helper to close the keyboard
-    val dismissInputPanel = {
-        if (isEmojiPickerOpen) {
-            isEmojiPickerOpen = false
-        }
-        keyboardController?.hide()
-    }
+
 
     // system back button interception
     BackHandler(enabled = isActive) {
@@ -278,7 +287,10 @@ fun ChatPanel(
                 dmUser = dmUser,
                 showPinnedMessages = uiState.showPinnedMessages,
                 onBackClick = onBackClick,
-                onTogglePinnedMessages = { viewModel.setPinnedMessagesVisible(!uiState.showPinnedMessages) }
+                onTogglePinnedMessages = { viewModel.setPinnedMessagesVisible(!uiState.showPinnedMessages) },
+                isTablet = isTablet,
+                isChatFullScreen = isChatFullScreen,
+                onToggleFullScreen = onToggleFullScreen
             )
 
             // error Banner
@@ -295,7 +307,13 @@ fun ChatPanel(
                         .clickable {
                             val errorMsg = uiState.errorMessage
                             if (errorMsg != null) {
-                                clipboardManager.setText(AnnotatedString(errorMsg))
+                                coroutineScope.launch {
+                                    clipboard.setClipEntry(
+                                        androidx.compose.ui.platform.ClipEntry(
+                                            android.content.ClipData.newPlainText("error", errorMsg)
+                                        )
+                                    )
+                                }
                                 android.widget.Toast.makeText(context, context.getString(R.string.common_errorDetailsCopied), android.widget.Toast.LENGTH_SHORT).show()
                             }
                             viewModel.clearError()

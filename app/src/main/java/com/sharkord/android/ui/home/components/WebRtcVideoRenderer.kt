@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
@@ -36,7 +37,9 @@ fun WebRtcVideoRenderer(
     videoTrack: VideoTrack,
     eglBaseContext: EglBase.Context,
     isZoomedOut: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    setZOrderMediaOverlay: Boolean = false,
+    showStats: Boolean = true
 ) {
     var videoWidth by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var videoHeight by remember { androidx.compose.runtime.mutableIntStateOf(0) }
@@ -52,13 +55,18 @@ fun WebRtcVideoRenderer(
     // poll stats from the atomic counters on the main thread
     LaunchedEffect(Unit) {
         while (true) {
-            kotlinx.coroutines.delay(500)
             val w = atomicWidth.get()
             val h = atomicHeight.get()
             val fps = atomicFps.get()
             if (w != videoWidth) videoWidth = w
             if (h != videoHeight) videoHeight = h
             if (fps != frameRate) frameRate = fps
+            
+            if (videoWidth == 0) {
+                kotlinx.coroutines.delay(16)
+            } else {
+                kotlinx.coroutines.delay(500)
+            }
         }
     }
 
@@ -104,23 +112,20 @@ fun WebRtcVideoRenderer(
     }
 
     Box(
-        modifier = modifier,
+        modifier = modifier.clipToBounds(),
         contentAlignment = Alignment.Center
     ) {
         AndroidView(
             factory = { context ->
                 SurfaceViewRenderer(context).apply {
-                    // MUST be false to prevent black screens and BLASTBufferQueue rejections!
-                    // hardware scaling conflicts heavily with Compose's layout system.
-                    setEnableHardwareScaler(false)
+                    // MUST be true to prevent black screens and BLASTBufferQueue rejections
+                    // on modern Android (Android 11+) which enforce buffer size matching.
+                    setEnableHardwareScaler(true)
+                    setZOrderMediaOverlay(setZOrderMediaOverlay)
                     
                     viewRef.set(this)
                     init(eglBaseContext, null)
                     setScalingType(if (isZoomedOut) ScalingType.SCALE_ASPECT_FIT else ScalingType.SCALE_ASPECT_FILL)
-                    
-                    clipToOutline = false
-                    outlineProvider = null
-
 
                     // defer addSink until the Surface is actually created
                     // calling addSink before surfaceCreated delivers frames to an
@@ -158,8 +163,6 @@ fun WebRtcVideoRenderer(
             },
             update = { view ->
                 view.setScalingType(if (isZoomedOut) ScalingType.SCALE_ASPECT_FIT else ScalingType.SCALE_ASPECT_FILL)
-                view.clipToOutline = false
-                view.outlineProvider = null
                 view.requestLayout()
                 // if the video track changed, rebind (only if surface is ready)
                 val prevTrack = currentTrackRef.get()
@@ -183,19 +186,48 @@ fun WebRtcVideoRenderer(
                 }
             },
             modifier = Modifier.layout { measurable, constraints ->
-                // webRTC's VideoLayoutMeasure needs to calculate the exact aspect-ratio bounds
-                // (shrunken for FIT, or expanded beyond the container for FILL)
-                // to allow this, we relax the minimum constraints to 0 (AT_MOST)
-                val looseConstraints = constraints.copy(minWidth = 0, minHeight = 0)
-                val placeable = measurable.measure(looseConstraints)
-                // compose normally clamps a child's size to the parent constraints
-                // we bypass this by reporting the exact measured width/height back to Compose!
-                // if it expanded (FILL), Compose allows it to exceed the bounds, and
-                // our parent Box(contentAlignment = Center) perfectly centers it
-                // android WindowManager then natively clips the overflowing SurfaceView
-                // if it shrank (FIT), the Box centers the smaller view, showing letterboxes
-                layout(placeable.width, placeable.height) {
-                    placeable.place(0, 0)
+                val videoAspectRatio = if (videoWidth > 0 && videoHeight > 0) videoWidth.toFloat() / videoHeight else 1f
+                val constraintWidth = if (constraints.hasBoundedWidth) constraints.maxWidth else 0
+                val constraintHeight = if (constraints.hasBoundedHeight) constraints.maxHeight else 0
+                
+                var targetWidth = constraintWidth
+                var targetHeight = constraintHeight
+                
+                if (constraintWidth > 0 && constraintHeight > 0) {
+                    val constraintAspectRatio = constraintWidth.toFloat() / constraintHeight
+                    if (isZoomedOut) { 
+                        // FIT mode: shrink the SurfaceView to match the video aspect ratio precisely,
+                        // so it doesn't paint black bars that hide the background avatar.
+                        if (videoAspectRatio > constraintAspectRatio) {
+                            targetWidth = constraintWidth
+                            targetHeight = (constraintWidth / videoAspectRatio).toInt()
+                        } else {
+                            targetHeight = constraintHeight
+                            targetWidth = (constraintHeight * videoAspectRatio).toInt()
+                        }
+                    } else { 
+                        // FILL mode: SurfaceView takes exact container size. 
+                        // SurfaceViewRenderer's SCALE_ASPECT_FILL will crop the video internally.
+                        targetWidth = constraintWidth
+                        targetHeight = constraintHeight
+                    }
+                }
+                
+                // In FIT mode, exactConstraints will be smaller than container.
+                // In FILL mode, exactConstraints will be exactly the container size.
+                val exactConstraints = androidx.compose.ui.unit.Constraints.fixed(targetWidth, targetHeight)
+                val placeable = measurable.measure(exactConstraints)
+                
+                // Report the CONTAINER size to parent so we never expand the grid cell.
+                val layoutWidth = if (constraintWidth > 0) constraintWidth else targetWidth
+                val layoutHeight = if (constraintHeight > 0) constraintHeight else targetHeight
+                
+                layout(layoutWidth, layoutHeight) {
+                    // Center the view within the container
+                    placeable.place(
+                        (layoutWidth - placeable.width) / 2,
+                        (layoutHeight - placeable.height) / 2
+                    )
                 }
             },
             onRelease = { view ->
@@ -216,7 +248,7 @@ fun WebRtcVideoRenderer(
             }
         )
 
-        if (videoWidth > 0 && videoHeight > 0) {
+        if (showStats && videoWidth > 0 && videoHeight > 0) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)

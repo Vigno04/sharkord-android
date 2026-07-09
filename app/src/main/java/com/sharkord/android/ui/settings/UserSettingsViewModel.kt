@@ -42,6 +42,8 @@ class UserSettingsViewModel : ViewModel() {
     var alwaysRequireBiometrics = MutableStateFlow(false)
     var hasBiometrics = MutableStateFlow(false)
 
+    var enableFloatingPip = MutableStateFlow(true)
+
     // media compression
     var compressMedia = MutableStateFlow(false)
     var mediaCodec = MutableStateFlow("H.264")
@@ -69,6 +71,7 @@ class UserSettingsViewModel : ViewModel() {
         autoLogin.value = SharkordClient.session.autoLogin
         alwaysRequireBiometrics.value = SharkordClient.session.alwaysRequireBiometrics
         hasBiometrics.value = SharkordClient.session.hasBiometricCredentials()
+        enableFloatingPip.value = SharkordClient.session.enableFloatingPip
         
         compressMedia.value = SharkordClient.session.compressMedia
         mediaCodec.value = SharkordClient.session.mediaCodec
@@ -174,6 +177,11 @@ class UserSettingsViewModel : ViewModel() {
     fun saveAlwaysRequireBiometrics(value: Boolean) {
         alwaysRequireBiometrics.value = value
         SharkordClient.session.alwaysRequireBiometrics = value
+    }
+
+    fun saveEnableFloatingPip(value: Boolean) {
+        enableFloatingPip.value = value
+        SharkordClient.session.enableFloatingPip = value
     }
 
     fun saveCompressMedia(value: Boolean) {

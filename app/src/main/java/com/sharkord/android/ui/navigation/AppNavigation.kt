@@ -10,7 +10,10 @@ import com.sharkord.android.ui.login.LoginScreen
 import com.sharkord.android.ui.settings.UserSettingsScreen
 
 @Composable
-fun AppNavigation(modifier: Modifier = Modifier) {
+fun AppNavigation(
+    modifier: Modifier = Modifier,
+    voiceViewModel: com.sharkord.android.ui.voice.VoiceViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+) {
     val navController = rememberNavController()
 
     NavHost(
@@ -42,7 +45,8 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                 },
                 onNavigateToChannelSettings = { channelId ->
                     navController.navigate("channel_settings/$channelId")
-                }
+                },
+                voiceViewModel = voiceViewModel
             )
         }
         composable("user_settings") {

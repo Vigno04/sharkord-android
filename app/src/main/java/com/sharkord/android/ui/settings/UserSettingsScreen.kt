@@ -2,6 +2,7 @@ package com.sharkord.android.ui.settings
 
 import com.sharkord.android.ui.theme.SharkordTheme
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Environment
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -68,7 +69,7 @@ fun UserSettingsScreen(
     val foregroundText = SharkordTheme.colors.foregroundText
     val accentColor = SharkordTheme.colors.accentColor
     
-    val tabs = listOf("Profile", "Call Settings", "Password", "Notifications", "App Settings")
+    val tabs = listOf("Profile", "Call Settings", "Password", "Notifications", "App Settings", "Info")
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val coroutineScope = rememberCoroutineScope()
 
@@ -185,6 +186,7 @@ fun UserSettingsScreen(
                             2 -> PasswordTabContent(viewModel, cardColor, foregroundText, primaryText, accentColor)
                             3 -> NotificationsTabContent(cardColor, foregroundText, primaryText, accentColor)
                             4 -> AppSettingsTabContent(viewModel, cardColor, foregroundText, primaryText, accentColor)
+                            5 -> InfoTabContent(cardColor, foregroundText, primaryText, accentColor)
                         }
                     }
                 }
@@ -1139,6 +1141,7 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
     val autoLogin by viewModel.autoLogin.collectAsState()
     val alwaysRequireBiometrics by viewModel.alwaysRequireBiometrics.collectAsState()
     val hasBiometrics by viewModel.hasBiometrics.collectAsState()
+    val enableFloatingPip by viewModel.enableFloatingPip.collectAsState()
 
     val displaySize = if (maxDiskCacheMb >= 1024) {
         String.format(java.util.Locale.US, "%.1f GB", maxDiskCacheMb / 1024f)
@@ -1174,6 +1177,18 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
             ) {
                 Text(stringResource(R.string.settings_removeBiometrics), color = SharkordTheme.colors.foregroundText)
             }
+        }
+    }
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    SettingsSection(title = "App Features", cardColor = cardColor, foregroundText = foregroundText) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Floating PiP Window", color = foregroundText)
+                Text("Show a floating video window when you leave the app during a call.", color = primaryText, fontSize = 12.sp)
+            }
+            Switch(checked = enableFloatingPip, onCheckedChange = { viewModel.saveEnableFloatingPip(it) }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
         }
     }
 
@@ -1272,6 +1287,129 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
                 }
             }
         }
+    }
+}
+
+@Composable
+fun InfoTabContent(cardColor: Color, foregroundText: Color, primaryText: Color, accentColor: Color) {
+    val context = LocalContext.current
+    val packageInfo = remember { context.packageManager.getPackageInfo(context.packageName, 0) }
+    val versionName = packageInfo.versionName ?: "Unknown"
+
+    val coroutineScope = rememberCoroutineScope()
+    var isChecking by remember { mutableStateOf(false) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    var updateInfo by remember { mutableStateOf<com.sharkord.android.utils.UpdateInfo?>(null) }
+    var currentToast by remember { mutableStateOf<android.widget.Toast?>(null) }
+    val upToDateMsg = stringResource(R.string.settings_upToDateTitle)
+
+    SettingsSection(title = "App Info", cardColor = cardColor, foregroundText = foregroundText) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = !isChecking) {
+                    isChecking = true
+                    coroutineScope.launch {
+                        val info = com.sharkord.android.utils.UpdateManager.checkForUpdates(context)
+                        isChecking = false
+                        if (info != null && info.hasUpdate) {
+                            updateInfo = info
+                            showUpdateDialog = true
+                        } else {
+                            currentToast?.cancel()
+                            val toast = android.widget.Toast.makeText(context, upToDateMsg, android.widget.Toast.LENGTH_SHORT)
+                            currentToast = toast
+                            toast.show()
+                        }
+                    }
+                }
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("App Version", color = foregroundText)
+                Text("The current version of Sharkord Android.", color = primaryText, fontSize = 12.sp)
+            }
+            Text(versionName, color = accentColor, fontWeight = FontWeight.Bold)
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Vigno04/sharkord-android"))
+                    context.startActivity(intent)
+                }
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("GitHub Repository", color = foregroundText)
+                Text("View the source code or contribute on GitHub.", color = primaryText, fontSize = 12.sp)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Vigno04/sharkord-android/issues/new"))
+                    context.startActivity(intent)
+                }
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Report a Bug", color = foregroundText)
+                Text("Create a new issue on GitHub to report a bug.", color = primaryText, fontSize = 12.sp)
+            }
+        }
+    }
+
+    if (showUpdateDialog && updateInfo != null) {
+        val updateAvailableTitle = stringResource(R.string.settings_updateAvailableTitle)
+        val updateAvailableDesc = stringResource(R.string.settings_updateAvailableDesc, updateInfo!!.latestVersion)
+        
+        AlertDialog(
+            onDismissRequest = { showUpdateDialog = false },
+            containerColor = cardColor,
+            titleContentColor = foregroundText,
+            textContentColor = primaryText,
+            title = { Text(updateAvailableTitle) },
+            text = { Text(updateAvailableDesc) },
+            confirmButton = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(updateInfo!!.releaseUrl))
+                            context.startActivity(intent)
+                            showUpdateDialog = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = accentColor)
+                    ) {
+                        Text(stringResource(R.string.settings_marketplaceUpdateBtn))
+                    }
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { showUpdateDialog = false },
+                        border = androidx.compose.foundation.BorderStroke(1.dp, primaryText.copy(alpha = 0.5f))
+                    ) {
+                        Text(stringResource(R.string.common_cancel), color = primaryText)
+                    }
+                }
+            }
+        )
     }
 }
 

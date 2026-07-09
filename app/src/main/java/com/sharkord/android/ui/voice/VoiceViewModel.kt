@@ -26,6 +26,8 @@ data class VoiceUiState(
     val localVideoTrack: VideoTrack? = null,
     val localScreenTrack: VideoTrack? = null,
     val remoteVideoTracks: Map<String, VideoTrack> = emptyMap(),
+    val prominentVideoTrackId: String? = null,
+    val prominentVideoTrack: VideoTrack? = null,
     // always available since EglBase is created at VoiceEngine init time
     val eglBaseContext: org.webrtc.EglBase.Context = SharkordClient.voiceEngine.eglBaseContext
 )
@@ -43,6 +45,7 @@ class VoiceViewModel : ViewModel() {
     private var localVideoJob: Job? = null
     private var localScreenJob: Job? = null
     private var remoteVideoJob: Job? = null
+    private var prominentTrackJob: Job? = null
     private var eventJob: Job? = null
 
     private var preDeafenMicMuted: Boolean = false
@@ -60,12 +63,115 @@ class VoiceViewModel : ViewModel() {
                             isScreenSharing = false,
                             localVideoTrack = null, 
                             localScreenTrack = null,
-                            remoteVideoTracks = emptyMap()
+                            remoteVideoTracks = emptyMap(),
+                            prominentVideoTrackId = null,
+                            prominentVideoTrack = null
                         ) 
                     }
                     audioLevelsJob?.cancel()
                     localVideoJob?.cancel()
                     remoteVideoJob?.cancel()
+                    prominentTrackJob?.cancel()
+                }
+            }
+        }
+
+        prominentTrackJob = viewModelScope.launch {
+            var currentProminentUserId: String? = null
+            var lastSpeakerSwitchTime = 0L
+            var lastCurrentSpeakerActiveTime = 0L
+            val SWITCH_DELAY_MS = 2000L    // minimum time to show current speaker before switching
+            val SILENCE_GRACE_MS = 2000L   // how long to keep current speaker after they go silent
+
+            kotlinx.coroutines.flow.combine(
+                SharkordClient.voiceEngine.audioLevels,
+                SharkordClient.voiceEngine.videoEngine.remoteVideoTracks
+            ) { levels, tracks ->
+                val speakers = levels.filter { it.value > 0.02f }.keys.filter { it != "local" }
+                Pair(speakers, tracks)
+            }.collect { (speakers, tracks) ->
+                if (tracks.isEmpty()) {
+                    if (_uiState.value.prominentVideoTrackId != null) {
+                        _uiState.update { it.copy(prominentVideoTrackId = null, prominentVideoTrack = null) }
+                    }
+                    currentProminentUserId = null
+                    return@collect
+                }
+
+                val now = System.currentTimeMillis()
+
+                // Track when the current prominent user was last speaking
+                if (currentProminentUserId != null && speakers.contains(currentProminentUserId)) {
+                    lastCurrentSpeakerActiveTime = now
+                }
+
+                var newProminentUserId = currentProminentUserId
+
+                if (speakers.isNotEmpty()) {
+                    // Only switch away from the current speaker if they have been silent for the grace period
+                    val currentSpeakerSilentFor = now - lastCurrentSpeakerActiveTime
+                    val canSwitch = currentProminentUserId == null
+                        || !speakers.contains(currentProminentUserId) && currentSpeakerSilentFor >= SILENCE_GRACE_MS
+                        || now - lastSpeakerSwitchTime >= SWITCH_DELAY_MS
+
+                    if (canSwitch) {
+                        // Pick the loudest speaker that has a video track (not the current one unless they are still speaking)
+                        val speakingUserWithVideo = speakers
+                            .filter { speakerId -> tracks.keys.any { it.startsWith("$speakerId:") } }
+                            .firstOrNull { it != currentProminentUserId }
+                            ?: speakers.firstOrNull { speakerId -> tracks.keys.any { it.startsWith("$speakerId:") } }
+
+                        if (speakingUserWithVideo != null && speakingUserWithVideo != currentProminentUserId) {
+                            newProminentUserId = speakingUserWithVideo
+                            lastSpeakerSwitchTime = now
+                            lastCurrentSpeakerActiveTime = now
+                        }
+                    }
+                }
+
+                // If we have no prominent user at all, pick someone with video (initialization only)
+                if (newProminentUserId == null || !tracks.keys.any { it.startsWith("$newProminentUserId:") }) {
+                    val firstTrackKey = tracks.keys.firstOrNull()
+                    newProminentUserId = firstTrackKey?.substringBefore(":")
+                    lastSpeakerSwitchTime = now
+                    lastCurrentSpeakerActiveTime = now
+                }
+                // NOTE: if newProminentUserId is non-null and their track still exists but they stopped talking,
+                // we intentionally keep them — don't fall back to firstOrNull here
+
+                currentProminentUserId = newProminentUserId
+
+                // Now select the specific track for the prominent user (prefer camera over screen)
+                var newProminentTrackId: String? = null
+                var newProminentTrack: VideoTrack? = null
+
+                if (currentProminentUserId != null) {
+                    val userCameraKey = "$currentProminentUserId:video"
+                    val userScreenKey = "$currentProminentUserId:screen"
+                    val externalVideoKey = "$currentProminentUserId:external_video"
+
+                    when {
+                        tracks.containsKey(userCameraKey) -> {
+                            newProminentTrackId = userCameraKey
+                            newProminentTrack = tracks[userCameraKey]
+                        }
+                        tracks.containsKey(userScreenKey) -> {
+                            newProminentTrackId = userScreenKey
+                            newProminentTrack = tracks[userScreenKey]
+                        }
+                        tracks.containsKey(externalVideoKey) -> {
+                            newProminentTrackId = externalVideoKey
+                            newProminentTrack = tracks[externalVideoKey]
+                        }
+                        else -> {
+                            newProminentTrackId = tracks.keys.firstOrNull { it.startsWith("$currentProminentUserId:") }
+                            newProminentTrack = newProminentTrackId?.let { tracks[it] }
+                        }
+                    }
+                }
+
+                if (_uiState.value.prominentVideoTrackId != newProminentTrackId || _uiState.value.prominentVideoTrack != newProminentTrack) {
+                    _uiState.update { it.copy(prominentVideoTrackId = newProminentTrackId, prominentVideoTrack = newProminentTrack) }
                 }
             }
         }
@@ -334,6 +440,7 @@ class VoiceViewModel : ViewModel() {
         localVideoJob?.cancel()
         localScreenJob?.cancel()
         remoteVideoJob?.cancel()
+        prominentTrackJob?.cancel()
         eventJob?.cancel()
     }
 }

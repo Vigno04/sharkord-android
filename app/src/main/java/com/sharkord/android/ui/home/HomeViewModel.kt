@@ -55,7 +55,9 @@ data class HomeUiState(
     val showDeleteChannelDialogForId: Int? = null,
     val membersSheetFilterDms: Boolean = false,
     val readStates: Map<Int, Int> = emptyMap(),
-    val isViewingVoiceChat: Boolean = false
+    val isViewingVoiceChat: Boolean = false,
+    val isChatFullScreen: Boolean = false,
+    val isEmojiPickerOpen: Boolean = false
 )
 
 // viewModel for the home/server screen
@@ -635,6 +637,7 @@ class HomeViewModel : ViewModel() {
     fun selectChannel(channelId: Int, messageId: Int? = null, navigateToChat: Boolean = true) {
         val channel = _uiState.value.serverData?.channels?.find { it.id == channelId }
         val isDm = channel?.isDm == true
+        val isVoice = channel?.isVoice == true
 
         _uiState.update { state ->
             if (isDm) {
@@ -653,6 +656,7 @@ class HomeViewModel : ViewModel() {
                     selectedMessageId = messageId,
                     isDmsListSelected = false,
                     activePanel = if (navigateToChat) HomePanel.SERVER_CHAT else state.activePanel,
+                    isChatFullScreen = if (navigateToChat && isVoice) true else state.isChatFullScreen,
                     jumpTrigger = if (messageId != null) System.currentTimeMillis() else state.jumpTrigger,
                     readStates = if (navigateToChat) {
                         state.readStates.toMutableMap().apply { put(channelId, 0) }
@@ -700,6 +704,14 @@ class HomeViewModel : ViewModel() {
 
     fun setViewingVoiceChat(viewing: Boolean) {
         _uiState.update { it.copy(isViewingVoiceChat = viewing) }
+    }
+
+    fun setChatFullScreen(fullScreen: Boolean) {
+        _uiState.update { it.copy(isChatFullScreen = fullScreen) }
+    }
+
+    fun setEmojiPickerOpen(open: Boolean) {
+        _uiState.update { it.copy(isEmojiPickerOpen = open) }
     }
 
     fun toggleCategory(categoryId: Int) {
