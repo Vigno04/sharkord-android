@@ -164,8 +164,7 @@ fun VoiceGridItem(
                 videoTrack = videoTrack,
                 eglBaseContext = eglBaseContext,
                 isZoomedOut = isZoomedOut || isScreenShare,
-                modifier = Modifier.fillMaxSize(),
-                cornerRadiusDp = if (isZoomedOut || isScreenShare) 0f else 16f
+                modifier = Modifier.fillMaxSize()
             )
         }
         

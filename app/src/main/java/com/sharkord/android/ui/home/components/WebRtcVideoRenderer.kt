@@ -38,8 +38,8 @@ fun WebRtcVideoRenderer(
     eglBaseContext: EglBase.Context,
     isZoomedOut: Boolean = false,
     modifier: Modifier = Modifier,
-    cornerRadiusDp: Float = 0f,
-    setZOrderMediaOverlay: Boolean = false
+    setZOrderMediaOverlay: Boolean = false,
+    showStats: Boolean = true
 ) {
     var videoWidth by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var videoHeight by remember { androidx.compose.runtime.mutableIntStateOf(0) }
@@ -126,19 +126,6 @@ fun WebRtcVideoRenderer(
                     viewRef.set(this)
                     init(eglBaseContext, null)
                     setScalingType(if (isZoomedOut) ScalingType.SCALE_ASPECT_FIT else ScalingType.SCALE_ASPECT_FILL)
-                    
-                    if (cornerRadiusDp > 0f) {
-                        clipToOutline = true
-                        outlineProvider = object : android.view.ViewOutlineProvider() {
-                            override fun getOutline(view: android.view.View, outline: android.graphics.Outline) {
-                                outline.setRoundRect(0, 0, view.width, view.height, cornerRadiusDp * resources.displayMetrics.density)
-                            }
-                        }
-                    } else {
-                        clipToOutline = false
-                        outlineProvider = null
-                    }
-
 
                     // defer addSink until the Surface is actually created
                     // calling addSink before surfaceCreated delivers frames to an
@@ -176,17 +163,6 @@ fun WebRtcVideoRenderer(
             },
             update = { view ->
                 view.setScalingType(if (isZoomedOut) ScalingType.SCALE_ASPECT_FIT else ScalingType.SCALE_ASPECT_FILL)
-                if (cornerRadiusDp > 0f) {
-                    view.clipToOutline = true
-                    view.outlineProvider = object : android.view.ViewOutlineProvider() {
-                        override fun getOutline(v: android.view.View, outline: android.graphics.Outline) {
-                            outline.setRoundRect(0, 0, v.width, v.height, cornerRadiusDp * v.resources.displayMetrics.density)
-                        }
-                    }
-                } else {
-                    view.clipToOutline = false
-                    view.outlineProvider = null
-                }
                 view.requestLayout()
                 // if the video track changed, rebind (only if surface is ready)
                 val prevTrack = currentTrackRef.get()
@@ -272,7 +248,7 @@ fun WebRtcVideoRenderer(
             }
         )
 
-        if (videoWidth > 0 && videoHeight > 0) {
+        if (showStats && videoWidth > 0 && videoHeight > 0) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)

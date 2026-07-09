@@ -359,13 +359,7 @@ class VoiceService : Service() {
         }
 
         composeView = ComposeView(this).apply {
-            clipToOutline = true
-            outlineProvider = object : android.view.ViewOutlineProvider() {
-                override fun getOutline(view: android.view.View, outline: android.graphics.Outline) {
-                    val radius = 16f * resources.displayMetrics.density
-                    outline.setRoundRect(0, 0, view.width, view.height, radius)
-                }
-            }
+
             setContent {
                 val voiceEngine = SharkordClient.voiceEngine
                 FloatingPipScreen(

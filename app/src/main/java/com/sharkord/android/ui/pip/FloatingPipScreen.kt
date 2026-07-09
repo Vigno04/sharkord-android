@@ -6,7 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Fullscreen
@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.sharkord.android.data.network.VoiceEngine
 import com.sharkord.android.ui.home.components.WebRtcVideoRenderer
 
-private val CORNER = RoundedCornerShape(16.dp)
+
 
 @Composable
 fun FloatingPipScreen(
@@ -113,7 +113,6 @@ fun FloatingPipScreen(
         }
     }
 
-    // Outer box with border — drawn OUTSIDE the SurfaceView using padding
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -124,17 +123,13 @@ fun FloatingPipScreen(
                 }
             }
     ) {
-        // Green speaking border — drawn as a solid ring outside the video area
-        val borderColor = if (isSpeaking) Color(0xFF4CAF50) else Color.Transparent
-        val borderWidth = 3.dp
-        val padding = if (isSpeaking) borderWidth else 0.dp
-
+        // Video fills the entire window — no layout shifts.
+        // The window itself (ComposeView in VoiceService) has clipToOutline = true
+        // with a 16dp radius, which is the ONLY reliable way to round-clip a SurfaceView
+        // (SurfaceView renders in a separate hardware surface that ignores Compose/View clipping).
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .border(borderWidth, borderColor, CORNER)
-                .padding(padding)
-                .clip(CORNER)
                 .background(Color.Black)
         ) {
             val track = trackToRender
@@ -146,11 +141,20 @@ fun FloatingPipScreen(
                         videoTrack = track,
                         eglBaseContext = voiceEngine.eglBaseContext,
                         modifier = Modifier.fillMaxSize(),
-                        cornerRadiusDp = 16f,
-                        setZOrderMediaOverlay = true
+                        setZOrderMediaOverlay = false,
+                        showStats = false
                     )
                 }
             }
+
+            // Speaking border: drawn as an overlay Box so it never affects layout/size.
+            // Uses animateColorAsState for a smooth fade in/out.
+            val borderColor = if (isSpeaking) Color(0xFF4CAF50) else Color.Transparent
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .border(3.dp, borderColor)
+            )
         }
 
         // Action buttons — top right, drawn ABOVE SurfaceView via setZOrderMediaOverlay
