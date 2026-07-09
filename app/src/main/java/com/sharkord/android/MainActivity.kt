@@ -11,12 +11,15 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Alignment
@@ -80,6 +83,79 @@ class MainActivity : FragmentActivity() {
             }
             
             SharkordTheme {
+                val prefs = remember { context.getSharedPreferences("SharkordSettings", android.content.Context.MODE_PRIVATE) }
+                var updateInfo by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<com.sharkord.android.utils.UpdateInfo?>(null) }
+                var showUpdateDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    val info = com.sharkord.android.utils.UpdateManager.checkForUpdates(context)
+                    if (info != null && info.hasUpdate) {
+                        val neverRemindGlobal = prefs.getBoolean("never_remind_updates", false)
+                        val skippedVersion = prefs.getString("skip_update_version", null)
+                        if (!neverRemindGlobal && skippedVersion != info.latestVersion) {
+                            updateInfo = info
+                            showUpdateDialog = true
+                        }
+                    }
+                }
+
+                if (showUpdateDialog && updateInfo != null) {
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { showUpdateDialog = false },
+                        containerColor = SharkordTheme.colors.cardColor,
+                        titleContentColor = SharkordTheme.colors.foregroundText,
+                        textContentColor = SharkordTheme.colors.primaryText,
+                        title = { androidx.compose.material3.Text("Update Available") },
+                        text = { androidx.compose.material3.Text("Version ${updateInfo!!.latestVersion} is available. Do you want to download it?") },
+                        confirmButton = {
+                            androidx.compose.foundation.layout.Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
+                            ) {
+                                androidx.compose.material3.Button(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    onClick = {
+                                        val url = updateInfo!!.releaseUrl
+                                        val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                                        context.startActivity(browserIntent)
+                                        showUpdateDialog = false
+                                    },
+                                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = SharkordTheme.colors.accentColor)
+                                ) {
+                                    androidx.compose.material3.Text("Download")
+                                }
+                                androidx.compose.material3.OutlinedButton(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    onClick = { showUpdateDialog = false },
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, SharkordTheme.colors.primaryText.copy(alpha = 0.5f))
+                                ) {
+                                    androidx.compose.material3.Text("Remind me later", color = SharkordTheme.colors.primaryText)
+                                }
+                                androidx.compose.material3.OutlinedButton(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    onClick = {
+                                        prefs.edit().putString("skip_update_version", updateInfo!!.latestVersion).apply()
+                                        showUpdateDialog = false
+                                    },
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, SharkordTheme.colors.primaryText.copy(alpha = 0.5f))
+                                ) {
+                                    androidx.compose.material3.Text("Skip this version", color = SharkordTheme.colors.primaryText)
+                                }
+                                androidx.compose.material3.OutlinedButton(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    onClick = {
+                                        prefs.edit().putBoolean("never_remind_updates", true).apply()
+                                        showUpdateDialog = false
+                                    },
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Color(0xFFEF4444).copy(alpha = 0.5f))
+                                ) {
+                                    androidx.compose.material3.Text("Never remind me", color = androidx.compose.ui.graphics.Color(0xFFEF4444))
+                                }
+                            }
+                        }
+                    )
+                }
+
                 Box(modifier = Modifier.fillMaxSize()) {
                     Scaffold(
                         modifier = Modifier.fillMaxSize(),
