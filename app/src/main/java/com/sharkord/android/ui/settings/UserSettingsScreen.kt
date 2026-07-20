@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -541,67 +542,79 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
     
     // screen share options derived from device capabilities
     val availableScreenShareResolutions = remember {
-        val displayMetrics = context.resources.displayMetrics
-        val w = displayMetrics.widthPixels
-        val h = displayMetrics.heightPixels
-        val nativeRes = "${maxOf(w, h)}x${minOf(w, h)}"
-        val resList = mutableListOf(
-            "${w}x${h} (Native)",
-            "${w / 2}x${h / 2} (1/2 Native)",
-            "${w / 3}x${h / 3} (1/3 Native)",
-            "${w / 4}x${h / 4} (1/4 Native)"
-        )
-        // clean up duplicates if native matches one of the standards
-        resList.distinctBy { it.split(" ")[0] }
+        try {
+            val displayMetrics = context.resources.displayMetrics
+            val w = displayMetrics.widthPixels
+            val h = displayMetrics.heightPixels
+            val nativeRes = "${maxOf(w, h)}x${minOf(w, h)}"
+            val resList = mutableListOf(
+                "${w}x${h} (Native)",
+                "${w / 2}x${h / 2} (1/2 Native)",
+                "${w / 3}x${h / 3} (1/3 Native)",
+                "${w / 4}x${h / 4} (1/4 Native)"
+            )
+            // clean up duplicates if native matches one of the standards
+            resList.distinctBy { it.split(" ")[0] }
+        } catch (e: Exception) {
+            listOf("1280x720 (Default)")
+        }
     }
     
     val availableScreenShareFpsList = remember {
-        val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
-        val maxRefreshRate = windowManager.defaultDisplay.refreshRate.toInt()
-        val fpsList = mutableListOf(maxRefreshRate, 120, 60, 30, 15)
-        fpsList.filter { it <= maxRefreshRate }.distinct().sortedDescending()
+        try {
+            val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+            val maxRefreshRate = windowManager.defaultDisplay.refreshRate.toInt()
+            val fpsList = mutableListOf(maxRefreshRate, 120, 60, 30, 15)
+            fpsList.filter { it <= maxRefreshRate }.distinct().sortedDescending()
+        } catch (e: Exception) {
+            listOf(60, 30, 15)
+        }
     }
     var availableFrontFormats by remember { mutableStateOf<List<String>>(emptyList()) }
     var availableBackFormats by remember { mutableStateOf<List<String>>(emptyList()) }
 
     LaunchedEffect(Unit) {
-        val enumerator: CameraEnumerator = if (Camera2Enumerator.isSupported(context)) {
-            Camera2Enumerator(context)
-        } else {
-            Camera1Enumerator(true)
-        }
-        for (name in enumerator.deviceNames) {
-            val formats = enumerator.getSupportedFormats(name)
-            val formatsByFps = formats.groupBy { it.framerate.max / 1000 }
-            val filteredFormats = mutableListOf<String>()
-            
-            for ((fps, fpsFormats) in formatsByFps) {
-                val sortedFormats = fpsFormats.sortedByDescending { it.width * it.height }
-                var lastArea = -1
-                for (format in sortedFormats) {
-                    val area = format.width * format.height
-                    if (lastArea == -1 || area <= lastArea * 0.85) {
-                        filteredFormats.add("${format.width}x${format.height} @ ${fps}fps")
-                        lastArea = area
+        try {
+            val enumerator: CameraEnumerator = if (Camera2Enumerator.isSupported(context)) {
+                Camera2Enumerator(context)
+            } else {
+                Camera1Enumerator(true)
+            }
+            for (name in enumerator.deviceNames) {
+                val formats = enumerator.getSupportedFormats(name)
+                val formatsByFps = formats.groupBy { it.framerate.max / 1000 }
+                val filteredFormats = mutableListOf<String>()
+                
+                for ((fps, fpsFormats) in formatsByFps) {
+                    val sortedFormats = fpsFormats.sortedByDescending { it.width * it.height }
+                    var lastArea = -1
+                    for (format in sortedFormats) {
+                        val area = format.width * format.height
+                        if (lastArea == -1 || area <= lastArea * 0.85) {
+                            filteredFormats.add("${format.width}x${format.height} @ ${fps}fps")
+                            lastArea = area
+                        }
                     }
                 }
-            }
-            
-            val combinedList = filteredFormats
-                .sortedWith(compareByDescending<String> {
-                    val parts = it.split(" @ ")
-                    val res = parts[0].split("x")
-                    res[0].toInt() * res[1].toInt()
-                }.thenByDescending {
-                    val parts = it.split(" @ ")
-                    parts[1].replace("fps", "").trim().toInt()
-                })
                 
-            if (enumerator.isFrontFacing(name) && availableFrontFormats.isEmpty()) {
-                availableFrontFormats = combinedList
-            } else if (!enumerator.isFrontFacing(name) && availableBackFormats.isEmpty()) {
-                availableBackFormats = combinedList
+                val combinedList = filteredFormats
+                    .sortedWith(compareByDescending<String> {
+                        val parts = it.split(" @ ")
+                        val res = parts[0].split("x")
+                        res[0].toInt() * res[1].toInt()
+                    }.thenByDescending {
+                        val parts = it.split(" @ ")
+                        parts[1].replace("fps", "").trim().toInt()
+                    })
+                    
+                if (enumerator.isFrontFacing(name) && availableFrontFormats.isEmpty()) {
+                    availableFrontFormats = combinedList
+                } else if (!enumerator.isFrontFacing(name) && availableBackFormats.isEmpty()) {
+                    availableBackFormats = combinedList
+                }
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
         
         if (availableFrontFormats.isEmpty()) {
@@ -1303,7 +1316,7 @@ fun InfoTabContent(cardColor: Color, foregroundText: Color, primaryText: Color, 
     var currentToast by remember { mutableStateOf<android.widget.Toast?>(null) }
     val upToDateMsg = stringResource(R.string.settings_upToDateTitle)
 
-    SettingsSection(title = "App Info", cardColor = cardColor, foregroundText = foregroundText) {
+    SettingsSection(title = stringResource(R.string.settings_versionInfoGroup), cardColor = cardColor, foregroundText = foregroundText) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1328,8 +1341,8 @@ fun InfoTabContent(cardColor: Color, foregroundText: Color, primaryText: Color, 
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("App Version", color = foregroundText)
-                Text("The current version of Sharkord Android.", color = primaryText, fontSize = 12.sp)
+                Text(stringResource(R.string.settings_infoTabAppVersion), color = foregroundText)
+                Text(stringResource(R.string.settings_infoTabAppVersionDesc), color = primaryText, fontSize = 12.sp)
             }
             Text(versionName, color = accentColor, fontWeight = FontWeight.Bold)
         }
@@ -1348,8 +1361,8 @@ fun InfoTabContent(cardColor: Color, foregroundText: Color, primaryText: Color, 
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("GitHub Repository", color = foregroundText)
-                Text("View the source code or contribute on GitHub.", color = primaryText, fontSize = 12.sp)
+                Text(stringResource(R.string.settings_infoTabGithub), color = foregroundText)
+                Text(stringResource(R.string.settings_infoTabGithubDesc), color = primaryText, fontSize = 12.sp)
             }
         }
 
@@ -1367,8 +1380,43 @@ fun InfoTabContent(cardColor: Color, foregroundText: Color, primaryText: Color, 
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Report a Bug", color = foregroundText)
-                Text("Create a new issue on GitHub to report a bug.", color = primaryText, fontSize = 12.sp)
+                Text(stringResource(R.string.settings_infoTabReportBug), color = foregroundText)
+                Text(stringResource(R.string.settings_infoTabReportBugDesc), color = primaryText, fontSize = 12.sp)
+            }
+        }
+    }
+
+    val crashesDir = java.io.File(context.filesDir, "crashes")
+    val crashFiles = remember {
+        crashesDir.listFiles()?.filter { it.name.startsWith("crash_") && it.name.endsWith(".txt") }?.sortedByDescending { it.lastModified() } ?: emptyList()
+    }
+
+    if (crashFiles.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(16.dp))
+        SettingsSection(title = stringResource(R.string.settings_infoTabCrashLogs), cardColor = cardColor, foregroundText = foregroundText) {
+            crashFiles.forEach { file ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(Intent.createChooser(intent, context.getString(R.string.settings_infoTabShareCrashLog)))
+                        }
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(file.name, color = foregroundText)
+                        Text(stringResource(R.string.settings_infoTabCrashLogsDesc), color = primaryText, fontSize = 12.sp)
+                    }
+                    Icon(Icons.Default.Share, contentDescription = "Share", tint = accentColor)
+                }
             }
         }
     }

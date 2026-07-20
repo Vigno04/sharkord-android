@@ -535,6 +535,15 @@
     <string name="settings_imageOptimizationLabel">Enable image optimization</string>
     <string name="settings_imageQualityDesc">Controls the WebP quality used for optimized images. Higher values preserve detail but use more storage.</string>
     <string name="settings_imageQualityLabel">Image quality</string>
+    <string name="settings_infoTabAppVersion">App Version</string>
+    <string name="settings_infoTabAppVersionDesc">The current version of Sharkord Android.</string>
+    <string name="settings_infoTabCrashLogs">Crash Logs</string>
+    <string name="settings_infoTabCrashLogsDesc">Tap to share or download</string>
+    <string name="settings_infoTabGithub">GitHub Repository</string>
+    <string name="settings_infoTabGithubDesc">View the source code or contribute on GitHub.</string>
+    <string name="settings_infoTabReportBug">Report a Bug</string>
+    <string name="settings_infoTabReportBugDesc">Create a new issue on GitHub to report a bug.</string>
+    <string name="settings_infoTabShareCrashLog">Share Crash Log</string>
     <string name="settings_installPlugin">Install</string>
     <string name="settings_installedTab">Installed</string>
     <string name="settings_inviteActive">Active</string>

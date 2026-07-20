@@ -247,5 +247,14 @@
   "settings_mediaQualityLabel": "Media Quality",
   "chat_openLink": "Open Link",
   "chat_copyLink": "Copy Link",
-  "chat_linkCopied": "Link copied to clipboard"
+  "chat_linkCopied": "Link copied to clipboard",
+  "settings_infoTabAppVersion": "App Version",
+  "settings_infoTabAppVersionDesc": "The current version of Sharkord Android.",
+  "settings_infoTabGithub": "GitHub Repository",
+  "settings_infoTabGithubDesc": "View the source code or contribute on GitHub.",
+  "settings_infoTabReportBug": "Report a Bug",
+  "settings_infoTabReportBugDesc": "Create a new issue on GitHub to report a bug.",
+  "settings_infoTabCrashLogs": "Crash Logs",
+  "settings_infoTabCrashLogsDesc": "Tap to share or download",
+  "settings_infoTabShareCrashLog": "Share Crash Log"
 }
