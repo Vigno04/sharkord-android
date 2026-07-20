@@ -43,7 +43,7 @@ fun DmChannelItem(
             .padding(vertical = 10.dp, horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val avatarUrl = user?.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }
+        val avatarUrl = user?.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(it)}" }
         val avatarPainter = rememberAsyncImagePainter(avatarUrl, fallbackResourceId = null)
         
         val displayInitial = user?.name?.take(1)?.uppercase() ?: channelName.take(1).uppercase()

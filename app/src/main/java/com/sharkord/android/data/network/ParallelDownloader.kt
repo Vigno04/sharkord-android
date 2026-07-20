@@ -26,6 +26,7 @@ object ParallelDownloader {
         val checkRequest = Request.Builder()
             .url(safeUrl)
             .header("Range", "bytes=0-0")
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
             .build()
 
         val response = try {
@@ -108,6 +109,7 @@ object ParallelDownloader {
         val request = Request.Builder()
             .url(safeUrl)
             .header("Range", "bytes=$start-$end")
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
             .build()
 
         return try {
@@ -139,7 +141,10 @@ object ParallelDownloader {
 
     suspend fun downloadSequential(client: OkHttpClient, url: String, destFile: File): Boolean = withContext(Dispatchers.IO) {
         val safeUrl = url.replace(" ", "%20")
-        val request = Request.Builder().url(safeUrl).build()
+        val request = Request.Builder()
+            .url(safeUrl)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .build()
         return@withContext try {
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
@@ -168,6 +173,7 @@ object ParallelDownloader {
         val request = Request.Builder()
             .url(safeUrl)
             .header("Range", "bytes=0-${bytesToDownload - 1}")
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
             .build()
 
         return@withContext try {

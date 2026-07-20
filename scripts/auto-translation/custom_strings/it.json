@@ -244,5 +244,8 @@
   "settings_compressMediaLabel": "Comprimi prima di inviare",
   "settings_compressMediaDesc": "Comprimi le foto e i video della fotocamera prima di caricarli per risparmiare dati e tempo.",
   "settings_mediaCodecLabel": "Codec Media",
-  "settings_mediaQualityLabel": "Qualità Media"
+  "settings_mediaQualityLabel": "Qualità Media",
+  "chat_openLink": "Apri Link",
+  "chat_copyLink": "Copia Link",
+  "chat_linkCopied": "Link copiato negli appunti"
 }

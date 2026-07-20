@@ -192,6 +192,19 @@ data class MessageReplyPreview(
     val pluginId: String? = null
 )
 
+// metadata for links and open graph previews
+data class MessageMetadata(
+    val kind: String,
+    val url: String,
+    val title: String? = null,
+    val description: String? = null,
+    val mediaType: String? = null,
+    val siteName: String? = null,
+    val images: List<String>? = null,
+    val videos: List<String>? = null,
+    val favicons: List<String>? = null
+)
+
 // full message model matching TJoinedMessage in shared/tables.ts
 data class Message(
     val id: Int,
@@ -208,7 +221,8 @@ data class Message(
     val files: List<FileInfo> = emptyList(),
     val reactions: List<MessageReaction> = emptyList(),
     val replyCount: Int = 0,
-    val replyTo: MessageReplyPreview? = null
+    val replyTo: MessageReplyPreview? = null,
+    val metadata: List<MessageMetadata>? = null
 )
 
 // paginated messages response from messages.get tRPC query

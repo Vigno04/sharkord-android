@@ -304,7 +304,7 @@ fun ProfileTabContent(
                     .clickable { showAvatarPicker = true },
                 contentAlignment = Alignment.Center
             ) {
-                val avatarUrl = uiState.user?.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }
+                val avatarUrl = uiState.user?.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(it)}" }
                 val avatarPainter = com.sharkord.android.ui.components.rememberAsyncImagePainter(avatarUrl)
                 if (avatarPainter != null) {
                     Image(
@@ -339,7 +339,7 @@ fun ProfileTabContent(
                     .clickable { showBannerPicker = true },
                 contentAlignment = Alignment.Center
             ) {
-                val bannerUrl = uiState.user?.banner?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }
+                val bannerUrl = uiState.user?.banner?.name?.let { "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(it)}" }
                 val bannerPainter = com.sharkord.android.ui.components.rememberAsyncImagePainter(bannerUrl)
                 if (bannerPainter != null) {
                     Image(

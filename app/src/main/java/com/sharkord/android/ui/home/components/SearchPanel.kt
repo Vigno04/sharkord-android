@@ -248,7 +248,7 @@ private fun MessageResultContent(
             contentAlignment = Alignment.Center
         ) {
             val avatarUrl = author?.avatar?.name?.let { name ->
-                "${SharkordClient.currentServerUrl}/public/$name"
+                "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(name)}"
             }
             val avatarState = rememberAsyncImageState(avatarUrl)
             when (avatarState) {

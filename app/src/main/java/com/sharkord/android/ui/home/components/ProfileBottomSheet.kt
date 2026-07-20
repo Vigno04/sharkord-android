@@ -75,7 +75,7 @@ fun ProfileBottomSheet(
                         }
                     )
             ) {
-                val bannerUrl = currentUser?.banner?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }
+                val bannerUrl = currentUser?.banner?.name?.let { "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(it)}" }
                 val bannerPainter = com.sharkord.android.ui.components.rememberAsyncImagePainter(bannerUrl)
                 if (bannerPainter != null) {
                     Image(
@@ -218,7 +218,7 @@ fun ProfileBottomSheet(
                 }
 
                 // overlapping Avatar
-                val avatarUrl = currentUser?.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }
+                val avatarUrl = currentUser?.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(it)}" }
 
                 Box(
                     modifier = Modifier

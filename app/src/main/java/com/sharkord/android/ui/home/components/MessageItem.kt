@@ -61,6 +61,8 @@ import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
+import kotlinx.coroutines.launch
+import androidx.compose.ui.draw.drawBehind
 
 private val imgRegex = Regex("""<img\b[^>]*>""")
 private val classRegex = Regex("""class=["']([^"']+)["']""")
@@ -87,8 +89,10 @@ fun MessageItem(
     onReactionClick: (Int, String) -> Unit = { _, _ -> },
     onMediaClick: (com.sharkord.android.data.model.FileInfo) -> Unit = {},
     onMediaLongClick: (com.sharkord.android.data.model.FileInfo) -> Unit = {},
-    onUserClick: (Int) -> Unit = {}
+    onUserClick: (Int) -> Unit = {},
+    onLinkLongClick: (String) -> Unit = {}
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val bgColor = SharkordTheme.colors.bgColor
     val textPrimary = SharkordTheme.colors.primaryText
     val textSecondary = SharkordTheme.colors.primaryText.copy(alpha = 0.5f)
@@ -136,6 +140,11 @@ fun MessageItem(
             "[[MENTION|${matchResult.groupValues[1]}|${matchResult.groupValues[2]}]]"
         }
         
+        val linkRegex = Regex("""<a\b[^>]*href=["']([^"']+)["'][^>]*>(.*?)</a>""", RegexOption.IGNORE_CASE)
+        raw = linkRegex.replace(raw) { matchResult ->
+            "[[LINK|${matchResult.groupValues[1]}|${matchResult.groupValues[2]}]]"
+        }
+        
         imgRegex.replace(raw) { matchResult ->
             val imgTag = matchResult.value
             val clazz = classRegex.find(imgTag)?.groupValues?.get(1) ?: ""
@@ -161,7 +170,7 @@ fun MessageItem(
 
     val annotatedContent = remember(textWithTokens, accentColor, accentBgColor) {
         buildAnnotatedString {
-            val combinedRegex = Regex("""\[\[(EMOJI|MENTION)\|(.*?)\|(.*?)\]\]""")
+            val combinedRegex = Regex("""\[\[(EMOJI|MENTION|LINK)\|(.*?)\|(.*?)\]\]""")
             var lastIndex = 0
             
             combinedRegex.findAll(textWithTokens).forEach { matchResult ->
@@ -202,6 +211,17 @@ fun MessageItem(
                     ))
                     append(usernameText)
                     pop()
+                } else if (type == "LINK") {
+                    val url = matchResult.groupValues[2]
+                    val linkText = matchResult.groupValues[3]
+                    
+                    pushStringAnnotation(tag = "URL", annotation = url)
+                    pushStyle(androidx.compose.ui.text.SpanStyle(
+                        color = accentColor,
+                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
+                    ))
+                    append(linkText)
+                    pop()
                 }
 
                 lastIndex = matchResult.range.last + 1
@@ -241,11 +261,15 @@ fun MessageItem(
         }
     }
 
+    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
             .background(animatableColor.value)
             .combinedClickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.foundation.LocalIndication.current,
                 onLongClick = { onLongClick(message) },
                 onClick = {}
             )
@@ -290,7 +314,7 @@ fun MessageItem(
                     contentAlignment = Alignment.Center
                 ) {
                     val replyAvatarUrl = replyAuthor?.avatar?.name?.let { name ->
-                        "${SharkordClient.currentServerUrl}/public/$name"
+                        "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(name)}"
                     }
                     val replyAvatarState = rememberAsyncImageState(replyAvatarUrl)
                     when (replyAvatarState) {
@@ -368,7 +392,7 @@ fun MessageItem(
                     contentAlignment = Alignment.Center
                 ) {
                     val avatarUrl = author?.avatar?.name?.let { name ->
-                        "${SharkordClient.currentServerUrl}/public/$name"
+                        "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(name)}"
                     }
                     val avatarState = rememberAsyncImageState(avatarUrl)
                     when (avatarState) {
@@ -436,6 +460,10 @@ fun MessageItem(
                     val lineHeight = if (isEmojiOnly) 44.sp else 21.sp
                     var textLayoutResult by remember { mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null) }
                     
+                    var pressedUrl by remember { mutableStateOf<String?>(null) }
+                    val linkHighlightColor = SharkordTheme.colors.accentColor.copy(alpha = 0.3f)
+                    val coroutineScope = rememberCoroutineScope()
+                    
                     Text(
                         text = annotatedContent,
                         color = textPrimary,
@@ -443,22 +471,87 @@ fun MessageItem(
                         lineHeight = lineHeight,
                         inlineContent = inlineContentMap,
                         onTextLayout = { textLayoutResult = it },
-                        modifier = Modifier.pointerInput(Unit) {
-                            detectTapGestures(
-                                onLongPress = { pos: androidx.compose.ui.geometry.Offset -> onLongClick(message) },
-                                onTap = { pos: androidx.compose.ui.geometry.Offset ->
-                                    textLayoutResult?.let { layoutResult ->
-                                        val offset = layoutResult.getOffsetForPosition(pos)
-                                        annotatedContent.getStringAnnotations(tag = "mention", start = offset, end = offset)
-                                            .firstOrNull()?.let { annotation ->
-                                                annotation.item.toIntOrNull()?.let { userId ->
-                                                    onUserClick(userId)
-                                                }
-                                            }
+                        modifier = Modifier
+                            .drawBehind {
+                                if (pressedUrl != null) {
+                                    textLayoutResult?.let { layout ->
+                                        val annotations = annotatedContent.getStringAnnotations(tag = "URL", start = 0, end = annotatedContent.length)
+                                            .filter { it.item == pressedUrl }
+                                        for (annotation in annotations) {
+                                            val path = layout.getPathForRange(annotation.start, annotation.end)
+                                            drawPath(
+                                                path = path,
+                                                color = linkHighlightColor
+                                            )
+                                        }
                                     }
                                 }
-                            )
-                        }
+                            }
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onPress = { pos ->
+                                        var urlAtPos: String? = null
+                                        textLayoutResult?.let { layoutResult ->
+                                            val offset = layoutResult.getOffsetForPosition(pos)
+                                            urlAtPos = annotatedContent.getStringAnnotations(tag = "URL", start = offset, end = offset).firstOrNull()?.item
+                                            if (urlAtPos != null) pressedUrl = urlAtPos
+                                        }
+
+                                        val press = androidx.compose.foundation.interaction.PressInteraction.Press(pos)
+                                        if (pressedUrl == null) {
+                                            coroutineScope.launch {
+                                                interactionSource.emit(press)
+                                            }
+                                        }
+
+                                        val release = tryAwaitRelease()
+
+                                        if (pressedUrl == null) {
+                                            coroutineScope.launch {
+                                                if (release) {
+                                                    interactionSource.emit(androidx.compose.foundation.interaction.PressInteraction.Release(press))
+                                                } else {
+                                                    interactionSource.emit(androidx.compose.foundation.interaction.PressInteraction.Cancel(press))
+                                                }
+                                            }
+                                        }
+                                        pressedUrl = null
+                                    },
+                                    onLongPress = { pos ->
+                                        textLayoutResult?.let { layoutResult ->
+                                            val offset = layoutResult.getOffsetForPosition(pos)
+                                            val urlAnnotation = annotatedContent.getStringAnnotations(tag = "URL", start = offset, end = offset).firstOrNull()
+                                            if (urlAnnotation != null) {
+                                                onLinkLongClick(urlAnnotation.item)
+                                            } else {
+                                                onLongClick(message)
+                                            }
+                                        } ?: onLongClick(message)
+                                    },
+                                    onTap = { pos ->
+                                        textLayoutResult?.let { layoutResult ->
+                                            val offset = layoutResult.getOffsetForPosition(pos)
+                                            var handled = false
+                                            annotatedContent.getStringAnnotations(tag = "mention", start = offset, end = offset)
+                                                .firstOrNull()?.let { annotation ->
+                                                    annotation.item.toIntOrNull()?.let { userId ->
+                                                        onUserClick(userId)
+                                                        handled = true
+                                                    }
+                                                }
+                                            if (!handled) {
+                                                annotatedContent.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                                                    .firstOrNull()?.let { annotation ->
+                                                        try {
+                                                            context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(annotation.item)))
+                                                        } catch (e: Exception) {}
+                                                        handled = true
+                                                    }
+                                            }
+                                        }
+                                    }
+                                )
+                            }
                     )
                 }
 
@@ -484,7 +577,7 @@ fun MessageItem(
 
                         when {
                             isImage && file.name != null -> {
-                                val imageUrl = "${SharkordClient.currentServerUrl}/public/${file.name}"
+                                val imageUrl = "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(file.name)}"
                                 val imageState = rememberAsyncImageState(imageUrl)
                                 Box(
                                     modifier = Modifier
@@ -519,7 +612,7 @@ fun MessageItem(
                                 }
                             }
                             isVideo && file.name != null -> {
-                                val videoUrl = "${SharkordClient.currentServerUrl}/public/${file.name}"
+                                val videoUrl = "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(file.name)}"
                                 val thumbnailState = rememberVideoThumbnailState(videoUrl)
                                 var isPlayingInline by remember(message.id) { mutableStateOf(false) }
                                 val isOverlayActive = fullscreenMediaId == file.id
@@ -600,7 +693,7 @@ fun MessageItem(
                                 }
                             }
                             isAudio && file.name != null -> {
-                                val audioUrl = "${SharkordClient.currentServerUrl}/public/${file.name}"
+                                val audioUrl = "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(file.name)}"
                                 AudioPlayer(
                                     audioUrl = audioUrl,
                                     modifier = Modifier.padding(top = 4.dp)
@@ -639,6 +732,143 @@ fun MessageItem(
                     }
                 }
 
+                if (!message.metadata.isNullOrEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    message.metadata.forEach { meta ->
+                        val isImageOnlyMedia = meta.kind == "media" && meta.mediaType == "image"
+                        val openGraphImageUrl = meta.images?.firstOrNull() ?: meta.url.takeIf { meta.mediaType == "image" }
+                        val hasTextContent = !meta.title.isNullOrBlank() || !meta.description.isNullOrBlank() || !meta.siteName.isNullOrBlank()
+                        
+                        val isImageOnlyPreview = isImageOnlyMedia || (meta.kind == "open_graph" && !hasTextContent && openGraphImageUrl != null)
+                        
+                        if (isImageOnlyPreview) {
+                            val targetUrl = if (meta.kind == "media") meta.url else (openGraphImageUrl ?: meta.url)
+                            val imageUrl = if (targetUrl.startsWith("http")) targetUrl else "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(targetUrl)}"
+                            val imageState = rememberAsyncImageState(imageUrl)
+                            
+                            Box(
+                                modifier = Modifier
+                                    .padding(top = 4.dp)
+                                    .width(240.dp)
+                                    .height(160.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(SharkordTheme.colors.cardColor)
+                                    .combinedClickable(
+                                        onClick = {
+                                            try {
+                                                context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(meta.url)))
+                                            } catch (e: Exception) {}
+                                        },
+                                        onLongClick = { onLongClick(message) }
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                when (imageState) {
+                                    is AsyncImageState.Success -> Image(
+                                        painter = imageState.painter,
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                    is AsyncImageState.Loading -> CircularProgressIndicator(
+                                        color = SharkordTheme.colors.accentColor,
+                                        modifier = Modifier.size(28.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                    else -> Text(text = "🖼️", fontSize = 24.sp)
+                                }
+                            }
+                        } else if ((meta.kind == "open_graph" && hasTextContent) || meta.kind == "fallback") {
+                            Column(
+                                modifier = Modifier
+                                    .padding(top = 4.dp)
+                                    .fillMaxWidth(0.9f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(SharkordTheme.colors.cardColor)
+                                    .combinedClickable(
+                                        onClick = {
+                                            try {
+                                                context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(meta.url)))
+                                            } catch (e: Exception) {}
+                                        },
+                                        onLongClick = { onLongClick(message) }
+                                    )
+                            ) {
+                                Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+                                    Box(modifier = Modifier
+                                        .fillMaxHeight()
+                                        .width(4.dp)
+                                        .background(SharkordTheme.colors.accentColor)
+                                    )
+                                    
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        if (!meta.siteName.isNullOrBlank()) {
+                                            Text(
+                                                text = meta.siteName,
+                                                color = textSecondary,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                        }
+                                        if (!meta.title.isNullOrBlank()) {
+                                            Text(
+                                                text = meta.title,
+                                                color = SharkordTheme.colors.accentColor,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                        }
+                                        if (!meta.description.isNullOrBlank()) {
+                                            Text(
+                                                text = meta.description,
+                                                color = textPrimary,
+                                                fontSize = 13.sp,
+                                                maxLines = 3,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                        }
+                                        
+                                        if (openGraphImageUrl != null) {
+                                            val finalImageUrl = if (openGraphImageUrl.startsWith("http")) openGraphImageUrl else "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(openGraphImageUrl)}"
+                                            val imageState = rememberAsyncImageState(finalImageUrl)
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .heightIn(max = 200.dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(SharkordTheme.colors.bgColor),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                when (imageState) {
+                                                    is AsyncImageState.Success -> Image(
+                                                        painter = imageState.painter,
+                                                        contentDescription = null,
+                                                        contentScale = ContentScale.Crop,
+                                                        modifier = Modifier.fillMaxSize()
+                                                    )
+                                                    is AsyncImageState.Loading -> CircularProgressIndicator(
+                                                        color = SharkordTheme.colors.accentColor,
+                                                        modifier = Modifier.size(24.dp),
+                                                        strokeWidth = 2.dp
+                                                    )
+                                                    else -> {}
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if (message.reactions.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(6.dp))
 
@@ -671,7 +901,7 @@ fun MessageItem(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     if (firstReaction.file != null && firstReaction.file.name != null) {
-                                        val customEmojiUrl = "${SharkordClient.currentServerUrl}/public/${firstReaction.file.name}"
+                                        val customEmojiUrl = "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(firstReaction.file.name)}"
                                         val emojiPainter = rememberAsyncImagePainter(customEmojiUrl)
                                         if (emojiPainter != null) {
                                             Image(

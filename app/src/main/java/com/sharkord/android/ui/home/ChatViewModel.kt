@@ -445,7 +445,7 @@ class ChatViewModel : ViewModel() {
     }
 
     private suspend fun getOrDownloadFile(context: android.content.Context, file: com.sharkord.android.data.model.FileInfo): java.io.File? {
-        val urlString = "${SharkordClient.currentServerUrl}/public/${file.name}"
+        val urlString = "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(file.name)}"
         val tempFile = java.io.File(context.cacheDir, "shared_${file.name}_${file.displayName}")
 
         if (tempFile.exists() && tempFile.length() > 0L) {
@@ -538,7 +538,7 @@ class ChatViewModel : ViewModel() {
     fun downloadFile(context: android.content.Context, file: com.sharkord.android.data.model.FileInfo) {
         if (file.name == null) return
         try {
-            val url = "${SharkordClient.currentServerUrl}/public/${file.name}"
+            val url = "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(file.name)}"
             val request = android.app.DownloadManager.Request(android.net.Uri.parse(url))
                 .setTitle(file.displayName)
                 .setDescription("Downloading file from Sharkord")

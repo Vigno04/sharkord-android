@@ -91,7 +91,7 @@ fun VoiceGridItem(
             .clickable(enabled = !isScreenShare) { isZoomedOut = !isZoomedOut },
         contentAlignment = Alignment.Center
     ) {
-        val avatarUrl = voiceUser.user.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/$it" }
+        val avatarUrl = voiceUser.user.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(it)}" }
         val avatarPainter = rememberAsyncImagePainter(avatarUrl, fallbackResourceId = null)
 
         val hasVideo = when (displayItem) {

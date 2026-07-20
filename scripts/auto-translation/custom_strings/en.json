@@ -244,5 +244,8 @@
   "settings_compressMediaLabel": "Compress before sending",
   "settings_compressMediaDesc": "Compress camera photos and videos before uploading them to save data and time.",
   "settings_mediaCodecLabel": "Media Codec",
-  "settings_mediaQualityLabel": "Media Quality"
+  "settings_mediaQualityLabel": "Media Quality",
+  "chat_openLink": "Open Link",
+  "chat_copyLink": "Copy Link",
+  "chat_linkCopied": "Link copied to clipboard"
 }

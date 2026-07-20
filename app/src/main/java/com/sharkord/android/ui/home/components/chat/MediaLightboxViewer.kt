@@ -55,7 +55,7 @@ fun MediaLightboxViewer(
             .background(Color.Black.copy(alpha = 0.95f))
     ) {
         if (isImage) {
-            val imageUrl = "${SharkordClient.currentServerUrl}/public/${file.name}"
+            val imageUrl = "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(file.name)}"
             val previewState = rememberAsyncImageState(imageUrl)
             val fullState = com.sharkord.android.ui.components.rememberFullImageState(imageUrl)
 
@@ -115,7 +115,7 @@ fun MediaLightboxViewer(
                 }
             }
         } else if (isVideo) {
-            val videoUrl = "${SharkordClient.currentServerUrl}/public/${file.name}"
+            val videoUrl = "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(file.name)}"
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center

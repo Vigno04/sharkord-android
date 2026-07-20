@@ -52,8 +52,25 @@ import androidx.compose.foundation.Image
 import com.sharkord.android.ui.components.rememberAsyncImagePainter
 import com.sharkord.android.data.network.SharkordClient
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.EmojiEmotions
+import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.HeadphonesBattery
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.VideoCall
+import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material.icons.filled.ContentCopy
 
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun ChatPanel(
     channelId: Int,
@@ -75,7 +92,7 @@ fun ChatPanel(
     viewModel: ChatViewModel = viewModel(key = "chat_$channelId")
 ) {
     val context = LocalContext.current
-    val clipboard = LocalClipboard.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboard.current
     val bgColor = SharkordTheme.colors.bgColor
     val cardColor = SharkordTheme.colors.cardColor
     val textPrimary = SharkordTheme.colors.primaryText
@@ -91,6 +108,7 @@ fun ChatPanel(
     val ownUserId = uiState.ownUserId
 
     var showMenuMessage by remember(channelId) { mutableStateOf<Message?>(null) }
+    var showLinkMenuUrl by remember(channelId) { mutableStateOf<String?>(null) }
     var reactingToMessageId by remember(channelId) { mutableStateOf<Int?>(null) }
     var isEmojiPickerOpen by remember(channelId) { mutableStateOf(false) }
     var playingHighlightId by remember(channelId) { mutableStateOf<Int?>(null) }
@@ -454,6 +472,7 @@ fun ChatPanel(
                                     isHighlighted = message.id == playingHighlightId,
                                     fullscreenMediaId = uiState.viewingMediaFile?.id,
                                     onUserClick = onUserClick,
+                                    onLinkLongClick = { url -> showLinkMenuUrl = url },
                                     onLongClick = { target -> showMenuMessage = target },
                                     onReplyClick = { parentId ->
                                         val targetIndex = uiState.messages.indexOfFirst { it.id == parentId }
@@ -549,6 +568,13 @@ fun ChatPanel(
                     val editing = uiState.editingMessage
                     
                     var processedText = text
+
+                    // Auto-link raw URLs
+                    val urlRegex = Regex("""(?i)\b(https?://[^\s]+)""")
+                    processedText = urlRegex.replace(processedText) { match ->
+                        val url = match.value
+                        """<a target="_blank" rel="noopener noreferrer nofollow" href="$url">$url</a>"""
+                    }
                     customEmojis.forEach { emoji ->
                         val code = ":${emoji.name}:"
                         if (processedText.contains(code)) {
@@ -573,15 +599,94 @@ fun ChatPanel(
                 isEmojiPickerOpen = isEmojiPickerOpen,
                 onToggleEmojiPicker = {
                     if (!isEmojiPickerOpen) {
-                        // keyboard → Emoji: open emoji picker, hide keyboard
                         isEmojiPickerOpen = true
                         keyboardController?.hide()
                     }
-                    // emoji → Keyboard: do nothing here
-                    // chatInputBar will request focus and show the keyboard
-                    // the LaunchedEffect below closes emoji once the keyboard appears
                 }
             )
+
+            showLinkMenuUrl?.let { url ->
+                androidx.compose.material3.ModalBottomSheet(
+                    onDismissRequest = { showLinkMenuUrl = null },
+                    containerColor = SharkordTheme.colors.bgColor,
+                    scrimColor = Color.Black.copy(alpha = 0.5f),
+                    dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle(color = SharkordTheme.colors.primaryText.copy(alpha = 0.3f)) }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 24.dp)
+                    ) {
+                        Text(
+                            text = url,
+                            color = SharkordTheme.colors.primaryText,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                        Divider(color = SharkordTheme.colors.cardColor)
+                        
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    try {
+                                        context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+                                    } catch (e: Exception) {}
+                                    showLinkMenuUrl = null
+                                }
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.OpenInBrowser,
+                                contentDescription = null,
+                                tint = SharkordTheme.colors.primaryText,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(
+                                text = androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.chat_openLink),
+                                color = SharkordTheme.colors.primaryText,
+                                fontSize = 16.sp
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    coroutineScope.launch {
+                                        clipboard.setClipEntry(
+                                            androidx.compose.ui.platform.ClipEntry(
+                                                android.content.ClipData.newPlainText("url", url)
+                                            )
+                                        )
+                                    }
+                                    android.widget.Toast.makeText(context, context.getString(com.sharkord.android.R.string.chat_linkCopied), android.widget.Toast.LENGTH_SHORT).show()
+                                    showLinkMenuUrl = null
+                                }
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ContentCopy,
+                                contentDescription = null,
+                                tint = SharkordTheme.colors.primaryText,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(
+                                text = androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.chat_copyLink),
+                                color = SharkordTheme.colors.primaryText,
+                                fontSize = 16.sp
+                            )
+                        }
+                    }
+                }
+            }
 
             // bottom Panel (keyboard / emoji space)
             com.sharkord.android.ui.home.components.chat.ChatBottomPanel(
