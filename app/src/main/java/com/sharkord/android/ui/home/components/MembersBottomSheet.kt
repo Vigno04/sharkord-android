@@ -169,7 +169,7 @@ fun MembersBottomSheet(
                             Spacer(modifier = Modifier.width(8.dp))
                         }
                     
-                        val avatarUrl = user.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(it)}" }
+                        val avatarUrl = com.sharkord.android.data.network.SharkordClient.getFileUrl(user.avatar)
                         val avatarPainter = rememberAsyncImagePainter(avatarUrl, fallbackResourceId = null)
                         
                         Box(

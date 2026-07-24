@@ -60,6 +60,20 @@ object SharkordClient {
     // exposed as a Compose reactive state so components automatically recompose when updated
     var currentServerLogoUrl: String? by mutableStateOf(null)
 
+    fun getFileUrl(file: com.sharkord.android.data.model.FileInfo?): String? {
+        if (file == null || file.name == null) return null
+        val baseUrl = "$currentServerUrl/public/${android.net.Uri.encode(file.name)}"
+        if (file.accessToken != null) {
+            val urlWithToken = "$baseUrl?accessToken=${file.accessToken}"
+            return if (file.accessTokenExpiresAt != null) {
+                "$urlWithToken&expires=${file.accessTokenExpiresAt}"
+            } else {
+                urlWithToken
+            }
+        }
+        return baseUrl
+    }
+
     // tracks the currently visible channel id in the UI, used to suppress foreground notifications
     val activeChannelId = MutableStateFlow<Int?>(null)
 

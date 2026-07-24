@@ -113,9 +113,7 @@ fun PinnedMessagesSheet(
                                         .background(SharkordTheme.colors.cardColor),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    val avatarUrl = author?.avatar?.name?.let { name ->
-                                        "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(name)}"
-                                    }
+                                    val avatarUrl = SharkordClient.getFileUrl(author?.avatar)
                                     val avatarState = rememberAsyncImageState(avatarUrl)
                                     when (avatarState) {
                                         is AsyncImageState.Success -> Image(

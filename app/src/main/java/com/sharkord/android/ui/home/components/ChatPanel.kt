@@ -578,7 +578,7 @@ fun ChatPanel(
                     customEmojis.forEach { emoji ->
                         val code = ":${emoji.name}:"
                         if (processedText.contains(code)) {
-                            val url = "/public/${emoji.file?.name}"
+                            val url = com.sharkord.android.data.network.SharkordClient.getFileUrl(emoji.file) ?: ""
                             val htmlEmoji = """<span class="emoji-image" data-type="emoji" data-name="${emoji.name}"><img src="$url" alt="$code" class="emoji-image"></span>"""
                             processedText = processedText.replace(code, htmlEmoji)
                         }
@@ -852,7 +852,7 @@ fun CustomEmojiPickerContent(
             ) {
                 items(customEmojis.size) { index ->
                     val emoji = customEmojis[index]
-                    val customUrl = "${com.sharkord.android.data.network.SharkordClient.currentServerUrl}/public/${emoji.file?.name}"
+                    val customUrl = com.sharkord.android.data.network.SharkordClient.getFileUrl(emoji.file)
                     val painter = rememberAsyncImagePainter(customUrl)
                     
                     Box(

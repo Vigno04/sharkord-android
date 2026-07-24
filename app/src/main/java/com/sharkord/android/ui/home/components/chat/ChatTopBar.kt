@@ -89,7 +89,7 @@ fun ChatTopBar(
             }
 
             if (isDm && dmUser != null) {
-                val avatarUrl = dmUser.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(it)}" }
+                val avatarUrl = com.sharkord.android.data.network.SharkordClient.getFileUrl(dmUser.avatar)
                 val avatarPainter = rememberAsyncImagePainter(avatarUrl, fallbackResourceId = null)
                 val displayInitial = dmUser.name.take(1).uppercase()
                 

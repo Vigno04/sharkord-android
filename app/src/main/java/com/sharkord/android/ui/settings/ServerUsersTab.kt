@@ -157,9 +157,7 @@ fun UserItemRow(
                 .background(SharkordTheme.colors.cardColor)
         ) {
             val serverUrl = com.sharkord.android.data.network.SharkordClient.currentServerUrl
-            val avatarUrl = user.avatar?.name?.let { name ->
-                "$serverUrl/public/${android.net.Uri.encode(name)}"
-            }
+            val avatarUrl = com.sharkord.android.data.network.SharkordClient.getFileUrl(user.avatar)
             val avatarPainter = com.sharkord.android.ui.components.rememberAsyncImagePainter(avatarUrl)
             if (avatarPainter != null) {
                 androidx.compose.foundation.Image(

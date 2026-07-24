@@ -275,7 +275,7 @@ private fun ModViewHeader(
             )
     ) {
         val serverUrl = com.sharkord.android.data.network.SharkordClient.currentServerUrl
-        val bannerUrl = user.banner?.name?.let { "$serverUrl/public/${android.net.Uri.encode(it)}" }
+        val bannerUrl = com.sharkord.android.data.network.SharkordClient.getFileUrl(user.banner)
         val bannerPainter = rememberAsyncImagePainter(bannerUrl)
         if (bannerPainter != null) {
             androidx.compose.foundation.Image(
@@ -388,7 +388,7 @@ private fun ModViewHeader(
                     .background(SharkordTheme.colors.cardColor)
             ) {
                 val serverUrl = com.sharkord.android.data.network.SharkordClient.currentServerUrl
-                val avatarUrl = user.avatar?.name?.let { "$serverUrl/public/${android.net.Uri.encode(it)}" }
+                val avatarUrl = com.sharkord.android.data.network.SharkordClient.getFileUrl(user.avatar)
                 val avatarPainter = rememberAsyncImagePainter(avatarUrl)
                 if (avatarPainter != null) {
                     androidx.compose.foundation.Image(

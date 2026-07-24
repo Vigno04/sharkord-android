@@ -97,7 +97,7 @@ fun BottomProfileBar(
                 .align(Alignment.CenterStart)
                 .size(72.dp)
         ) {
-            val avatarUrl = currentUser?.avatar?.name?.let { "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(it)}" }
+            val avatarUrl = com.sharkord.android.data.network.SharkordClient.getFileUrl(currentUser?.avatar)
             val avatarPainter = rememberAsyncImagePainter(avatarUrl)
             
             // draw the profile avatar image

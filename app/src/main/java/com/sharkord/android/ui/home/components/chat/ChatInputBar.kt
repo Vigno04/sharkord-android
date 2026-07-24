@@ -466,7 +466,7 @@ fun ChatInputBar(
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val avatarUrl = replyAuthor?.avatar?.name?.let { "${com.sharkord.android.data.network.SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(it)}" }
+                    val avatarUrl = com.sharkord.android.data.network.SharkordClient.getFileUrl(replyAuthor?.avatar)
                     val avatarPainter = com.sharkord.android.ui.components.rememberAsyncImagePainter(avatarUrl, fallbackResourceId = null)
                     
                     Box(
@@ -655,7 +655,7 @@ fun ChatInputBar(
                                 .padding(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            val avatarUrl = user.avatar?.name?.let { "${com.sharkord.android.data.network.SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(it)}" }
+                            val avatarUrl = com.sharkord.android.data.network.SharkordClient.getFileUrl(user.avatar)
                             val avatarPainter = com.sharkord.android.ui.components.rememberAsyncImagePainter(avatarUrl, fallbackResourceId = null)
                             
                             Box(

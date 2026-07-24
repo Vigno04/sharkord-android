@@ -169,7 +169,7 @@ fun EmojiCard(
     ) {
         val serverUrl = SharkordClient.currentServerUrl
         val fileUrl = if (serverUrl != null && emoji.file?.name != null) {
-            "$serverUrl/public/${android.net.Uri.encode(emoji.file.name)}"
+            SharkordClient.getFileUrl(emoji.file) ?: ""
         } else null
         
         Column(

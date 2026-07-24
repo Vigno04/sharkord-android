@@ -313,9 +313,7 @@ fun MessageItem(
                         .background(Color(0xFF3A3A3A)),
                     contentAlignment = Alignment.Center
                 ) {
-                    val replyAvatarUrl = replyAuthor?.avatar?.name?.let { name ->
-                        "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(name)}"
-                    }
+                    val replyAvatarUrl = SharkordClient.getFileUrl(replyAuthor?.avatar)
                     val replyAvatarState = rememberAsyncImageState(replyAvatarUrl)
                     when (replyAvatarState) {
                         is AsyncImageState.Success -> Image(
@@ -391,9 +389,7 @@ fun MessageItem(
                         .background(Color(0xFF3A3A3A)),
                     contentAlignment = Alignment.Center
                 ) {
-                    val avatarUrl = author?.avatar?.name?.let { name ->
-                        "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(name)}"
-                    }
+                    val avatarUrl = SharkordClient.getFileUrl(author?.avatar)
                     val avatarState = rememberAsyncImageState(avatarUrl)
                     when (avatarState) {
                         is AsyncImageState.Success -> Image(
@@ -577,7 +573,7 @@ fun MessageItem(
 
                         when {
                             isImage && file.name != null -> {
-                                val imageUrl = "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(file.name)}"
+                                val imageUrl = com.sharkord.android.data.network.SharkordClient.getFileUrl(file) ?: ""
                                 val imageState = rememberAsyncImageState(imageUrl)
                                 Box(
                                     modifier = Modifier
@@ -612,7 +608,7 @@ fun MessageItem(
                                 }
                             }
                             isVideo && file.name != null -> {
-                                val videoUrl = "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(file.name)}"
+                                val videoUrl = com.sharkord.android.data.network.SharkordClient.getFileUrl(file) ?: ""
                                 val thumbnailState = rememberVideoThumbnailState(videoUrl)
                                 var isPlayingInline by remember(message.id) { mutableStateOf(false) }
                                 val isOverlayActive = fullscreenMediaId == file.id
@@ -693,7 +689,7 @@ fun MessageItem(
                                 }
                             }
                             isAudio && file.name != null -> {
-                                val audioUrl = "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(file.name)}"
+                                val audioUrl = com.sharkord.android.data.network.SharkordClient.getFileUrl(file) ?: ""
                                 AudioPlayer(
                                     audioUrl = audioUrl,
                                     modifier = Modifier.padding(top = 4.dp)
@@ -901,7 +897,7 @@ fun MessageItem(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     if (firstReaction.file != null && firstReaction.file.name != null) {
-                                        val customEmojiUrl = "${SharkordClient.currentServerUrl}/public/${android.net.Uri.encode(firstReaction.file.name)}"
+                                        val customEmojiUrl = com.sharkord.android.data.network.SharkordClient.getFileUrl(firstReaction.file)
                                         val emojiPainter = rememberAsyncImagePainter(customEmojiUrl)
                                         if (emojiPainter != null) {
                                             Image(
