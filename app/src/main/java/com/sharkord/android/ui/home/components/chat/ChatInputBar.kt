@@ -249,7 +249,28 @@ fun ChatInputBar(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) {
-            val originalName = "gallery_media"
+            var originalName = "gallery_media"
+            if (uri.scheme == "content") {
+                val cursor = context.contentResolver.query(uri, null, null, null, null)
+                cursor?.use {
+                    if (it.moveToFirst()) {
+                        val index = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                        if (index != -1) {
+                            originalName = it.getString(index) ?: "gallery_media"
+                        }
+                    }
+                }
+            }
+            if (originalName == "gallery_media") {
+                originalName = uri.path?.substringAfterLast('/') ?: "gallery_media"
+            }
+            if (!originalName.contains(".")) {
+                val mimeType = context.contentResolver.getType(uri)
+                val extension = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType)
+                if (extension != null) {
+                    originalName = "$originalName.$extension"
+                }
+            }
             try {
                 onFileUpload(originalName, uri.toString())
             } catch (e: Exception) {
