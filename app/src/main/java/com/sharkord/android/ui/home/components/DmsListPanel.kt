@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -31,6 +32,7 @@ fun DmsListPanel(
     viewModel: HomeViewModel,
     foregroundText: Color,
     primaryText: Color,
+    onBackClick: () -> Unit = { viewModel.exitDmsListToServer() },
     modifier: Modifier = Modifier
 ) {
     val dmChannels = data.channels.filter { channel ->
@@ -59,13 +61,14 @@ fun DmsListPanel(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .clickable { viewModel.exitDmsListToServer() }
+                            .clickable { onBackClick() }
                             .padding(4.dp)
                     ) {
-                        Text(
-                            text = "◀",
-                            color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
-                            fontSize = 14.sp
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
+                            modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(

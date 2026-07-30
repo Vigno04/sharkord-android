@@ -764,7 +764,7 @@ class HomeViewModel : ViewModel() {
     }
 
     fun exitDmsListToServer() {
-        _uiState.update { it.copy(activePanel = HomePanel.SERVER_LIST) }
+        _uiState.update { it.copy(activePanel = HomePanel.SERVER_LIST, isDmsListSelected = false) }
     }
 
     fun setSearchQuery(query: String) {

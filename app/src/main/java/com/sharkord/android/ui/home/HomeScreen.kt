@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,9 +26,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -150,11 +153,11 @@ fun HomeScreen(
                     when (uiState.activePanel) {
                         HomePanel.SERVER_LIST -> {
                             keyboardController?.hide()
-                            dmsSwipeOffset.snapTo(-screenWidthPx)
+                            dmsSwipeOffset.snapTo(0f)
                         }
                         HomePanel.DMS_LIST -> {
                             keyboardController?.hide()
-                            serverSwipeOffset.snapTo(-screenWidthPx)
+                            serverSwipeOffset.snapTo(0f)
                         }
                         HomePanel.SERVER_CHAT -> {
                             dmsSwipeOffset.snapTo(-screenWidthPx)
@@ -178,10 +181,10 @@ fun HomeScreen(
                     when (uiState.activePanel) {
                         HomePanel.SERVER_LIST -> {
                             serverSwipeOffset.snapTo(0f)
-                            if (uiState.isDmsListSelected) dmsSwipeOffset.snapTo(0f) else dmsSwipeOffset.snapTo(-screenWidthPx)
+                            dmsSwipeOffset.snapTo(0f)
                         }
                         HomePanel.DMS_LIST -> {
-                            serverSwipeOffset.snapTo(-screenWidthPx)
+                            serverSwipeOffset.snapTo(0f)
                             dmsSwipeOffset.snapTo(0f)
                         }
                         HomePanel.SERVER_CHAT, HomePanel.DM_CHAT -> {
@@ -289,6 +292,10 @@ fun HomeScreen(
                         targetIndex = if (totalDrag < 0) 2 else 0
                     }
                     
+                    if (activeId == null && targetIndex > 0) {
+                        targetIndex = 0
+                    }
+                    
                     // Update state immediately. LaunchedEffect will handle the animation.
                     if (targetIndex == 0) {
                         viewModel.setPanel(if (isDm) HomePanel.DMS_LIST else HomePanel.SERVER_LIST)
@@ -306,6 +313,19 @@ fun HomeScreen(
                 }
 
                 Box(modifier = Modifier.fillMaxSize()) {
+                    val listAlphaTransition = androidx.compose.animation.core.updateTransition(
+                        targetState = uiState.isDmsListSelected, 
+                        label = "ListTransition"
+                    )
+                    val dmsAlpha by listAlphaTransition.animateFloat(
+                        transitionSpec = { androidx.compose.animation.core.tween(200) },
+                        label = "dmsAlpha"
+                    ) { isDms -> if (isDms) 1f else 0f }
+                    val serverAlpha by listAlphaTransition.animateFloat(
+                        transitionSpec = { androidx.compose.animation.core.tween(200) },
+                        label = "serverAlpha"
+                    ) { isDms -> if (isDms) 0f else 1f }
+
                     // LAYER 1: CHAT PANEL (BOTTOM)
                     val activeChannelId = if (uiState.isDmsListSelected) uiState.selectedDmChannelId else uiState.selectedServerChannelId
                     val isDmSelected = uiState.isDmsListSelected
@@ -729,6 +749,8 @@ fun HomeScreen(
                     Box(modifier = Modifier
                         .then(if (isTablet) Modifier.width(dmsWidthTabletDp).fillMaxHeight() else Modifier.fillMaxSize())
                         .offset(x = dmsOffsetDp)
+                        .alpha(dmsAlpha)
+                        .zIndex(if (uiState.isDmsListSelected) 1f else 0f)
                     ) {
                         DmsListPanel(
                             data = data,
@@ -736,6 +758,9 @@ fun HomeScreen(
                             viewModel = viewModel,
                             foregroundText = foregroundText,
                             primaryText = primaryText,
+                            onBackClick = {
+                                viewModel.exitDmsListToServer()
+                            },
                             modifier = Modifier
                                 .fillMaxSize()
                                 .drawBehind {
@@ -763,29 +788,18 @@ fun HomeScreen(
                                 .pointerInput(uiState.activePanel, isTablet, isCurrentDmChannelVoice) {
                             if (uiState.activePanel == HomePanel.DMS_LIST || (isTablet && uiState.activePanel == HomePanel.DM_CHAT && !isCurrentDmChannelVoice)) {
                                 var totalDrag = 0f
-                                // Track which offset we actually moved so we can snap it on release
-                                var movedServerOffset = false
                                         detectHorizontalDragGestures(
                                             onDragEnd = {
-                                                if (movedServerOffset) {
-                                                    // User dragged right into the server panel - snap it
-                                                    handleDragEnd(serverSwipeOffset, totalDrag, false)
-                                                } else {
-                                                    handleDragEnd(dmsSwipeOffset, totalDrag, true)
-                                                }
-                                                movedServerOffset = false
+                                                handleDragEnd(dmsSwipeOffset, totalDrag, true)
                                                 totalDrag = 0f
                                             },
                                             onDragCancel = {
                                                 totalDrag = 0f
-                                                movedServerOffset = false
                                                 coroutineScope.launch {
-                                                    // Snap both offsets back to their nearest anchor
+                                                    // Snap offset back to nearest anchor
                                                     val anchors = if (isTablet) listOf(0f, splitOffset, -screenWidthPx) else listOf(0f, -screenWidthPx)
                                                     val dmsTarget = anchors.minByOrNull { kotlin.math.abs(it - dmsSwipeOffset.value) } ?: dmsSwipeOffset.value
-                                                    val srvTarget = anchors.minByOrNull { kotlin.math.abs(it - serverSwipeOffset.value) } ?: serverSwipeOffset.value
                                                     launch { dmsSwipeOffset.animateTo(dmsTarget) }
-                                                    launch { serverSwipeOffset.animateTo(srvTarget) }
                                                 }
                                             },
                                             onHorizontalDrag = { change, dragAmount ->
@@ -793,9 +807,10 @@ fun HomeScreen(
                                                 totalDrag += dragAmount
                                                 coroutineScope.launch {
                                                     if (dragAmount > 0) {
-                                                        movedServerOffset = true
-                                                        val newOffset = (serverSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
-                                                        serverSwipeOffset.snapTo(newOffset)
+                                                        if (dmsSwipeOffset.value < 0f) {
+                                                            val newOffset = (dmsSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
+                                                            dmsSwipeOffset.snapTo(newOffset)
+                                                        }
                                                     } else if (dragAmount < 0 && uiState.selectedDmChannelId != null) {
                                                         val newOffset = (dmsSwipeOffset.value + dragAmount).coerceIn(-screenWidthPx, 0f)
                                                         dmsSwipeOffset.snapTo(newOffset)
@@ -822,6 +837,8 @@ fun HomeScreen(
                             .then(if (isTablet) Modifier.width(channelsWidthTabletDp).fillMaxHeight() else Modifier.fillMaxSize())
                             .offset(x = channelsOffsetDp)
                             .background(bgColor)
+                            .alpha(serverAlpha)
+                            .zIndex(if (uiState.isDmsListSelected) 0f else 1f)
                             .drawBehind {
                                 val shadowWidth = 12.dp.toPx()
                                 val shadowAlpha = if (colors.isLight) 0.15f else 0.5f
