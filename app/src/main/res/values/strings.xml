@@ -1,5 +1,12 @@
 <resources>
     <string name="app_name">Sharkord</string>
+    <string name="camera_compressing">Compressing video...</string>
+    <string name="camera_permissionsRequired">Camera and Audio permissions are required.</string>
+    <string name="camera_recording">RECORDING</string>
+    <string name="category_newName">new-category</string>
+    <string name="channel_editChannel">Edit Channel</string>
+    <string name="channel_newName">new-channel</string>
+    <string name="channel_openChat">Open Chat</string>
     <string name="chat_channelBeginning">This is the beginning of the #%1$s channel.</string>
     <string name="chat_channelBeginningShort">This is the beginning of #%1$s</string>
     <string name="chat_copyLink">Copy Link</string>
@@ -42,6 +49,7 @@
     <string name="common_copied">Copied</string>
     <string name="common_copyDetails">Copy details</string>
     <string name="common_couldNotOpenDM">Could not open direct message</string>
+    <string name="common_create">Create</string>
     <string name="common_createCategory">Create Category</string>
     <string name="common_customTab">Custom</string>
     <string name="common_delete">Delete</string>
@@ -87,6 +95,7 @@
     <string name="common_messageRenderGithubIssue">If this error persists, please create an issue on GitHub.</string>
     <string name="common_mobileNotOptimized">Sharkord is not optimized for mobile devices yet. The experience will not be ideal.</string>
     <string name="common_moderationView">Moderation View</string>
+    <string name="common_no">No</string>
     <string name="common_noCustomEmojis">No custom emojis available</string>
     <string name="common_noPinnedMessages">No pinned messages</string>
     <string name="common_noRepliesYet">No replies yet</string>
@@ -125,9 +134,11 @@
     <string name="common_swipeLeftForUsers">Swipe left to open the user list</string>
     <string name="common_swipeRightForChannels">Swipe right to open the channel list</string>
     <string name="common_thread">Thread</string>
+    <string name="common_toggleParticipants">Show/hide participants</string>
     <string name="common_typeAMessage">Type a message...</string>
     <string name="common_unban">Unban</string>
     <string name="common_unknown">Unknown</string>
+    <string name="common_unknownChannel">Unknown Channel</string>
     <string name="common_unknownError">Unknown error</string>
     <string name="common_unknownFile">Unknown File</string>
     <string name="common_unknownTime">Unknown time</string>
@@ -298,8 +309,13 @@
     <string name="disconnected_lostConnectionMessage">Lost connection to the server unexpectedly.</string>
     <string name="disconnected_noReasonProvided">No reason provided.</string>
     <string name="disconnected_time">Time: %1$s</string>
+    <string name="dms_noMessagesYet">No Direct Messages yet.</string>
+    <string name="emoji_enterName">Enter a name for the new emoji (no spaces):</string>
+    <string name="emoji_serverEmojis">SERVER EMOJIS</string>
     <string name="login_biometricLoginSubtitle">Use your fingerprint to log into Sharkord</string>
     <string name="login_biometricLoginTitle">Log in with Fingerprint</string>
+    <string name="login_biometricSaveSubtitle">Do you want to enable fingerprint login?</string>
+    <string name="login_biometricSaveTitle">Enable Fingerprint</string>
     <string name="login_biometricUnlockSubtitle">Confirm your identity to open Sharkord</string>
     <string name="login_biometricUnlockTitle">Unlock Application</string>
     <string name="notification_channel_desc">Notifications for new messages</string>
@@ -337,6 +353,7 @@
     <string name="permissions_serverDescriptions_MANAGE_STORAGE">Grants the ability to manage storage, such as enabling or disabling uploads.</string>
     <string name="permissions_serverDescriptions_MANAGE_UPDATES">Grants the ability to perform updates.</string>
     <string name="permissions_serverDescriptions_MANAGE_USERS">Grants the ability to manage users.</string>
+    <string name="permissions_serverDescriptions_MOVE_MEMBERS">Grants the ability to move members between voice channels.</string>
     <string name="permissions_serverDescriptions_PIN_MESSAGES">Grants the ability to pin messages.</string>
     <string name="permissions_serverDescriptions_REACT_TO_MESSAGES">Grants the ability to react to messages.</string>
     <string name="permissions_serverDescriptions_SEND_MESSAGES">Grants the ability to send messages in channels.</string>
@@ -358,6 +375,7 @@
     <string name="permissions_server_MANAGE_STORAGE">Manage storage</string>
     <string name="permissions_server_MANAGE_UPDATES">Manage updates</string>
     <string name="permissions_server_MANAGE_USERS">Manage users</string>
+    <string name="permissions_server_MOVE_MEMBERS">Move members</string>
     <string name="permissions_server_PIN_MESSAGES">Pin messages</string>
     <string name="permissions_server_REACT_TO_MESSAGES">React to messages</string>
     <string name="permissions_server_SEND_MESSAGES">Send messages</string>
@@ -387,6 +405,7 @@
     <string name="settings_autoJoinLastChannelDesc">Automatically rejoin the last text channel on connect.</string>
     <string name="settings_autoJoinLastChannelLabel">Auto-Join Last Channel</string>
     <string name="settings_backCameraSettings">Back Camera Settings</string>
+    <string name="settings_backgroundSyncPull">BACKGROUND SYNC (PULL)</string>
     <string name="settings_banBtn">Ban</string>
     <string name="settings_banConfirm">Ban</string>
     <string name="settings_banMsg">Please provide a reason for banning this user (optional).</string>
@@ -398,6 +417,7 @@
     <string name="settings_bannedDetailValue">Yes</string>
     <string name="settings_bannedSuccess">User banned successfully</string>
     <string name="settings_bannerColorLabel">Banner color</string>
+    <string name="settings_batteryOptimization">Battery Optimization</string>
     <string name="settings_bioLabel">Bio</string>
     <string name="settings_bioPlaceholder">Tell us about yourself...</string>
     <string name="settings_cameraFormatLabel">Format (Resolution @ FPS)</string>
@@ -569,6 +589,7 @@
     <string name="settings_invitesTitle">Server Invites</string>
     <string name="settings_invitesUsesCol">Uses</string>
     <string name="settings_ipAddressLabel">IP Address</string>
+    <string name="settings_irreversibleAction">I understand that this action is irreversible</string>
     <string name="settings_joinedDate">Joined: %1$s</string>
     <string name="settings_joinedServer">Joined Server</string>
     <string name="settings_joinedServerLabel">Joined Server</string>
@@ -700,6 +721,7 @@
     <string name="settings_notificationsTitle">Notifications</string>
     <string name="settings_onlyAskForPasswordOnFirstJoinDesc">When enabled, users only need to enter the server password the first time they join.</string>
     <string name="settings_onlyAskForPasswordOnFirstJoinLabel">Only Ask For Password On First Join</string>
+    <string name="settings_openSettings">Open Settings</string>
     <string name="settings_othersDesc">General settings related to Sharkord\'s behavior.</string>
     <string name="settings_othersTab">Others</string>
     <string name="settings_othersTitle">Others</string>
@@ -722,6 +744,8 @@
     <string name="settings_permissionsTab">Permissions</string>
     <string name="settings_permissionsTitle">Permissions</string>
     <string name="settings_permitMicAccess">Permit Microphone Access</string>
+    <string name="settings_pipWindow">Floating PiP Window</string>
+    <string name="settings_pipWindowDesc">Show a floating video window when you leave the app during a call.</string>
     <string name="settings_playbackLabel">Playback</string>
     <string name="settings_playbackPlaceholder">Select the output device</string>
     <string name="settings_pluginAuthor">By %1$s</string>
@@ -750,6 +774,7 @@
     <string name="settings_privateChannelLabel">Private Channel</string>
     <string name="settings_privateDesc">Restricts access to this channel to specific roles and members.</string>
     <string name="settings_privateLabel">Private</string>
+    <string name="settings_profileColorLabel">Profile color</string>
     <string name="settings_profileDesc">Update your personal information and settings here.</string>
     <string name="settings_profileTab">Profile</string>
     <string name="settings_profileTitle">Your Profile</string>
@@ -766,6 +791,7 @@ Make it private in the General tab to manage specific permissions.</string>
     <string name="settings_quotaPerUserLabel">Quota per user</string>
     <string name="settings_reasonOptional">Reason (optional)</string>
     <string name="settings_refreshBtn">Refresh</string>
+    <string name="settings_rememberCredentials">Remember credentials and bypass login screen.</string>
     <string name="settings_removeBiometrics">Remove Saved Biometrics</string>
     <string name="settings_removeBtn">Remove</string>
     <string name="settings_removePluginConfirm">Are you sure you want to remove %1$s?</string>
@@ -884,6 +910,7 @@ Make it private in the General tab to manage specific permissions.</string>
     <string name="settings_tabUpdates">Updates</string>
     <string name="settings_tabUsers">Users</string>
     <string name="settings_takePhoto">Take Photo</string>
+    <string name="settings_totalSpace">Total Space</string>
     <string name="settings_unbanBtn">Unban</string>
     <string name="settings_unbanConfirm">Unban</string>
     <string name="settings_unbanMsg">Are you sure you want to unban this user?</string>
@@ -971,6 +998,7 @@ Make it private in the General tab to manage specific permissions.</string>
     <string name="sidebar_failedDeleteCategory">Failed to delete category</string>
     <string name="sidebar_failedDeleteChannel">Failed to delete channel</string>
     <string name="sidebar_failedLoadDMs">Failed to load direct messages</string>
+    <string name="sidebar_failedMoveUser">Failed to move user</string>
     <string name="sidebar_failedReorderCategories">Failed to reorder categories</string>
     <string name="sidebar_failedReorderChannels">Failed to reorder channels</string>
     <string name="sidebar_frameRate">Frame Rate: %1$s fps</string>
@@ -1014,6 +1042,7 @@ Make it private in the General tab to manage specific permissions.</string>
     <string name="sidebar_voiceConnecting">Connecting...</string>
     <string name="sidebar_voiceDisconnected">Disconnected</string>
     <string name="sidebar_voiceFailed">Connection failed</string>
+    <string name="topbar_alwaysShowVoiceControls">Always show voice controls</string>
     <string name="topbar_audioControls">Audio Controls</string>
     <string name="topbar_closeMembersSidebar">Close Members Sidebar</string>
     <string name="topbar_closeVoiceChat">Close Voice Chat</string>
@@ -1029,4 +1058,17 @@ Make it private in the General tab to manage specific permissions.</string>
     <string name="topbar_stream_other">streams</string>
     <string name="topbar_voiceOptions">Voice Options</string>
     <string name="topbar_volumeControls">Volume Controls</string>
+    <string name="update_dialogTitle">Version %1$s is available. Do you want to download it?</string>
+    <string name="update_download">Download</string>
+    <string name="update_neverRemind">Never remind me</string>
+    <string name="update_remindLater">Remind me later</string>
+    <string name="update_skipVersion">Skip this version</string>
+    <string name="updates_failedLoad">Failed to load update information.</string>
+    <string name="updates_newAvailable">A new update is available!</string>
+    <string name="updates_notSupported">Updates are not supported on this installation.</string>
+    <string name="updates_upToDate">Your server is up to date.</string>
+    <string name="voice_autoBitrate">Auto</string>
+    <string name="voice_joinVoice">Join Voice</string>
+    <string name="voice_tapToReturn">Tap to return to call
+%1$s</string>
 </resources>

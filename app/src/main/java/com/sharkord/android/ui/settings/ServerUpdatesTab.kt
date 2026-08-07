@@ -45,21 +45,21 @@ fun ServerUpdatesTab(
         } else if (info != null) {
             SettingsSection(title = stringResource(com.sharkord.android.R.string.settings_versionInfoGroup), cardColor = cardColor, foregroundText = foregroundText) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Current Version", color = primaryText)
+                    Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_currentVersionLabel), color = primaryText)
                     Text(info.currentVersion ?: "Unknown", color = foregroundText, fontWeight = FontWeight.SemiBold)
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Latest Version", color = primaryText)
+                    Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_latestVersionLabel), color = primaryText)
                     Text(info.latestVersion ?: "Unknown", color = foregroundText, fontWeight = FontWeight.SemiBold)
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 if (!info.canUpdate) {
-                    Text("Updates are not supported on this installation.", color = Color(0xFFED4245), fontSize = 14.sp)
+                    Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.updates_notSupported), color = Color(0xFFED4245), fontSize = 14.sp)
                 } else if (info.hasUpdate) {
-                    Text("A new update is available!", color = Color(0xFFFEE75C), fontSize = 14.sp)
+                    Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.updates_newAvailable), color = Color(0xFFFEE75C), fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = { viewModel.updateServer() },
@@ -69,11 +69,11 @@ fun ServerUpdatesTab(
                         Text(stringResource(com.sharkord.android.R.string.settings_updateServerBtn))
                     }
                 } else {
-                    Text("Your server is up to date.", color = Color(0xFF4CAF50), fontSize = 14.sp)
+                    Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.updates_upToDate), color = Color(0xFF4CAF50), fontSize = 14.sp)
                 }
             }
         } else {
-            Text("Failed to load update information.", color = Color(0xFFED4245))
+            Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.updates_failedLoad), color = Color(0xFFED4245))
         }
     }
 }

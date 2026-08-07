@@ -78,6 +78,8 @@
     <string name="common_swipeLeftForUsers">Balayez vers la gauche pour ouvrir la liste des utilisateurs</string>
     <string name="common_swipeRightForChannels">Balayez vers la droite pour ouvrir la liste des canneaux</string>
     <string name="common_thread">Fil de discussion</string>
+    <string name="common_toggleParticipants">Afficher/masquer les participants</string>
+    <string name="common_unknownChannel">Salon inconnu</string>
     <string name="common_unknownTime">Heure inconnue</string>
     <string name="common_unknownUser">Utilisateur Inconnu</string>
     <string name="common_unpinMessage">Désépingler le message</string>
@@ -265,6 +267,7 @@
     <string name="permissions_serverDescriptions_MANAGE_STORAGE">Permet de gérer le stockage, notamment d\'activer ou de désactiver les téléversements.</string>
     <string name="permissions_serverDescriptions_MANAGE_UPDATES">Permet d\'effectuer des mises à jour.</string>
     <string name="permissions_serverDescriptions_MANAGE_USERS">Permet de gérer les utilisateurs.</string>
+    <string name="permissions_serverDescriptions_MOVE_MEMBERS">Permet de déplacer les membres entre les salons vocaux.</string>
     <string name="permissions_serverDescriptions_PIN_MESSAGES">Permet d\'épingler des messages.</string>
     <string name="permissions_serverDescriptions_REACT_TO_MESSAGES">Permet de réagir aux messages.</string>
     <string name="permissions_serverDescriptions_SEND_MESSAGES">Permet d\'envoyer des messages dans les canaux.</string>
@@ -287,6 +290,7 @@
     <string name="permissions_server_MANAGE_STORAGE">Gérer le stockage</string>
     <string name="permissions_server_MANAGE_UPDATES">Gérer les mises à jour</string>
     <string name="permissions_server_MANAGE_USERS">Gérer les utilisateurs</string>
+    <string name="permissions_server_MOVE_MEMBERS">Déplacer les membres</string>
     <string name="permissions_server_PIN_MESSAGES">Epingler des messages</string>
     <string name="permissions_server_REACT_TO_MESSAGES">Réagir aux messages</string>
     <string name="permissions_server_SEND_MESSAGES">Envoyer des messages</string>
@@ -314,7 +318,6 @@
     <string name="settings_bannedDetailLabel">Banni</string>
     <string name="settings_bannedDetailValue">Oui</string>
     <string name="settings_bannedSuccess">Utilisateur banni avec succès</string>
-    <string name="settings_bannerColorLabel">Couleur de la bannière</string>
     <string name="settings_bioLabel">Biographie</string>
     <string name="settings_bioPlaceholder">Parlez-nous de vous...</string>
     <string name="settings_cancel">Annuler</string>
@@ -576,6 +579,7 @@
     <string name="settings_pluginsTitle">Extensions</string>
     <string name="settings_privateDesc">Restreint l\'accès à ce canal à des rôles et membres spécifiques.</string>
     <string name="settings_privateLabel">Privé</string>
+    <string name="settings_profileColorLabel">Couleur du profil</string>
     <string name="settings_profileDesc">Mettez à jour vos informations personnelles et vos paramètres ici.</string>
     <string name="settings_profileTab">Profil</string>
     <string name="settings_profileTitle">Votre profil</string>
@@ -739,6 +743,7 @@
     <string name="sidebar_failedDeleteCategory">Échec de la suppression de la catégorie</string>
     <string name="sidebar_failedDeleteChannel">Échec de la suppression du canal</string>
     <string name="sidebar_failedLoadDMs">Échec du chargement des messages privés</string>
+    <string name="sidebar_failedMoveUser">Échec du déplacement de l\'utilisateur</string>
     <string name="sidebar_failedReorderCategories">Échec du réordonnancement des catégories</string>
     <string name="sidebar_failedReorderChannels">Échec du réordonnancement des canaux</string>
     <string name="sidebar_frameRate">Taux de rafraîchissement : %1$s fps</string>
@@ -780,6 +785,7 @@
     <string name="sidebar_voiceConnecting">Connexion en cours...</string>
     <string name="sidebar_voiceDisconnected">Déconnecté</string>
     <string name="sidebar_voiceFailed">Échec de la connexion</string>
+    <string name="topbar_alwaysShowVoiceControls">Toujours afficher les contrôles vocaux</string>
     <string name="topbar_audioControls">Contrôle Audio</string>
     <string name="topbar_closeMembersSidebar">Fermer le panneau latéral des membres</string>
     <string name="topbar_closeVoiceChat">Fermer le chat vocal</string>

@@ -471,7 +471,7 @@ fun ProfileTabContent(
                             colors = CheckboxDefaults.colors(checkedColor = Color(0xFFEF4444), uncheckedColor = primaryText)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("I understand that this action is irreversible", color = foregroundText, fontSize = 14.sp)
+                        Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_irreversibleAction), color = foregroundText, fontSize = 14.sp)
                     }
                 }
             },
@@ -1075,7 +1075,7 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
         
         Divider(modifier = Modifier.padding(vertical = 16.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
         
-        Text("BACKGROUND SYNC (PULL)", color = foregroundText, fontWeight = FontWeight.Bold)
+        Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_backgroundSyncPull), color = foregroundText, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             "Because there is no Push Notification payload waking up the app, the background worker has to temporarily connect to the server to check for unread messages. This will use a small amount of background data.",
@@ -1124,7 +1124,7 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Warning, contentDescription = "Warning", tint = accentColor, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Battery Optimization", color = foregroundText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_batteryOptimization), color = foregroundText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -1139,7 +1139,7 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                     ) {
-                        Text("Open Settings", color = Color.White)
+                        Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_openSettings), color = Color.White)
                     }
                 }
             }
@@ -1166,7 +1166,7 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.connect_autoLoginLabel), color = foregroundText)
-                Text("Remember credentials and bypass login screen.", color = primaryText, fontSize = 12.sp)
+                Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_rememberCredentials), color = primaryText, fontSize = 12.sp)
             }
             Switch(checked = autoLogin, onCheckedChange = { viewModel.saveAutoLogin(it) }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
         }
@@ -1198,8 +1198,8 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
     SettingsSection(title = "App Features", cardColor = cardColor, foregroundText = foregroundText) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Floating PiP Window", color = foregroundText)
-                Text("Show a floating video window when you leave the app during a call.", color = primaryText, fontSize = 12.sp)
+                Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_pipWindow), color = foregroundText)
+                Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_pipWindowDesc), color = primaryText, fontSize = 12.sp)
             }
             Switch(checked = enableFloatingPip, onCheckedChange = { viewModel.saveEnableFloatingPip(it) }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
         }

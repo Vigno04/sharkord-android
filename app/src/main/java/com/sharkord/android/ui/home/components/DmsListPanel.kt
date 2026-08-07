@@ -117,7 +117,7 @@ fun DmsListPanel(
                     modifier = Modifier.fillMaxWidth().padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No Direct Messages yet.", color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f), fontSize = 14.sp)
+                    Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.dms_noMessagesYet), color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f), fontSize = 14.sp)
                 }
             }
         }

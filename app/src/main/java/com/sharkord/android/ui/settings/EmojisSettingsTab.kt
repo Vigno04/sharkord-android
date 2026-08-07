@@ -59,10 +59,10 @@ fun ServerEmojisTab(
                 selectedUri = null 
             },
             containerColor = cardColor,
-            title = { Text("Upload Emoji", color = foregroundText, fontWeight = FontWeight.Bold) },
+            title = { Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_uploadEmojiBtn), color = foregroundText, fontWeight = FontWeight.Bold) },
             text = {
                 Column {
-                    Text("Enter a name for the new emoji (no spaces):", color = primaryText)
+                    Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.emoji_enterName), color = primaryText)
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = newEmojiName,
@@ -104,7 +104,7 @@ fun ServerEmojisTab(
                     showNameDialog = false
                     selectedUri = null 
                 }) {
-                    Text("Cancel", color = primaryText)
+                    Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_cancel), color = primaryText)
                 }
             }
         )
@@ -116,7 +116,7 @@ fun ServerEmojisTab(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("SERVER EMOJIS", color = foregroundText, fontWeight = FontWeight.Bold)
+            Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.emoji_serverEmojis), color = foregroundText, fontWeight = FontWeight.Bold)
             Button(
                 onClick = { galleryLauncher.launch("image/*") },
                 colors = ButtonDefaults.buttonColors(containerColor = accentColor)
@@ -129,7 +129,7 @@ fun ServerEmojisTab(
 
         if (emojis.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No custom emojis yet.", color = primaryText)
+                Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.common_noCustomEmojis), color = primaryText)
             }
         } else {
             LazyVerticalGrid(

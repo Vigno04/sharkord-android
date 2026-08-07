@@ -89,7 +89,7 @@ fun AddChannelDialog(
                 OutlinedTextField(
                     value = channelName,
                     onValueChange = { channelName = it },
-                    placeholder = { Text("new-channel", color = primaryText.copy(alpha = 0.5f)) },
+                    placeholder = { Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.channel_newName), color = primaryText.copy(alpha = 0.5f)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 24.dp),
@@ -113,7 +113,7 @@ fun AddChannelDialog(
                         onClick = onDismissRequest,
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
-                        Text("Cancel", color = primaryText)
+                        Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_cancel), color = primaryText)
                     }
                     Button(
                         onClick = {
@@ -127,7 +127,7 @@ fun AddChannelDialog(
                         ),
                         enabled = channelName.isNotBlank()
                     ) {
-                        Text("Create", color = SharkordTheme.colors.foregroundText)
+                        Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.common_create), color = SharkordTheme.colors.foregroundText)
                     }
                 }
             }

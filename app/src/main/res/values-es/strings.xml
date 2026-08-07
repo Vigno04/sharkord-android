@@ -78,6 +78,8 @@
     <string name="common_swipeLeftForUsers">Desliza a la izquierda para abrir la lista de usuarios</string>
     <string name="common_swipeRightForChannels">Desliza a la derecha para abrir la lista de canales</string>
     <string name="common_thread">Hilo</string>
+    <string name="common_toggleParticipants">Mostrar/ocultar participantes</string>
+    <string name="common_unknownChannel">Canal desconocido</string>
     <string name="common_unknownTime">Hora desconocida</string>
     <string name="common_unknownUser">Usuario desconocido</string>
     <string name="common_unpinMessage">Desfijar mensaje</string>
@@ -264,6 +266,7 @@
     <string name="permissions_serverDescriptions_MANAGE_STORAGE">Permite gestionar el almacenamiento, como habilitar o deshabilitar las subidas.</string>
     <string name="permissions_serverDescriptions_MANAGE_UPDATES">Permite realizar actualizaciones.</string>
     <string name="permissions_serverDescriptions_MANAGE_USERS">Permite gestionar los usuarios.</string>
+    <string name="permissions_serverDescriptions_MOVE_MEMBERS">Permite mover miembros entre canales de voz.</string>
     <string name="permissions_serverDescriptions_PIN_MESSAGES">Permite fijar mensajes.</string>
     <string name="permissions_serverDescriptions_REACT_TO_MESSAGES">Permite reaccionar a los mensajes.</string>
     <string name="permissions_serverDescriptions_SEND_MESSAGES">Permite enviar mensajes en los canales.</string>
@@ -285,6 +288,7 @@
     <string name="permissions_server_MANAGE_STORAGE">Gestionar almacenamiento</string>
     <string name="permissions_server_MANAGE_UPDATES">Gestionar actualizaciones</string>
     <string name="permissions_server_MANAGE_USERS">Gestionar usuarios</string>
+    <string name="permissions_server_MOVE_MEMBERS">Mover miembros</string>
     <string name="permissions_server_PIN_MESSAGES">Fijar mensajes</string>
     <string name="permissions_server_REACT_TO_MESSAGES">Reaccionar a mensajes</string>
     <string name="permissions_server_SEND_MESSAGES">Enviar mensajes</string>
@@ -312,7 +316,6 @@
     <string name="settings_bannedDetailLabel">Vetado</string>
     <string name="settings_bannedDetailValue">Sí</string>
     <string name="settings_bannedSuccess">Usuario vetado correctamente</string>
-    <string name="settings_bannerColorLabel">Color del banner</string>
     <string name="settings_bioLabel">Biografía</string>
     <string name="settings_bioPlaceholder">Cuéntanos sobre ti...</string>
     <string name="settings_cancel">Cancelar</string>
@@ -574,6 +577,7 @@
     <string name="settings_pluginsTitle">Plugins</string>
     <string name="settings_privateDesc">Restringe el acceso a este canal a roles y miembros específicos.</string>
     <string name="settings_privateLabel">Privado</string>
+    <string name="settings_profileColorLabel">Color del perfil</string>
     <string name="settings_profileDesc">Actualiza tu información personal y ajustes aquí.</string>
     <string name="settings_profileTab">Perfil</string>
     <string name="settings_profileTitle">Tu perfil</string>
@@ -737,6 +741,7 @@
     <string name="sidebar_failedDeleteCategory">Error al eliminar la categoría</string>
     <string name="sidebar_failedDeleteChannel">Error al eliminar el canal</string>
     <string name="sidebar_failedLoadDMs">Error al cargar los mensajes directos</string>
+    <string name="sidebar_failedMoveUser">Error al mover al usuario</string>
     <string name="sidebar_failedReorderCategories">Error al reordenar las categorías</string>
     <string name="sidebar_failedReorderChannels">Error al reordenar los canales</string>
     <string name="sidebar_frameRate">Fotogramas: %1$s fps</string>
@@ -778,6 +783,7 @@
     <string name="sidebar_voiceConnecting">Conectando...</string>
     <string name="sidebar_voiceDisconnected">Desconectado</string>
     <string name="sidebar_voiceFailed">Conexión fallida</string>
+    <string name="topbar_alwaysShowVoiceControls">Mostrar siempre los controles de voz</string>
     <string name="topbar_audioControls">Controles de audio</string>
     <string name="topbar_closeMembersSidebar">Cerrar barra lateral de miembros</string>
     <string name="topbar_closeVoiceChat">Cerrar chat de voz</string>

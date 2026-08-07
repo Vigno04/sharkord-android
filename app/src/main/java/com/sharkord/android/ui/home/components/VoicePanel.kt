@@ -321,7 +321,7 @@ val colors = SharkordTheme.colors
                                 modifier = Modifier.padding(horizontal = 4.dp)
                             )
                         },
-                        text = { Text("Auto", color = colors.foregroundText) },
+                        text = { Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.voice_autoBitrate), color = colors.foregroundText) },
                         onClick = {
                             selectedOutputDeviceId = null
                             showOutputDropdown = false
@@ -397,7 +397,7 @@ val colors = SharkordTheme.colors
                                 modifier = Modifier.padding(horizontal = 4.dp)
                             )
                         },
-                        text = { Text("Auto", color = colors.foregroundText) },
+                        text = { Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.voice_autoBitrate), color = colors.foregroundText) },
                         onClick = {
                             selectedInputDeviceId = null
                             showInputDropdown = false
@@ -726,7 +726,7 @@ val colors = SharkordTheme.colors
                                 modifier = Modifier.padding(horizontal = 4.dp)
                             )
                         },
-                        text = { Text("Auto", color = colors.foregroundText) },
+                        text = { Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.voice_autoBitrate), color = colors.foregroundText) },
                         onClick = {
                             selectedOutputDeviceId = null
                             showOutputDropdown = false
@@ -802,7 +802,7 @@ val colors = SharkordTheme.colors
                                 modifier = Modifier.padding(horizontal = 4.dp)
                             )
                         },
-                        text = { Text("Auto", color = colors.foregroundText) },
+                        text = { Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.voice_autoBitrate), color = colors.foregroundText) },
                         onClick = {
                             selectedInputDeviceId = null
                             showInputDropdown = false
@@ -1050,9 +1050,9 @@ val colors = SharkordTheme.colors
                     if (isConnectingToVoice) {
                         CircularProgressIndicator(color = SharkordTheme.colors.foregroundText, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Connecting...", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.sidebar_voiceConnecting), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     } else {
-                        Text("Join Voice", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.voice_joinVoice), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }

@@ -201,8 +201,8 @@ class VoiceService : Service() {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Connesso alla chat vocale")
-            .setContentText("Tocca per tornare alla chiamata\n$currentChannelName")
-            .setStyle(NotificationCompat.BigTextStyle().bigText("Tocca per tornare alla chiamata\n$currentChannelName"))
+            .setContentText(getString(com.sharkord.android.R.string.voice_tapToReturn, currentChannelName))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(getString(com.sharkord.android.R.string.voice_tapToReturn, currentChannelName)))
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentIntent(pendingIntent)
             .addAction(0, "Disconnetti", stopPendingIntent)
