@@ -773,7 +773,7 @@ class HomeViewModel : ViewModel() {
 
     fun performSearch() {
         val query = _uiState.value.searchQuery.trim()
-        if (query.isEmpty()) {
+        if (query.length < 2) {
             _uiState.update { it.copy(searchResults = null, isSearching = false) }
             return
         }

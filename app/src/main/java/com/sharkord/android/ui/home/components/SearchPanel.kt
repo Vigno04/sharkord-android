@@ -16,6 +16,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 import com.sharkord.android.data.model.UnifiedSearchResult
 import com.sharkord.android.data.model.UnifiedMessageResult
@@ -44,7 +49,11 @@ import com.sharkord.android.data.model.User
 import com.sharkord.android.data.network.SharkordClient
 import com.sharkord.android.ui.components.AsyncImageState
 import com.sharkord.android.ui.components.rememberAsyncImageState
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun SearchPanel(
     searchQuery: String,
@@ -58,10 +67,19 @@ fun SearchPanel(
     bgColor: Color,
     cardColor: Color,
     primaryText: Color,
-    foregroundText: Color
+    foregroundText: Color,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
+    var isDismissingInstantly by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+
+    var isReady by remember { mutableStateOf(false) }
+    val contentOffset by animateDpAsState(
+        targetValue = if (isReady) 0.dp else 0.dp, // Reset offset because sharedElement handles movement
+        animationSpec = tween(durationMillis = 300)
+    )
 
     // debounce logic
     LaunchedEffect(searchQuery) {
@@ -72,6 +90,7 @@ fun SearchPanel(
     }
 
     LaunchedEffect(Unit) {
+        isReady = true
         // small delay to ensure the bottom sheet is fully composed and
         // animated into view before requesting focus and showing the keyboard
         delay(100)
@@ -86,8 +105,14 @@ fun SearchPanel(
             .fillMaxSize()
             .background(bgColor)
             .systemBarsPadding()
+            .imePadding()
     ) {
-        // header / Search Bar
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .offset(y = contentOffset)
+        ) {
+            // header / Search Bar
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -101,6 +126,18 @@ fun SearchPanel(
                     onValueChange = onQueryChange,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .then(
+                            if (sharedTransitionScope != null && animatedVisibilityScope != null && !isDismissingInstantly) {
+                                with(sharedTransitionScope) {
+                                    Modifier.sharedElement(
+                                        sharedContentState = rememberSharedContentState(key = "search_bar"),
+                                        animatedVisibilityScope = animatedVisibilityScope
+                                    )
+                                }
+                            } else {
+                                Modifier
+                            }
+                        )
                         .focusRequester(focusRequester),
                     placeholder = { Text(stringResource(R.string.topbar_searchContent), color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f)) },
                     singleLine = true,
@@ -133,7 +170,7 @@ fun SearchPanel(
             }
 
             // results
-            Box(modifier = Modifier.weight(1f)) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 if (isSearching && searchResults == null) {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center),
@@ -163,6 +200,8 @@ fun SearchPanel(
                                         is UnifiedMessageResult -> result.item.channelId to result.item.id
                                         is UnifiedFileResult -> result.item.channelId to result.item.messageId
                                     }
+                                    keyboardController?.hide()
+                                    isDismissingInstantly = true
                                     onResultClick(cId, mId)
                                 }
                             )
@@ -172,6 +211,7 @@ fun SearchPanel(
             }
         }
     }
+}
 
 @Composable
 fun SearchResultItem(
