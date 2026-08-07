@@ -366,6 +366,11 @@ class VoiceViewModel : ViewModel() {
         
         SharkordClient.voiceEngine.setCameraEnabled(context, newState)
         
+        val serviceIntent = android.content.Intent(context, com.sharkord.android.data.network.VoiceService::class.java).apply {
+            action = com.sharkord.android.data.network.VoiceService.ACTION_UPDATE_CAMERA_STATE
+        }
+        androidx.core.content.ContextCompat.startForegroundService(context, serviceIntent)
+        
         _uiState.value.activeVoiceChannelId?.let { channelId ->
             viewModelScope.launch {
                 try {

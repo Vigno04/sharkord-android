@@ -63,6 +63,7 @@ class VoiceService : Service() {
         const val ACTION_SHOW_OVERLAY = "ACTION_SHOW_OVERLAY"
         const val ACTION_HIDE_OVERLAY = "ACTION_HIDE_OVERLAY"
         const val ACTION_SET_APP_VISIBLE = "ACTION_SET_APP_VISIBLE"
+        const val ACTION_UPDATE_CAMERA_STATE = "ACTION_UPDATE_CAMERA_STATE"
         private const val CHANNEL_ID = "VoiceServiceChannel"
         private const val NOTIFICATION_ID = 1001
     }
@@ -99,7 +100,7 @@ class VoiceService : Service() {
             ACTION_START_SCREEN_SHARE -> {
                 isScreenSharing = true
                 startForegroundService()
-                val mediaProjectionIntent = intent.getParcelableExtra<Intent>("EXTRA_MEDIA_PROJECTION_INTENT")
+                val mediaProjectionIntent = androidx.core.content.IntentCompat.getParcelableExtra(intent, "EXTRA_MEDIA_PROJECTION_INTENT", Intent::class.java)
                 SharkordClient.voiceEngine.setScreenShareEnabled(this, mediaProjectionIntent, true)
             }
             ACTION_STOP_SCREEN_SHARE -> {
@@ -123,6 +124,9 @@ class VoiceService : Service() {
                     checkAndShowOverlayIfNeeded()
                 }
             }
+            ACTION_UPDATE_CAMERA_STATE -> {
+                startForegroundService()
+            }
         }
         return START_NOT_STICKY
     }
@@ -135,7 +139,7 @@ class VoiceService : Service() {
             if (isScreenSharing) {
                 type = type or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
             }
-            if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            if (SharkordClient.isVoiceEngineInitialized && SharkordClient.voiceEngine.videoEngine.cameraEnabled) {
                 type = type or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
             }
             
