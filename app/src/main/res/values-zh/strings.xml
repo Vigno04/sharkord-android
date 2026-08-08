@@ -78,6 +78,8 @@
     <string name="common_swipeLeftForUsers">向左滑动以打开用户列表</string>
     <string name="common_swipeRightForChannels">向右滑动以打开频道列表</string>
     <string name="common_thread">话题</string>
+    <string name="common_toggleParticipants">显示/隐藏参与者</string>
+    <string name="common_unknownChannel">未知频道</string>
     <string name="common_unknownTime">未知时间</string>
     <string name="common_unknownUser">未知用户</string>
     <string name="common_unpinMessage">取消置顶</string>
@@ -264,6 +266,7 @@
     <string name="permissions_serverDescriptions_MANAGE_STORAGE">授予管理存储（如启用或禁用上传）的权限。</string>
     <string name="permissions_serverDescriptions_MANAGE_UPDATES">授予执行更新的权限。</string>
     <string name="permissions_serverDescriptions_MANAGE_USERS">授予管理用户的权限。</string>
+    <string name="permissions_serverDescriptions_MOVE_MEMBERS">授予在语音频道之间移动成员的权限。</string>
     <string name="permissions_serverDescriptions_PIN_MESSAGES">授予置顶消息的权限。</string>
     <string name="permissions_serverDescriptions_REACT_TO_MESSAGES">授予对消息作出反应的权限。</string>
     <string name="permissions_serverDescriptions_SEND_MESSAGES">授予在频道中发送消息的权限。</string>
@@ -285,6 +288,7 @@
     <string name="permissions_server_MANAGE_STORAGE">管理存储</string>
     <string name="permissions_server_MANAGE_UPDATES">管理更新</string>
     <string name="permissions_server_MANAGE_USERS">管理用户</string>
+    <string name="permissions_server_MOVE_MEMBERS">移动成员</string>
     <string name="permissions_server_PIN_MESSAGES">置顶消息</string>
     <string name="permissions_server_REACT_TO_MESSAGES">对消息作出反应</string>
     <string name="permissions_server_SEND_MESSAGES">发送消息</string>
@@ -312,7 +316,6 @@
     <string name="settings_bannedDetailLabel">已封禁</string>
     <string name="settings_bannedDetailValue">是</string>
     <string name="settings_bannedSuccess">用户已成功封禁</string>
-    <string name="settings_bannerColorLabel">横幅颜色</string>
     <string name="settings_bioLabel">个人简介</string>
     <string name="settings_bioPlaceholder">介绍一下自己...</string>
     <string name="settings_cancel">取消</string>
@@ -574,6 +577,7 @@
     <string name="settings_pluginsTitle">插件</string>
     <string name="settings_privateDesc">将此频道的访问权限限制为特定角色和成员。</string>
     <string name="settings_privateLabel">私密</string>
+    <string name="settings_profileColorLabel">个人资料颜色</string>
     <string name="settings_profileDesc">在此处更新您的个人信息和设置。</string>
     <string name="settings_profileTab">个人资料</string>
     <string name="settings_profileTitle">您的个人资料</string>
@@ -737,6 +741,7 @@
     <string name="sidebar_failedDeleteCategory">删除分类失败</string>
     <string name="sidebar_failedDeleteChannel">删除频道失败</string>
     <string name="sidebar_failedLoadDMs">加载私信失败</string>
+    <string name="sidebar_failedMoveUser">移动用户失败</string>
     <string name="sidebar_failedReorderCategories">重新排序分类失败</string>
     <string name="sidebar_failedReorderChannels">重新排序频道失败</string>
     <string name="sidebar_frameRate">帧率：%1$s fps</string>
@@ -778,6 +783,7 @@
     <string name="sidebar_voiceConnecting">连接中...</string>
     <string name="sidebar_voiceDisconnected">已断开</string>
     <string name="sidebar_voiceFailed">连接失败</string>
+    <string name="topbar_alwaysShowVoiceControls">始终显示语音控件</string>
     <string name="topbar_audioControls">音频控制</string>
     <string name="topbar_closeMembersSidebar">关闭成员侧边栏</string>
     <string name="topbar_closeVoiceChat">关闭语音聊天</string>

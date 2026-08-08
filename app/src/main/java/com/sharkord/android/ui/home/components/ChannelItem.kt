@@ -269,7 +269,7 @@ fun ChannelItem(
         ) {
             if (channel.isVoice) {
                 DropdownMenuItem(
-                    text = { Text("Open Chat", color = foregroundText) },
+                    text = { Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.channel_openChat), color = foregroundText) },
                     leadingIcon = { Icon(Icons.Default.ChatBubbleOutline, contentDescription = null, tint = foregroundText) },
                     onClick = {
                         menuExpanded = false
@@ -279,7 +279,7 @@ fun ChannelItem(
             }
             if (canManage) {
                 DropdownMenuItem(
-                    text = { Text("Edit Channel", color = foregroundText) },
+                    text = { Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.channel_editChannel), color = foregroundText) },
                     leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = foregroundText) },
                     onClick = {
                         menuExpanded = false
@@ -287,7 +287,7 @@ fun ChannelItem(
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("Delete Channel", color = Color(0xFFED4245)) },
+                    text = { Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.sidebar_deleteChannelTitle), color = Color(0xFFED4245)) },
                     leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFED4245)) },
                     onClick = {
                         menuExpanded = false

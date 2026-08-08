@@ -107,8 +107,9 @@ val colors = SharkordTheme.colors
     var deviceListTrigger by remember { mutableStateOf(0) }
     var isNear by remember { mutableStateOf(false) }
 
+    var enlargedId by remember { mutableStateOf<String?>(null) }
     var fullscreenTrack by remember { mutableStateOf<VideoTrack?>(null) }
-    val displayItems = remember(voiceUsers, remoteVideoTracks) {
+    val baseDisplayItems = remember(voiceUsers, remoteVideoTracks) {
         val items = mutableListOf<VoiceDisplayItem>()
         voiceUsers.forEach { user ->
             items.add(VoiceDisplayItem.User(user))
@@ -118,6 +119,21 @@ val colors = SharkordTheme.colors
             }
         }
         items.sortedBy { if (it is VoiceDisplayItem.ScreenShare) 1 else 0 }
+    }
+    
+    val displayItems = remember(baseDisplayItems, enlargedId) {
+        if (enlargedId != null) {
+            val item = baseDisplayItems.find { it.id == enlargedId }
+            if (item != null) listOf(item) else baseDisplayItems
+        } else {
+            baseDisplayItems
+        }
+    }
+    
+    LaunchedEffect(baseDisplayItems) {
+        if (enlargedId != null && baseDisplayItems.none { it.id == enlargedId }) {
+            enlargedId = null
+        }
     }
     DisposableEffect(isConnected) {
         if (!isConnected) return@DisposableEffect onDispose {}
@@ -321,7 +337,7 @@ val colors = SharkordTheme.colors
                                 modifier = Modifier.padding(horizontal = 4.dp)
                             )
                         },
-                        text = { Text("Auto", color = colors.foregroundText) },
+                        text = { Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.voice_autoBitrate), color = colors.foregroundText) },
                         onClick = {
                             selectedOutputDeviceId = null
                             showOutputDropdown = false
@@ -397,7 +413,7 @@ val colors = SharkordTheme.colors
                                 modifier = Modifier.padding(horizontal = 4.dp)
                             )
                         },
-                        text = { Text("Auto", color = colors.foregroundText) },
+                        text = { Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.voice_autoBitrate), color = colors.foregroundText) },
                         onClick = {
                             selectedInputDeviceId = null
                             showInputDropdown = false
@@ -539,6 +555,10 @@ val colors = SharkordTheme.colors
                                 eglBaseContext = eglBaseContext,
                                 colors = colors,
                                 isConnected = isConnected,
+                                isEnlarged = enlargedId == displayItems[index].id,
+                                onEnlargeClick = { id -> 
+                                    enlargedId = if (enlargedId == id) null else id
+                                },
                                 onFullscreenClick = { track -> fullscreenTrack = track }
                             )
                         }
@@ -726,7 +746,7 @@ val colors = SharkordTheme.colors
                                 modifier = Modifier.padding(horizontal = 4.dp)
                             )
                         },
-                        text = { Text("Auto", color = colors.foregroundText) },
+                        text = { Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.voice_autoBitrate), color = colors.foregroundText) },
                         onClick = {
                             selectedOutputDeviceId = null
                             showOutputDropdown = false
@@ -802,7 +822,7 @@ val colors = SharkordTheme.colors
                                 modifier = Modifier.padding(horizontal = 4.dp)
                             )
                         },
-                        text = { Text("Auto", color = colors.foregroundText) },
+                        text = { Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.voice_autoBitrate), color = colors.foregroundText) },
                         onClick = {
                             selectedInputDeviceId = null
                             showInputDropdown = false
@@ -944,6 +964,10 @@ val colors = SharkordTheme.colors
                                 eglBaseContext = eglBaseContext,
                                 colors = colors,
                                 isConnected = isConnected,
+                                isEnlarged = enlargedId == displayItems[index].id,
+                                onEnlargeClick = { id -> 
+                                    enlargedId = if (enlargedId == id) null else id
+                                },
                                 onFullscreenClick = { track -> fullscreenTrack = track }
                             )
                         }
@@ -1050,9 +1074,9 @@ val colors = SharkordTheme.colors
                     if (isConnectingToVoice) {
                         CircularProgressIndicator(color = SharkordTheme.colors.foregroundText, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Connecting...", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.sidebar_voiceConnecting), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     } else {
-                        Text("Join Voice", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.voice_joinVoice), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }

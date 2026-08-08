@@ -60,7 +60,7 @@ import kotlinx.coroutines.launch
 /** Tolerance in px used to detect when the voice panel is fully covering the chat pane. */
 private const val VOICE_FULLSCREEN_THRESHOLD_PX = 10f
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
 fun HomeScreen(
     onLogout: () -> Unit,
@@ -130,7 +130,9 @@ fun HomeScreen(
             }
 
             uiState.serverData != null -> {
-                val data = uiState.serverData!!
+                androidx.compose.animation.SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
+                    val sharedTransitionScope = this
+                    val data = uiState.serverData!!
 
                 val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
                 val density = LocalDensity.current
@@ -154,16 +156,22 @@ fun HomeScreen(
                         HomePanel.SERVER_LIST -> {
                             keyboardController?.hide()
                             dmsSwipeOffset.snapTo(0f)
+                            serverSwipeOffset.animateTo(0f)
                         }
                         HomePanel.DMS_LIST -> {
                             keyboardController?.hide()
                             serverSwipeOffset.snapTo(0f)
+                            dmsSwipeOffset.animateTo(0f)
                         }
                         HomePanel.SERVER_CHAT -> {
                             dmsSwipeOffset.snapTo(-screenWidthPx)
+                            val target = if (isTablet && !uiState.isChatFullScreen) splitOffset else -screenWidthPx
+                            serverSwipeOffset.animateTo(target)
                         }
                         HomePanel.DM_CHAT -> {
                             serverSwipeOffset.snapTo(-screenWidthPx)
+                            val target = if (isTablet && !uiState.isChatFullScreen) splitOffset else -screenWidthPx
+                            dmsSwipeOffset.animateTo(target)
                         }
                     }
                 }
@@ -786,8 +794,8 @@ fun HomeScreen(
                                     )
                                 }
                                 .pointerInput(uiState.activePanel, isTablet, isCurrentDmChannelVoice) {
-                            if (uiState.activePanel == HomePanel.DMS_LIST || (isTablet && uiState.activePanel == HomePanel.DM_CHAT && !isCurrentDmChannelVoice)) {
-                                var totalDrag = 0f
+                                    if (uiState.activePanel == HomePanel.DMS_LIST || (isTablet && uiState.activePanel == HomePanel.DM_CHAT && !isCurrentDmChannelVoice)) {
+                                        var totalDrag = 0f
                                         detectHorizontalDragGestures(
                                             onDragEnd = {
                                                 handleDragEnd(dmsSwipeOffset, totalDrag, true)
@@ -1016,18 +1024,26 @@ fun HomeScreen(
                             item {
                                 val totalUnreadDMs = dmChannels.sumOf { uiState.readStates[it.id] ?: 0 }
 
-                                ServerHeader(
-                                    serverName = data.serverName,
-                                    memberCount = data.users.size,
-                                    cardColor = cardColor,
-                                    foregroundText = foregroundText,
-                                    onSearchClick = { viewModel.showSearchSheet() },
-                                    onDirectMessagesClick = { viewModel.openDmsList() },
-                                    onServerClick = { viewModel.showServerSheet() },
-                                    isServerSheetOpen = uiState.showServerSheet,
-                                    totalUnreadDMs = totalUnreadDMs,
-                                    isDmsListSelected = uiState.isDmsListSelected
-                                )
+                                androidx.compose.animation.AnimatedVisibility(
+                                    visible = !uiState.showSearchSheet,
+                                    enter = androidx.compose.animation.fadeIn(),
+                                    exit = androidx.compose.animation.fadeOut()
+                                ) {
+                                    ServerHeader(
+                                        serverName = data.serverName,
+                                        memberCount = data.users.size,
+                                        cardColor = cardColor,
+                                        foregroundText = foregroundText,
+                                        onSearchClick = { viewModel.showSearchSheet() },
+                                        onDirectMessagesClick = { viewModel.openDmsList() },
+                                        onServerClick = { viewModel.showServerSheet() },
+                                        isServerSheetOpen = uiState.showServerSheet,
+                                        totalUnreadDMs = totalUnreadDMs,
+                                        isDmsListSelected = uiState.isDmsListSelected,
+                                        sharedTransitionScope = sharedTransitionScope,
+                                        animatedVisibilityScope = this@AnimatedVisibility
+                                    )
+                                }
                             }
 
                             // uncategorized Channels
@@ -1140,9 +1156,13 @@ fun HomeScreen(
                 // profile Bottom Sheet
                 if (uiState.profileSheetUserId != null) {
                     val profileUser = data.users.find { it.id == uiState.profileSheetUserId } ?: if (uiState.profileSheetUserId == data.ownUserId) currentUser else null
+                    val currentUserRoles = data.roles?.filter { role -> currentUser?.roleIds?.contains(role.id) == true } ?: emptyList()
+                    val userPermissions = currentUserRoles.flatMap { it.permissions }.map { it.uppercase() }.toSet()
+                    val hasManageUsers = data.ownUserId == 1 || userPermissions.contains("MANAGE_USERS")
+
                     ProfileBottomSheet(
                         currentUser = profileUser,
-                        userName = userName,
+                        userName = profileUser?.name ?: "Unknown",
                         ownUserId = data.ownUserId,
                         serverName = data.serverName,
                         serverId = data.serverId,
@@ -1161,7 +1181,26 @@ fun HomeScreen(
                             viewModel.dismissProfileSheet()
                             onNavigateToSettings()
                         },
-                        roles = data.roles ?: emptyList()
+                        roles = data.roles ?: emptyList(),
+                        onChatPrivatelyClick = {
+                            viewModel.dismissProfileSheet()
+                            profileUser?.id?.let { userId ->
+                                viewModel.openDirectMessage(userId)
+                            }
+                        },
+                        hasManageUsers = hasManageUsers,
+                        onKickClick = {
+                            profileUser?.id?.let { userId ->
+                                viewModel.kickUser(userId)
+                            }
+                            viewModel.dismissProfileSheet()
+                        },
+                        onBanClick = {
+                            profileUser?.id?.let { userId ->
+                                viewModel.banUser(userId)
+                            }
+                            viewModel.dismissProfileSheet()
+                        }
                     )
                 }
 
@@ -1280,15 +1319,21 @@ fun HomeScreen(
                 }
 
                 // search Panel
+                val currentSearchQuery = uiState.searchQuery
+                val currentIsSearching = uiState.isSearching
+                val currentSearchResults = uiState.searchResults
+                val showSearchSheet = uiState.showSearchSheet
+
                 androidx.compose.animation.AnimatedVisibility(
-                    visible = uiState.showSearchSheet,
-                    enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { it },
-                    exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.slideOutVertically { it }
+                    visible = showSearchSheet,
+                    modifier = Modifier.zIndex(2f),
+                    enter = androidx.compose.animation.fadeIn(),
+                    exit = androidx.compose.animation.fadeOut()
                 ) {
                     SearchPanel(
-                        searchQuery = uiState.searchQuery,
-                        isSearching = uiState.isSearching,
-                        searchResults = uiState.searchResults,
+                        searchQuery = currentSearchQuery,
+                        isSearching = currentIsSearching,
+                        searchResults = currentSearchResults,
                         users = data.users,
                         onQueryChange = { viewModel.setSearchQuery(it) },
                         onSearchTrigger = { viewModel.performSearch() },
@@ -1300,9 +1345,12 @@ fun HomeScreen(
                         bgColor = bgColor,
                         cardColor = cardColor,
                         primaryText = primaryText,
-                        foregroundText = foregroundText
+                        foregroundText = foregroundText,
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = this@AnimatedVisibility
                     )
                 }
+                } // closes SharedTransitionLayout
             } // closes uiState.serverData != null
         } // closes when
     } // closes Box(78)

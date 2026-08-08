@@ -26,7 +26,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharkord.android.R
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
+
 // top Server Header, including search bar and Direct Messages trigger
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun ServerHeader(
     serverName: String,
@@ -39,7 +44,9 @@ fun ServerHeader(
     onServerClick: () -> Unit = {},
     isServerSheetOpen: Boolean = false,
     totalUnreadDMs: Int = 0,
-    isDmsListSelected: Boolean = false
+    isDmsListSelected: Boolean = false,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     // stack the header, search bar, and direct message bar vertically
     Column(
@@ -100,6 +107,16 @@ fun ServerHeader(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .run {
+                    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                        with(sharedTransitionScope) {
+                            sharedElement(
+                                sharedContentState = rememberSharedContentState(key = "search_bar"),
+                                animatedVisibilityScope = animatedVisibilityScope
+                            )
+                        }
+                    } else this
+                }
                 .clip(RoundedCornerShape(24.dp))
                 .background(cardColor)
                 .clickable { onSearchClick() } // Triggers search when clicked (to implement)

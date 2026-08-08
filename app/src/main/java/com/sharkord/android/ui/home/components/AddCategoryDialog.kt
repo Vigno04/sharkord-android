@@ -52,7 +52,7 @@ fun AddCategoryDialog(
                 OutlinedTextField(
                     value = categoryName,
                     onValueChange = { categoryName = it },
-                    placeholder = { Text("new-category", color = primaryText.copy(alpha = 0.5f)) },
+                    placeholder = { Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.category_newName), color = primaryText.copy(alpha = 0.5f)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 24.dp),
@@ -76,7 +76,7 @@ fun AddCategoryDialog(
                         onClick = onDismissRequest,
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
-                        Text("Cancel", color = primaryText)
+                        Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_cancel), color = primaryText)
                     }
                     Button(
                         onClick = {
@@ -90,7 +90,7 @@ fun AddCategoryDialog(
                         ),
                         enabled = categoryName.isNotBlank()
                     ) {
-                        Text("Create", color = SharkordTheme.colors.foregroundText)
+                        Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.common_create), color = SharkordTheme.colors.foregroundText)
                     }
                 }
             }

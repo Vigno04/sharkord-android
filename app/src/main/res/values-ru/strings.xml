@@ -78,6 +78,8 @@
     <string name="common_swipeLeftForUsers">Проведите влево для открытия списка пользователей</string>
     <string name="common_swipeRightForChannels">Проведите вправо для открытия списка каналов</string>
     <string name="common_thread">Ветка</string>
+    <string name="common_toggleParticipants">Показать/скрыть участников</string>
+    <string name="common_unknownChannel">Неизвестный канал</string>
     <string name="common_unknownTime">Время неизвестно</string>
     <string name="common_unknownUser">Неизвестный пользователь</string>
     <string name="common_unpinMessage">Открепить сообщение</string>
@@ -265,6 +267,7 @@
     <string name="permissions_serverDescriptions_MANAGE_STORAGE">Предоставляет возможность управлять хранилищем, например включать или отключать загрузку.</string>
     <string name="permissions_serverDescriptions_MANAGE_UPDATES">Предоставляет возможность выполнять обновления.</string>
     <string name="permissions_serverDescriptions_MANAGE_USERS">Предоставляет возможность управлять пользователями.</string>
+    <string name="permissions_serverDescriptions_MOVE_MEMBERS">Предоставляет возможность перемещать участников между голосовыми каналами.</string>
     <string name="permissions_serverDescriptions_PIN_MESSAGES">Предоставляет возможность закреплять сообщения.</string>
     <string name="permissions_serverDescriptions_REACT_TO_MESSAGES">Предоставляет возможность реагировать на сообщения.</string>
     <string name="permissions_serverDescriptions_SEND_MESSAGES">Предоставляет возможность отправлять сообщения в каналах.</string>
@@ -287,6 +290,7 @@
     <string name="permissions_server_MANAGE_STORAGE">Управление хранилищем</string>
     <string name="permissions_server_MANAGE_UPDATES">Управление обновлениями</string>
     <string name="permissions_server_MANAGE_USERS">Управление пользователями</string>
+    <string name="permissions_server_MOVE_MEMBERS">Перемещение участников</string>
     <string name="permissions_server_PIN_MESSAGES">Закреплять сообщения</string>
     <string name="permissions_server_REACT_TO_MESSAGES">Реагировать на сообщения</string>
     <string name="permissions_server_SEND_MESSAGES">Отправлять сообщения</string>
@@ -314,7 +318,6 @@
     <string name="settings_bannedDetailLabel">Заблокирован(а)</string>
     <string name="settings_bannedDetailValue">Да</string>
     <string name="settings_bannedSuccess">Пользователь успешно заблокирован</string>
-    <string name="settings_bannerColorLabel">Цвет баннера</string>
     <string name="settings_bioLabel">Био</string>
     <string name="settings_bioPlaceholder">Расскажите о себе...</string>
     <string name="settings_cancel">Отмена</string>
@@ -580,6 +583,7 @@
     <string name="settings_pluginsTitle">Плагины</string>
     <string name="settings_privateDesc">Ограничивает доступ к этому каналу определенными ролями и участниками.</string>
     <string name="settings_privateLabel">Приватный</string>
+    <string name="settings_profileColorLabel">Цвет профиля</string>
     <string name="settings_profileDesc">Обновите здесь свою личную информацию и настройки.</string>
     <string name="settings_profileTab">Профиль</string>
     <string name="settings_profileTitle">Ваш профиль</string>
@@ -748,6 +752,7 @@
     <string name="sidebar_failedDeleteCategory">Не удалось удалить категорию</string>
     <string name="sidebar_failedDeleteChannel">Не удалось удалить канал</string>
     <string name="sidebar_failedLoadDMs">Не удалось загрузить личные сообщения</string>
+    <string name="sidebar_failedMoveUser">Не удалось переместить пользователя</string>
     <string name="sidebar_failedReorderCategories">Не удалось изменить порядок категорий</string>
     <string name="sidebar_failedReorderChannels">Не удалось изменить порядок каналов</string>
     <string name="sidebar_frameRate">Частота кадров: %1$s fps</string>
@@ -789,6 +794,7 @@
     <string name="sidebar_voiceConnecting">Подключение...</string>
     <string name="sidebar_voiceDisconnected">Отключено</string>
     <string name="sidebar_voiceFailed">Соединение не удалось</string>
+    <string name="topbar_alwaysShowVoiceControls">Всегда показывать управление голосом</string>
     <string name="topbar_audioControls">Управление аудио</string>
     <string name="topbar_closeMembersSidebar">Закрыть боковую панель участников</string>
     <string name="topbar_closeVoiceChat">Закрыть голосовой чат</string>

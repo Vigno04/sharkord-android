@@ -78,6 +78,8 @@
     <string name="common_swipeLeftForUsers">Přejetím doleva otevřete seznam uživatelů</string>
     <string name="common_swipeRightForChannels">Přejetím doprava otevřete seznam kanálů</string>
     <string name="common_thread">Vlákno</string>
+    <string name="common_toggleParticipants">Zobrazit/skrýt účastníky</string>
+    <string name="common_unknownChannel">Neznámý kanál</string>
     <string name="common_unknownTime">Neznámý čas</string>
     <string name="common_unknownUser">Neznámý uživatel</string>
     <string name="common_unpinMessage">Odepnout zprávu</string>
@@ -264,6 +266,7 @@
     <string name="permissions_serverDescriptions_MANAGE_STORAGE">Umožňuje spravovat úložiště, jako například povolení a zakázání nahrávání příloh.</string>
     <string name="permissions_serverDescriptions_MANAGE_UPDATES">Umožňuje spravovat aktualizace.</string>
     <string name="permissions_serverDescriptions_MANAGE_USERS">Umožňuje spravovat uživatele.</string>
+    <string name="permissions_serverDescriptions_MOVE_MEMBERS">Umožňuje přesouvat členy mezi hlasovými kanály.</string>
     <string name="permissions_serverDescriptions_PIN_MESSAGES">Umožňuje připínat zprávy.</string>
     <string name="permissions_serverDescriptions_REACT_TO_MESSAGES">Umožňuje reagovat na zprávy.</string>
     <string name="permissions_serverDescriptions_SEND_MESSAGES">Umožňuje posílat zprávy do kanálů.</string>
@@ -285,6 +288,7 @@
     <string name="permissions_server_MANAGE_STORAGE">Spravovat úložiště</string>
     <string name="permissions_server_MANAGE_UPDATES">Spravovat aktualizace</string>
     <string name="permissions_server_MANAGE_USERS">Spravovat uživatele</string>
+    <string name="permissions_server_MOVE_MEMBERS">Přesouvat členy</string>
     <string name="permissions_server_PIN_MESSAGES">Připínat zprávy</string>
     <string name="permissions_server_REACT_TO_MESSAGES">Reagovat na zprávy</string>
     <string name="permissions_server_SEND_MESSAGES">Posílat zprávy</string>
@@ -312,7 +316,6 @@
     <string name="settings_bannedDetailLabel">Zablokován</string>
     <string name="settings_bannedDetailValue">Ano</string>
     <string name="settings_bannedSuccess">Uživatel byl úspěšně zablokován</string>
-    <string name="settings_bannerColorLabel">Barva banneru</string>
     <string name="settings_bioLabel">Bio</string>
     <string name="settings_bioPlaceholder">Řekněte něco o sobě...</string>
     <string name="settings_cancel">Zrušit</string>
@@ -574,6 +577,7 @@
     <string name="settings_pluginsTitle">Rozšíření</string>
     <string name="settings_privateDesc">Omezuje přístup k tomuto kanálu na konkrétní role a členy.</string>
     <string name="settings_privateLabel">Soukromý</string>
+    <string name="settings_profileColorLabel">Barva profilu</string>
     <string name="settings_profileDesc">Zde můžete upravit své osobní informace a nastavení.</string>
     <string name="settings_profileTab">Profil</string>
     <string name="settings_profileTitle">Váš profil</string>
@@ -737,6 +741,7 @@
     <string name="sidebar_failedDeleteCategory">Kategorii se odstranit nepodařilo</string>
     <string name="sidebar_failedDeleteChannel">Kanál se odstranit nepodařilo</string>
     <string name="sidebar_failedLoadDMs">Nepodařilo se načíst přímé zprávy</string>
+    <string name="sidebar_failedMoveUser">Nepodařilo se přesunout uživatele</string>
     <string name="sidebar_failedReorderCategories">Nepodařilo se změnit pořadí kategorií</string>
     <string name="sidebar_failedReorderChannels">Nepodařilo se změnit pořadí kanálů</string>
     <string name="sidebar_frameRate">Snímková frekvence: %1$s fps</string>
@@ -778,6 +783,7 @@
     <string name="sidebar_voiceConnecting">Připojování...</string>
     <string name="sidebar_voiceDisconnected">Odpojeno</string>
     <string name="sidebar_voiceFailed">Připojení selhalo</string>
+    <string name="topbar_alwaysShowVoiceControls">Vždy zobrazovat ovládání hlasu</string>
     <string name="topbar_audioControls">Ovládání zvuku</string>
     <string name="topbar_closeMembersSidebar">Zavřít seznam členů</string>
     <string name="topbar_closeVoiceChat">Zavřít hlasový chat</string>

@@ -63,7 +63,29 @@ fun ServerProfileBottomSheet(
                     .fillMaxWidth()
                     .height(120.dp)
                     .background(cardColor)
-            )
+            ) {
+                val bannerPainter = com.sharkord.android.ui.components.rememberAsyncImagePainter(SharkordClient.currentServerLogoUrl)
+                if (bannerPainter != null) {
+                    Image(
+                        painter = bannerPainter,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    // gradient overlay at the bottom so text is readable
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp)
+                            .align(Alignment.BottomCenter)
+                            .background(
+                                androidx.compose.ui.graphics.Brush.verticalGradient(
+                                    colors = listOf(Color.Transparent, bgColor)
+                                )
+                            )
+                    )
+                }
+            }
 
             // server Info Section
             Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {

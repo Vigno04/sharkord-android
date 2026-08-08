@@ -279,27 +279,27 @@ fun DiskMetricsCard(
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Total Space", color = primaryText, fontSize = 14.sp)
+                Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_totalSpace), color = primaryText, fontSize = 14.sp)
                 Text(formatSize(diskMetrics.totalSpace), color = foregroundText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
             Column(modifier = Modifier.weight(1f)) {
-                Text("Available Space", color = primaryText, fontSize = 14.sp)
+                Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_diskAvailableSpace), color = primaryText, fontSize = 14.sp)
                 Text(formatSize(diskMetrics.freeSpace), color = foregroundText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("System Used", color = primaryText, fontSize = 14.sp)
+                Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_diskSystemUsed), color = primaryText, fontSize = 14.sp)
                 Text(formatSize(diskMetrics.usedSpace), color = foregroundText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
             Column(modifier = Modifier.weight(1f)) {
-                Text("Sharkord Used", color = primaryText, fontSize = 14.sp)
+                Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_diskSharkordUsed), color = primaryText, fontSize = 14.sp)
                 Text(formatSize(diskMetrics.sharkordUsedSpace), color = foregroundText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Disk Usage", color = primaryText, fontSize = 14.sp)
+        Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_diskUsage), color = primaryText, fontSize = 14.sp)
         Spacer(modifier = Modifier.height(8.dp))
         val usagePercent = if (diskMetrics.totalSpace > 0) {
             (diskMetrics.usedSpace.toFloat() / diskMetrics.totalSpace.toFloat()).coerceIn(0f, 1f)

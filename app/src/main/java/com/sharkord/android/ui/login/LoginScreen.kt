@@ -163,16 +163,16 @@ fun LoginScreen(
     if (viewModel.showBiometricSavePrompt) {
         AlertDialog(
             onDismissRequest = { viewModel.onBiometricSaveAnswer(false) },
-            title = { Text("Abilita Impronta Digitale", color = foregroundText) },
-            text = { Text("Vuoi accedere a Sharkord con l'impronta digitale la prossima volta?", color = primaryText) },
+            title = { Text(stringResource(R.string.login_biometricSaveTitle), color = foregroundText) },
+            text = { Text(stringResource(R.string.login_biometricSaveSubtitle), color = primaryText) },
             confirmButton = {
                 TextButton(onClick = { viewModel.onBiometricSaveAnswer(true) }) {
-                    Text("Sì", color = accentColor)
+                    Text(stringResource(R.string.common_yes), color = accentColor)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.onBiometricSaveAnswer(false) }) {
-                    Text("No", color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f))
+                    Text(stringResource(R.string.common_no), color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f))
                 }
             },
             containerColor = cardColor

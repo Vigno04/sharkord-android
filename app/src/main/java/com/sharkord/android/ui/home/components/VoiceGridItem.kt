@@ -13,6 +13,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.HeadsetOff
 import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.OpenInFull
+import androidx.compose.material.icons.filled.CloseFullscreen
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -69,7 +71,9 @@ fun VoiceGridItem(
     eglBaseContext: EglBase.Context,
     colors: SharkordColors,
     isConnected: Boolean,
+    isEnlarged: Boolean = false,
     modifier: Modifier = Modifier,
+    onEnlargeClick: ((String) -> Unit)? = null,
     onFullscreenClick: ((VideoTrack) -> Unit)? = null
 ) {
     val voiceUser = displayItem.voiceUser
@@ -82,32 +86,34 @@ fun VoiceGridItem(
     val borderWidth by animateDpAsState(targetValue = if (displayItem.isSpeaking) 3.dp else defaultBorderWidth)
     val borderColor = if (displayItem.isSpeaking) Color.Green else defaultBorderColor
     
+    val hasVideo = when (displayItem) {
+        is VoiceDisplayItem.User -> voiceUser.state.webcamEnabled
+        is VoiceDisplayItem.ScreenShare -> true
+    }
+    val videoTrack = when (displayItem) {
+        is VoiceDisplayItem.User -> {
+            if (ownUserId != null && voiceUser.user.id == ownUserId) {
+                localVideoTrack
+            } else {
+                remoteVideoTracks["${voiceUser.user.id}:video"]
+            }
+        }
+        is VoiceDisplayItem.ScreenShare -> displayItem.track
+    }
+
     Box(
         modifier = modifier
             .height(itemHeight)
             .clip(RoundedCornerShape(16.dp))
             .background(colors.cardColor, RoundedCornerShape(16.dp))
             .border(borderWidth, borderColor, RoundedCornerShape(16.dp))
-            .clickable(enabled = !isScreenShare) { isZoomedOut = !isZoomedOut },
+            .clickable(enabled = !isScreenShare) {
+                isZoomedOut = !isZoomedOut
+            },
         contentAlignment = Alignment.Center
     ) {
         val avatarUrl = com.sharkord.android.data.network.SharkordClient.getFileUrl(voiceUser.user.avatar)
         val avatarPainter = rememberAsyncImagePainter(avatarUrl, fallbackResourceId = null)
-
-        val hasVideo = when (displayItem) {
-            is VoiceDisplayItem.User -> voiceUser.state.webcamEnabled
-            is VoiceDisplayItem.ScreenShare -> true
-        }
-        val videoTrack = when (displayItem) {
-            is VoiceDisplayItem.User -> {
-                if (ownUserId != null && voiceUser.user.id == ownUserId) {
-                    localVideoTrack
-                } else {
-                    remoteVideoTracks["${voiceUser.user.id}:video"]
-                }
-            }
-            is VoiceDisplayItem.ScreenShare -> displayItem.track
-        }
 
         if (hasVideo && videoTrack == null) {
             Box(modifier = Modifier.fillMaxSize()) {
@@ -210,22 +216,48 @@ fun VoiceGridItem(
             }
         }
         
-        if (isScreenShare && videoTrack != null && onFullscreenClick != null) {
-            IconButton(
-                onClick = { onFullscreenClick(videoTrack) },
+        if (isConnected) {
+            Row(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(8.dp)
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.6f))
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(
-                    Icons.Default.Fullscreen,
-                    contentDescription = "Fullscreen",
-                    tint = SharkordTheme.colors.foregroundText,
-                    modifier = Modifier.size(20.dp)
-                )
+                if (onEnlargeClick != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.6f))
+                            .clickable { onEnlargeClick(displayItem.id) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            if (isEnlarged) Icons.Default.CloseFullscreen else Icons.Default.OpenInFull,
+                            contentDescription = if (isEnlarged) "Shrink" else "Enlarge",
+                            tint = SharkordTheme.colors.foregroundText,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+                
+                if (videoTrack != null && onFullscreenClick != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.6f))
+                            .clickable { onFullscreenClick(videoTrack) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Fullscreen,
+                            contentDescription = "Fullscreen",
+                            tint = SharkordTheme.colors.foregroundText,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
         }
     }

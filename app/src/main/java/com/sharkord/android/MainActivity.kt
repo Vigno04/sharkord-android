@@ -105,8 +105,8 @@ class MainActivity : FragmentActivity() {
                         containerColor = SharkordTheme.colors.cardColor,
                         titleContentColor = SharkordTheme.colors.foregroundText,
                         textContentColor = SharkordTheme.colors.primaryText,
-                        title = { androidx.compose.material3.Text("Update Available") },
-                        text = { androidx.compose.material3.Text("Version ${updateInfo!!.latestVersion} is available. Do you want to download it?") },
+                        title = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_updateAvailableTitle)) },
+                        text = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.update_dialogTitle, updateInfo!!.latestVersion)) },
                         confirmButton = {
                             androidx.compose.foundation.layout.Column(
                                 modifier = Modifier.fillMaxWidth(),
@@ -122,14 +122,14 @@ class MainActivity : FragmentActivity() {
                                     },
                                     colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = SharkordTheme.colors.accentColor)
                                 ) {
-                                    androidx.compose.material3.Text("Download")
+                                    androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.update_download))
                                 }
                                 androidx.compose.material3.OutlinedButton(
                                     modifier = Modifier.fillMaxWidth(),
                                     onClick = { showUpdateDialog = false },
                                     border = androidx.compose.foundation.BorderStroke(1.dp, SharkordTheme.colors.primaryText.copy(alpha = 0.5f))
                                 ) {
-                                    androidx.compose.material3.Text("Remind me later", color = SharkordTheme.colors.primaryText)
+                                    androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.update_remindLater), color = SharkordTheme.colors.primaryText)
                                 }
                                 androidx.compose.material3.OutlinedButton(
                                     modifier = Modifier.fillMaxWidth(),
@@ -139,7 +139,7 @@ class MainActivity : FragmentActivity() {
                                     },
                                     border = androidx.compose.foundation.BorderStroke(1.dp, SharkordTheme.colors.primaryText.copy(alpha = 0.5f))
                                 ) {
-                                    androidx.compose.material3.Text("Skip this version", color = SharkordTheme.colors.primaryText)
+                                    androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.update_skipVersion), color = SharkordTheme.colors.primaryText)
                                 }
                                 androidx.compose.material3.OutlinedButton(
                                     modifier = Modifier.fillMaxWidth(),
@@ -149,7 +149,7 @@ class MainActivity : FragmentActivity() {
                                     },
                                     border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Color(0xFFEF4444).copy(alpha = 0.5f))
                                 ) {
-                                    androidx.compose.material3.Text("Never remind me", color = androidx.compose.ui.graphics.Color(0xFFEF4444))
+                                    androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.update_neverRemind), color = androidx.compose.ui.graphics.Color(0xFFEF4444))
                                 }
                             }
                         }

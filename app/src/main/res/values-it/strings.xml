@@ -1,7 +1,15 @@
 <resources>
     <string name="app_name">Sharkord</string>
+    <string name="camera_compressing">Compressing video...</string>
+    <string name="camera_permissionsRequired">Camera and Audio permissions are required.</string>
+    <string name="camera_recording">RECORDING</string>
+    <string name="category_newName">new-category</string>
+    <string name="channel_editChannel">Edit Channel</string>
+    <string name="channel_newName">new-channel</string>
+    <string name="channel_openChat">Open Chat</string>
     <string name="chat_channelBeginning">Questo è l\'inizio del canale #%1$s.</string>
     <string name="chat_channelBeginningShort">Questo è l\'inizio di #%1$s</string>
+    <string name="chat_chatPrivately">Scrivi in privato</string>
     <string name="chat_copyLink">Copia Link</string>
     <string name="chat_downloadFile">Scarica %1$s</string>
     <string name="chat_downloadStarted">Download avviato: %1$s</string>
@@ -42,6 +50,7 @@
     <string name="common_copied">Copiato</string>
     <string name="common_copyDetails">Copia dettagli</string>
     <string name="common_couldNotOpenDM">Impossibile aprire il messaggio diretto</string>
+    <string name="common_create">Create</string>
     <string name="common_createCategory">Crea Categoria</string>
     <string name="common_customTab">Personalizzate</string>
     <string name="common_delete">Elimina</string>
@@ -86,6 +95,7 @@
     <string name="common_messageRenderGithubIssue">Se questo errore persiste, crea una issue su GitHub.</string>
     <string name="common_mobileNotOptimized">Sharkord non e ancora ottimizzato per dispositivi mobili. L\'esperienza non sara ideale.</string>
     <string name="common_moderationView">Vista moderazione</string>
+    <string name="common_no">No</string>
     <string name="common_noCustomEmojis">Nessuna emoji personalizzata disponibile</string>
     <string name="common_noPinnedMessages">Nessun messaggio fissato</string>
     <string name="common_noRepliesYet">Nessuna risposta per ora</string>
@@ -124,8 +134,10 @@
     <string name="common_swipeLeftForUsers">Scorri a sinistra per aprire l\'elenco utenti</string>
     <string name="common_swipeRightForChannels">Scorri a destra per aprire l\'elenco canali</string>
     <string name="common_thread">Thread</string>
+    <string name="common_toggleParticipants">Mostra/nascondi partecipanti</string>
     <string name="common_unban">Sbanna</string>
     <string name="common_unknown">Sconosciuto</string>
+    <string name="common_unknownChannel">Canale sconosciuto</string>
     <string name="common_unknownError">Errore sconosciuto</string>
     <string name="common_unknownFile">File sconosciuto</string>
     <string name="common_unknownTime">Ora sconosciuta</string>
@@ -296,8 +308,13 @@
     <string name="disconnected_lostConnectionMessage">La connessione al server e stata persa in modo imprevisto.</string>
     <string name="disconnected_noReasonProvided">Nessun motivo fornito.</string>
     <string name="disconnected_time">Ora: %1$s</string>
+    <string name="dms_noMessagesYet">No Direct Messages yet.</string>
+    <string name="emoji_enterName">Enter a name for the new emoji (no spaces):</string>
+    <string name="emoji_serverEmojis">SERVER EMOJIS</string>
     <string name="login_biometricLoginSubtitle">Usa l\'impronta per accedere a Sharkord</string>
     <string name="login_biometricLoginTitle">Accedi con Impronta</string>
+    <string name="login_biometricSaveSubtitle">Do you want to enable fingerprint login?</string>
+    <string name="login_biometricSaveTitle">Enable Fingerprint</string>
     <string name="login_biometricUnlockSubtitle">Conferma l\'identità per aprire Sharkord</string>
     <string name="login_biometricUnlockTitle">Sblocco Applicazione</string>
     <string name="notification_channel_desc">Notifiche per i nuovi messaggi</string>
@@ -335,6 +352,7 @@
     <string name="permissions_serverDescriptions_MANAGE_STORAGE">Concede la possibilita di gestire l\'archiviazione, ad esempio abilitando o disabilitando gli upload.</string>
     <string name="permissions_serverDescriptions_MANAGE_UPDATES">Concede la possibilita di eseguire aggiornamenti.</string>
     <string name="permissions_serverDescriptions_MANAGE_USERS">Concede la possibilita di gestire gli utenti.</string>
+    <string name="permissions_serverDescriptions_MOVE_MEMBERS">Concede la possibilita di spostare i membri tra i canali vocali.</string>
     <string name="permissions_serverDescriptions_PIN_MESSAGES">Concede la possibilita di fissare messaggi.</string>
     <string name="permissions_serverDescriptions_REACT_TO_MESSAGES">Concede la possibilita di reagire ai messaggi.</string>
     <string name="permissions_serverDescriptions_SEND_MESSAGES">Concede la possibilita di inviare messaggi nei canali.</string>
@@ -356,6 +374,7 @@
     <string name="permissions_server_MANAGE_STORAGE">Gestire archiviazione</string>
     <string name="permissions_server_MANAGE_UPDATES">Gestire aggiornamenti</string>
     <string name="permissions_server_MANAGE_USERS">Gestire utenti</string>
+    <string name="permissions_server_MOVE_MEMBERS">Spostare membri</string>
     <string name="permissions_server_PIN_MESSAGES">Fissare messaggi</string>
     <string name="permissions_server_REACT_TO_MESSAGES">Reagire ai messaggi</string>
     <string name="permissions_server_SEND_MESSAGES">Inviare messaggi</string>
@@ -363,6 +382,9 @@
     <string name="permissions_server_UPLOAD_FILES">Caricare file</string>
     <string name="permissions_server_USE_PLUGINS">Usare plugin</string>
     <string name="permissions_server_VIEW_USER_SENSITIVE_DATA">Vedere dati sensibili utente</string>
+    <string name="profile_banUser">Banna Utente</string>
+    <string name="profile_kickUser">Espelli Utente</string>
+    <string name="profile_moderationTitle">Moderazione</string>
     <string name="profile_show_members">Mostra membri</string>
     <string name="profile_user_settings_title">Profilo Utente e Impostazioni</string>
     <string name="settings_activityFiles">File</string>
@@ -385,6 +407,7 @@
     <string name="settings_autoJoinLastChannelDesc">Ricollegati automaticamente all\'ultimo canale testuale alla connessione.</string>
     <string name="settings_autoJoinLastChannelLabel">Rientra automaticamente nell\'ultimo canale</string>
     <string name="settings_backCameraSettings">Impostazioni fotocamera posteriore</string>
+    <string name="settings_backgroundSyncPull">BACKGROUND SYNC (PULL)</string>
     <string name="settings_banBtn">Banna</string>
     <string name="settings_banConfirm">Banna</string>
     <string name="settings_banMsg">Fornisci un motivo per il ban (opzionale).</string>
@@ -395,7 +418,8 @@
     <string name="settings_bannedDetailLabel">Bannato</string>
     <string name="settings_bannedDetailValue">Si</string>
     <string name="settings_bannedSuccess">Utente bannato con successo</string>
-    <string name="settings_bannerColorLabel">Colore banner</string>
+    <string name="settings_bannerColorLabel">Banner color</string>
+    <string name="settings_batteryOptimization">Battery Optimization</string>
     <string name="settings_bioLabel">Bio</string>
     <string name="settings_bioPlaceholder">Raccontaci qualcosa di te...</string>
     <string name="settings_cameraFormatLabel">Formato (Risoluzione @ FPS)</string>
@@ -567,6 +591,7 @@
     <string name="settings_invitesTitle">Inviti server</string>
     <string name="settings_invitesUsesCol">Utilizzi</string>
     <string name="settings_ipAddressLabel">Indirizzo IP</string>
+    <string name="settings_irreversibleAction">I understand that this action is irreversible</string>
     <string name="settings_joinedDate">Unito il: %1$s</string>
     <string name="settings_joinedServer">Unito al server</string>
     <string name="settings_joinedServerLabel">Entrato nel server</string>
@@ -698,6 +723,7 @@
     <string name="settings_notificationsTitle">Notifiche</string>
     <string name="settings_onlyAskForPasswordOnFirstJoinDesc">Se abilitato, gli utenti devono inserire la password del server solo la prima volta che entrano.</string>
     <string name="settings_onlyAskForPasswordOnFirstJoinLabel">Chiedi la password solo al primo accesso</string>
+    <string name="settings_openSettings">Open Settings</string>
     <string name="settings_othersDesc">Impostazioni generali relative al comportamento di Sharkord.</string>
     <string name="settings_othersTab">Altro</string>
     <string name="settings_othersTitle">Altro</string>
@@ -720,6 +746,8 @@
     <string name="settings_permissionsTab">Permessi</string>
     <string name="settings_permissionsTitle">Permessi</string>
     <string name="settings_permitMicAccess">Consenti accesso al microfono</string>
+    <string name="settings_pipWindow">Floating PiP Window</string>
+    <string name="settings_pipWindowDesc">Show a floating video window when you leave the app during a call.</string>
     <string name="settings_playbackLabel">Riproduzione</string>
     <string name="settings_playbackPlaceholder">Seleziona il dispositivo di uscita</string>
     <string name="settings_pluginAuthor">Di %1$s</string>
@@ -748,6 +776,7 @@
     <string name="settings_privateChannelLabel">Canale privato</string>
     <string name="settings_privateDesc">Limita l\'accesso a questo canale a ruoli e membri specifici.</string>
     <string name="settings_privateLabel">Privato</string>
+    <string name="settings_profileColorLabel">Colore del profilo</string>
     <string name="settings_profileDesc">Aggiorna qui le tue informazioni personali e impostazioni.</string>
     <string name="settings_profileTab">Profilo</string>
     <string name="settings_profileTitle">Il tuo profilo</string>
@@ -764,6 +793,7 @@ Rendilo privato nella scheda Generale per gestire i permessi specifici.</string>
     <string name="settings_quotaPerUserLabel">Quota per utente</string>
     <string name="settings_reasonOptional">Motivo (opzionale)</string>
     <string name="settings_refreshBtn">Aggiorna</string>
+    <string name="settings_rememberCredentials">Remember credentials and bypass login screen.</string>
     <string name="settings_removeBiometrics">Rimuovi biometria salvata</string>
     <string name="settings_removeBtn">Rimuovi</string>
     <string name="settings_removePluginConfirm">Sei sicuro di voler rimuovere %1$s?</string>
@@ -882,6 +912,7 @@ Rendilo privato nella scheda Generale per gestire i permessi specifici.</string>
     <string name="settings_tabUpdates">Aggiornamenti</string>
     <string name="settings_tabUsers">Utenti</string>
     <string name="settings_takePhoto">Scatta foto</string>
+    <string name="settings_totalSpace">Total Space</string>
     <string name="settings_unbanBtn">Sbanna</string>
     <string name="settings_unbanConfirm">Sbanna</string>
     <string name="settings_unbanMsg">Sei sicuro di voler sbannare questo utente?</string>
@@ -969,6 +1000,7 @@ Rendilo privato nella scheda Generale per gestire i permessi specifici.</string>
     <string name="sidebar_failedDeleteCategory">Impossibile eliminare la categoria</string>
     <string name="sidebar_failedDeleteChannel">Impossibile eliminare il canale</string>
     <string name="sidebar_failedLoadDMs">Impossibile caricare i messaggi diretti</string>
+    <string name="sidebar_failedMoveUser">Impossibile spostare l\'utente</string>
     <string name="sidebar_failedReorderCategories">Impossibile riordinare le categorie</string>
     <string name="sidebar_failedReorderChannels">Impossibile riordinare i canali</string>
     <string name="sidebar_frameRate">Frame rate: %1$s fps</string>
@@ -1010,6 +1042,7 @@ Rendilo privato nella scheda Generale per gestire i permessi specifici.</string>
     <string name="sidebar_voiceConnecting">Connessione...</string>
     <string name="sidebar_voiceDisconnected">Disconnesso</string>
     <string name="sidebar_voiceFailed">Connessione fallita</string>
+    <string name="topbar_alwaysShowVoiceControls">Mostra sempre i controlli vocali</string>
     <string name="topbar_audioControls">Controlli audio</string>
     <string name="topbar_closeMembersSidebar">Chiudi barra membri</string>
     <string name="topbar_closeVoiceChat">Chiudi chat vocale</string>
@@ -1025,4 +1058,17 @@ Rendilo privato nella scheda Generale per gestire i permessi specifici.</string>
     <string name="topbar_stream_other">stream</string>
     <string name="topbar_voiceOptions">Opzioni vocali</string>
     <string name="topbar_volumeControls">Controlli volume</string>
+    <string name="update_dialogTitle">Version %1$s is available. Do you want to download it?</string>
+    <string name="update_download">Download</string>
+    <string name="update_neverRemind">Never remind me</string>
+    <string name="update_remindLater">Remind me later</string>
+    <string name="update_skipVersion">Skip this version</string>
+    <string name="updates_failedLoad">Failed to load update information.</string>
+    <string name="updates_newAvailable">A new update is available!</string>
+    <string name="updates_notSupported">Updates are not supported on this installation.</string>
+    <string name="updates_upToDate">Your server is up to date.</string>
+    <string name="voice_autoBitrate">Auto</string>
+    <string name="voice_joinVoice">Join Voice</string>
+    <string name="voice_tapToReturn">Tocca per tornare alla chiamata
+%1$s</string>
 </resources>

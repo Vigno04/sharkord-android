@@ -89,7 +89,7 @@ fun CameraCaptureScreen(
     } else {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Camera and Audio permissions are required.", color = SharkordTheme.colors.foregroundText)
+                Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.camera_permissionsRequired), color = SharkordTheme.colors.foregroundText)
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(onClick = { 
                     permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO))
@@ -98,7 +98,7 @@ fun CameraCaptureScreen(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 TextButton(onClick = onClose) {
-                    Text("Close", color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f))
+                    Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_close), color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f))
                 }
             }
         }
@@ -238,7 +238,7 @@ private fun CameraPreviewContent(
                     .background(Color.Red.copy(alpha = 0.8f), RoundedCornerShape(12.dp))
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
-                Text("RECORDING", color = SharkordTheme.colors.foregroundText, fontWeight = FontWeight.Bold)
+                Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.camera_recording), color = SharkordTheme.colors.foregroundText, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -436,7 +436,7 @@ private fun CameraPreviewContent(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(color = SharkordTheme.colors.foregroundText)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Compressing video...", color = SharkordTheme.colors.foregroundText)
+                    Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.camera_compressing), color = SharkordTheme.colors.foregroundText)
                 }
             }
         }
