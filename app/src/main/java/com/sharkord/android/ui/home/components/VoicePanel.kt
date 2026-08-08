@@ -107,8 +107,9 @@ val colors = SharkordTheme.colors
     var deviceListTrigger by remember { mutableStateOf(0) }
     var isNear by remember { mutableStateOf(false) }
 
+    var enlargedId by remember { mutableStateOf<String?>(null) }
     var fullscreenTrack by remember { mutableStateOf<VideoTrack?>(null) }
-    val displayItems = remember(voiceUsers, remoteVideoTracks) {
+    val baseDisplayItems = remember(voiceUsers, remoteVideoTracks) {
         val items = mutableListOf<VoiceDisplayItem>()
         voiceUsers.forEach { user ->
             items.add(VoiceDisplayItem.User(user))
@@ -118,6 +119,21 @@ val colors = SharkordTheme.colors
             }
         }
         items.sortedBy { if (it is VoiceDisplayItem.ScreenShare) 1 else 0 }
+    }
+    
+    val displayItems = remember(baseDisplayItems, enlargedId) {
+        if (enlargedId != null) {
+            val item = baseDisplayItems.find { it.id == enlargedId }
+            if (item != null) listOf(item) else baseDisplayItems
+        } else {
+            baseDisplayItems
+        }
+    }
+    
+    LaunchedEffect(baseDisplayItems) {
+        if (enlargedId != null && baseDisplayItems.none { it.id == enlargedId }) {
+            enlargedId = null
+        }
     }
     DisposableEffect(isConnected) {
         if (!isConnected) return@DisposableEffect onDispose {}
@@ -539,6 +555,10 @@ val colors = SharkordTheme.colors
                                 eglBaseContext = eglBaseContext,
                                 colors = colors,
                                 isConnected = isConnected,
+                                isEnlarged = enlargedId == displayItems[index].id,
+                                onEnlargeClick = { id -> 
+                                    enlargedId = if (enlargedId == id) null else id
+                                },
                                 onFullscreenClick = { track -> fullscreenTrack = track }
                             )
                         }
@@ -944,6 +964,10 @@ val colors = SharkordTheme.colors
                                 eglBaseContext = eglBaseContext,
                                 colors = colors,
                                 isConnected = isConnected,
+                                isEnlarged = enlargedId == displayItems[index].id,
+                                onEnlargeClick = { id -> 
+                                    enlargedId = if (enlargedId == id) null else id
+                                },
                                 onFullscreenClick = { track -> fullscreenTrack = track }
                             )
                         }
