@@ -794,8 +794,8 @@ fun HomeScreen(
                                     )
                                 }
                                 .pointerInput(uiState.activePanel, isTablet, isCurrentDmChannelVoice) {
-                            if (uiState.activePanel == HomePanel.DMS_LIST || (isTablet && uiState.activePanel == HomePanel.DM_CHAT && !isCurrentDmChannelVoice)) {
-                                var totalDrag = 0f
+                                    if (uiState.activePanel == HomePanel.DMS_LIST || (isTablet && uiState.activePanel == HomePanel.DM_CHAT && !isCurrentDmChannelVoice)) {
+                                        var totalDrag = 0f
                                         detectHorizontalDragGestures(
                                             onDragEnd = {
                                                 handleDragEnd(dmsSwipeOffset, totalDrag, true)
@@ -1156,9 +1156,13 @@ fun HomeScreen(
                 // profile Bottom Sheet
                 if (uiState.profileSheetUserId != null) {
                     val profileUser = data.users.find { it.id == uiState.profileSheetUserId } ?: if (uiState.profileSheetUserId == data.ownUserId) currentUser else null
+                    val currentUserRoles = data.roles?.filter { role -> currentUser?.roleIds?.contains(role.id) == true } ?: emptyList()
+                    val userPermissions = currentUserRoles.flatMap { it.permissions }.map { it.uppercase() }.toSet()
+                    val hasManageUsers = data.ownUserId == 1 || userPermissions.contains("MANAGE_USERS")
+
                     ProfileBottomSheet(
                         currentUser = profileUser,
-                        userName = userName,
+                        userName = profileUser?.name ?: "Unknown",
                         ownUserId = data.ownUserId,
                         serverName = data.serverName,
                         serverId = data.serverId,
@@ -1177,7 +1181,26 @@ fun HomeScreen(
                             viewModel.dismissProfileSheet()
                             onNavigateToSettings()
                         },
-                        roles = data.roles ?: emptyList()
+                        roles = data.roles ?: emptyList(),
+                        onChatPrivatelyClick = {
+                            viewModel.dismissProfileSheet()
+                            profileUser?.id?.let { userId ->
+                                viewModel.openDirectMessage(userId)
+                            }
+                        },
+                        hasManageUsers = hasManageUsers,
+                        onKickClick = {
+                            profileUser?.id?.let { userId ->
+                                viewModel.kickUser(userId)
+                            }
+                            viewModel.dismissProfileSheet()
+                        },
+                        onBanClick = {
+                            profileUser?.id?.let { userId ->
+                                viewModel.banUser(userId)
+                            }
+                            viewModel.dismissProfileSheet()
+                        }
                     )
                 }
 

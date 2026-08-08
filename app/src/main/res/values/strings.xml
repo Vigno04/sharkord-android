@@ -9,6 +9,7 @@
     <string name="channel_openChat">Open Chat</string>
     <string name="chat_channelBeginning">This is the beginning of the #%1$s channel.</string>
     <string name="chat_channelBeginningShort">This is the beginning of #%1$s</string>
+    <string name="chat_chatPrivately">Chat privately</string>
     <string name="chat_copyLink">Copy Link</string>
     <string name="chat_downloadFile">Download %1$s</string>
     <string name="chat_downloadStarted">Download started: %1$s</string>
@@ -383,6 +384,9 @@
     <string name="permissions_server_UPLOAD_FILES">Upload files</string>
     <string name="permissions_server_USE_PLUGINS">Use plugins</string>
     <string name="permissions_server_VIEW_USER_SENSITIVE_DATA">View user sensitive data</string>
+    <string name="profile_banUser">Ban User</string>
+    <string name="profile_kickUser">Kick User</string>
+    <string name="profile_moderationTitle">Moderation</string>
     <string name="profile_show_members">Show members</string>
     <string name="profile_user_settings_title">User Profile and Settings</string>
     <string name="settings_activityFiles">Files</string>

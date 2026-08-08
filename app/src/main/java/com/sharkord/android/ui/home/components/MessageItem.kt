@@ -386,7 +386,8 @@ fun MessageItem(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF3A3A3A)),
+                        .background(Color(0xFF3A3A3A))
+                        .then(if (message.userId != ownUserId) Modifier.clickable { onUserClick(message.userId) } else Modifier),
                     contentAlignment = Alignment.Center
                 ) {
                     val avatarUrl = SharkordClient.getFileUrl(author?.avatar)
@@ -439,7 +440,9 @@ fun MessageItem(
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .then(if (message.userId != ownUserId) Modifier.clickable { onUserClick(message.userId) } else Modifier)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(

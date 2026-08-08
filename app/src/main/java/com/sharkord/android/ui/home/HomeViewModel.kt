@@ -644,6 +644,7 @@ class HomeViewModel : ViewModel() {
                 state.copy(
                     selectedDmChannelId = channelId,
                     selectedMessageId = messageId,
+                    isDmsListSelected = true,
                     activePanel = if (navigateToChat) HomePanel.DM_CHAT else state.activePanel,
                     jumpTrigger = if (messageId != null) System.currentTimeMillis() else state.jumpTrigger,
                     readStates = if (navigateToChat) {
@@ -895,6 +896,24 @@ class HomeViewModel : ViewModel() {
             }
             result.onFailure { error ->
                 _uiState.update { it.copy(errorMessage = error.message ?: "Failed to open DM") }
+            }
+        }
+    }
+
+    fun kickUser(userId: Int) {
+        viewModelScope.launch {
+            val result = repository.kickUser(userId, null)
+            result.onFailure { error ->
+                _uiState.update { it.copy(errorMessage = error.message ?: "Failed to kick user") }
+            }
+        }
+    }
+
+    fun banUser(userId: Int) {
+        viewModelScope.launch {
+            val result = repository.banUser(userId, null)
+            result.onFailure { error ->
+                _uiState.update { it.copy(errorMessage = error.message ?: "Failed to ban user") }
             }
         }
     }

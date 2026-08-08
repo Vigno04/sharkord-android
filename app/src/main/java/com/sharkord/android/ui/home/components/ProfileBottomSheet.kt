@@ -10,8 +10,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PersonRemove
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,7 +50,11 @@ fun ProfileBottomSheet(
     onShowMembers: () -> Unit,
     onLogoutClick: () -> Unit,
     onNavigateToSettings: () -> Unit = {},
-    roles: List<Role> = emptyList()
+    roles: List<Role> = emptyList(),
+    onChatPrivatelyClick: () -> Unit = {},
+    hasManageUsers: Boolean = false,
+    onKickClick: () -> Unit = {},
+    onBanClick: () -> Unit = {}
 ) {
     val colors = SharkordTheme.colors
     val bgColor = colors.bgColor
@@ -95,17 +107,56 @@ fun ProfileBottomSheet(
                     // spacer for the overlapping avatar
                     Spacer(modifier = Modifier.height(56.dp))
 
-                    Text(
-                        text = userName,
-                        color = foregroundText,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = stringResource(id = R.string.settings_userIdLabel) + ": #" + ownUserId,
-                        color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
-                        fontSize = 14.sp
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = userName,
+                                color = foregroundText,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = stringResource(id = R.string.settings_userIdLabel) + ": #" + ownUserId,
+                                color = SharkordTheme.colors.primaryText.copy(alpha = 0.6f),
+                                fontSize = 14.sp
+                            )
+                        }
+
+                        if (hasManageUsers && currentUser?.id != ownUserId) {
+                            Box {
+                                var menuExpanded by remember { mutableStateOf(false) }
+                                IconButton(onClick = { menuExpanded = true }) {
+                                    Icon(Icons.Default.MoreVert, contentDescription = "More Options", tint = primaryText)
+                                }
+                                DropdownMenu(
+                                    expanded = menuExpanded,
+                                    onDismissRequest = { menuExpanded = false },
+                                    modifier = Modifier.background(cardColor)
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.profile_kickUser), color = Color(0xFFEAB308)) },
+                                        leadingIcon = { Icon(Icons.Default.PersonRemove, contentDescription = null, tint = Color(0xFFEAB308)) },
+                                        onClick = {
+                                            menuExpanded = false
+                                            onKickClick()
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.profile_banUser), color = Color(0xFFEF4444)) },
+                                        leadingIcon = { Icon(Icons.Default.Block, contentDescription = null, tint = Color(0xFFEF4444)) },
+                                        onClick = {
+                                            menuExpanded = false
+                                            onBanClick()
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
                     Divider(color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
@@ -179,39 +230,58 @@ fun ProfileBottomSheet(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    Button(
-                        onClick = { onNavigateToSettings() },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = SharkordTheme.colors.accentColor.copy(alpha = 0.15f),
-                            contentColor = SharkordTheme.colors.accentColor
-                        ),
-                        border = BorderStroke(1.dp, SharkordTheme.colors.accentColor.copy(alpha = 0.3f)),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
-                            Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.settings_userSettingsTitle))
+                    if (currentUser?.id == ownUserId) {
+                        Button(
+                            onClick = { onNavigateToSettings() },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = SharkordTheme.colors.accentColor.copy(alpha = 0.15f),
+                                contentColor = SharkordTheme.colors.accentColor
+                            ),
+                            border = BorderStroke(1.dp, SharkordTheme.colors.accentColor.copy(alpha = 0.3f)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+                                Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(stringResource(R.string.settings_userSettingsTitle))
+                            }
                         }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    Button(
-                        onClick = { onLogoutClick() },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFEF4444).copy(alpha = 0.15f),
-                            contentColor = Color(0xFFEF4444)
-                        ),
-                        border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.3f)),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                         Text(
-                             stringResource(id = R.string.sidebar_disconnect),
-                             modifier = Modifier.padding(vertical = 4.dp)
-                         )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        Button(
+                            onClick = { onLogoutClick() },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFEF4444).copy(alpha = 0.15f),
+                                contentColor = Color(0xFFEF4444)
+                            ),
+                            border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.3f)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                             Text(
+                                 stringResource(id = R.string.sidebar_disconnect),
+                                 modifier = Modifier.padding(vertical = 4.dp)
+                             )
+                        }
+                    } else {
+                        Button(
+                            onClick = { onChatPrivatelyClick() },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = SharkordTheme.colors.accentColor.copy(alpha = 0.15f),
+                                contentColor = SharkordTheme.colors.accentColor
+                            ),
+                            border = BorderStroke(1.dp, SharkordTheme.colors.accentColor.copy(alpha = 0.3f)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+                                Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(stringResource(R.string.chat_chatPrivately))
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
