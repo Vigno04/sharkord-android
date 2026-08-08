@@ -18,7 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
@@ -39,7 +39,6 @@ import com.sharkord.android.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.foundation.Image
@@ -92,7 +91,7 @@ fun UserSettingsScreen(
                 title = { Text(stringResource(R.string.profile_user_settings_title), color = foregroundText, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = foregroundText)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = foregroundText)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = bgColor)
@@ -130,20 +129,18 @@ fun UserSettingsScreen(
                     )
                 }
             }
-            ScrollableTabRow(
+            SecondaryScrollableTabRow(
                 selectedTabIndex = pagerState.currentPage,
                 containerColor = bgColor,
                 contentColor = primaryText,
                 edgePadding = 16.dp,
-                indicator = { tabPositions ->
-                    if (pagerState.currentPage < tabPositions.size) {
-                        TabRowDefaults.Indicator(
-                            modifier = Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
-                            color = accentColor
-                        )
-                    }
+                indicator = {
+                    TabRowDefaults.SecondaryIndicator(
+                        modifier = Modifier.tabIndicatorOffset(pagerState.currentPage),
+                        color = accentColor
+                    )
                 },
-                divider = { Divider(color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f)) }
+                divider = { HorizontalDivider(color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f)) }
             ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
@@ -637,7 +634,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
                 readOnly = true,
                 label = { Text(stringResource(R.string.settings_defaultAudioRoute)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedAudioRoute) },
-                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                     focusedTextColor = foregroundText, unfocusedTextColor = primaryText
@@ -682,7 +679,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
                 readOnly = true,
                 label = { Text(stringResource(R.string.settings_defaultCamera)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCamera) },
-                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                     focusedTextColor = foregroundText, unfocusedTextColor = primaryText
@@ -710,7 +707,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
                 readOnly = true,
                 label = { Text(stringResource(R.string.settings_cameraFormatLabel)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFrontVideoResolution) },
-                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                     focusedTextColor = foregroundText, unfocusedTextColor = primaryText
@@ -743,7 +740,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
                 readOnly = true,
                 label = { Text(stringResource(R.string.settings_cameraFormatLabel)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedBackVideoResolution) },
-                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                     focusedTextColor = foregroundText, unfocusedTextColor = primaryText
@@ -781,7 +778,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
                 readOnly = true,
                 label = { Text(stringResource(R.string.settings_videoCodecLabel)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedVideoCodec) },
-                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                     focusedTextColor = foregroundText, unfocusedTextColor = primaryText
@@ -809,7 +806,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
                 readOnly = true,
                 label = { Text(stringResource(R.string.settings_videoResolutionLabel)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedScreenShareResolution) },
-                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                     focusedTextColor = foregroundText, unfocusedTextColor = primaryText
@@ -836,7 +833,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
                 readOnly = true,
                 label = { Text(stringResource(R.string.settings_videoFramerateLabel)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedScreenShareFps) },
-                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                     focusedTextColor = foregroundText, unfocusedTextColor = primaryText
@@ -862,7 +859,7 @@ fun DevicesTabContent(viewModel: UserSettingsViewModel, cardColor: Color, foregr
                 readOnly = true,
                 label = { Text(stringResource(R.string.settings_screenShareCodecLabel)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedScreenShareCodec) },
-                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                     focusedTextColor = foregroundText, unfocusedTextColor = primaryText
@@ -1021,7 +1018,7 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
                 colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f))
             )
         }
-        Divider(modifier = Modifier.padding(vertical = 12.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
         
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
@@ -1038,7 +1035,7 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
                 colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f))
             )
         }
-        Divider(modifier = Modifier.padding(vertical = 12.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
         
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
@@ -1055,7 +1052,7 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
                 colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f))
             )
         }
-        Divider(modifier = Modifier.padding(vertical = 12.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
         
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
@@ -1073,7 +1070,7 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
             )
         }
         
-        Divider(modifier = Modifier.padding(vertical = 16.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f))
         
         Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_backgroundSyncPull), color = foregroundText, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(4.dp))
@@ -1092,7 +1089,7 @@ fun NotificationsTabContent(cardColor: Color, foregroundText: Color, primaryText
                 readOnly = true,
                 label = { Text(stringResource(com.sharkord.android.R.string.settings_pullFrequency)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFreq) },
-                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                     focusedTextColor = foregroundText, unfocusedTextColor = primaryText
@@ -1260,7 +1257,7 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
                     readOnly = true,
                     label = { Text(stringResource(R.string.settings_mediaCodecLabel)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMediaCodec) },
-                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                         focusedTextColor = foregroundText, unfocusedTextColor = primaryText
@@ -1287,7 +1284,7 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
                     readOnly = true,
                     label = { Text(stringResource(R.string.settings_mediaQualityLabel)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMediaQuality) },
-                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
                         focusedTextColor = foregroundText, unfocusedTextColor = primaryText

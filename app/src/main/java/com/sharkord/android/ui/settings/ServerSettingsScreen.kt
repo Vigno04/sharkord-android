@@ -17,12 +17,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -100,7 +99,7 @@ fun ServerSettingsScreen(
                 title = { Text(stringResource(R.string.settings_serverSettings), color = foregroundText, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = foregroundText)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = foregroundText)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = bgColor)
@@ -113,18 +112,16 @@ fun ServerSettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            ScrollableTabRow(
+            SecondaryScrollableTabRow(
                 selectedTabIndex = pagerState.currentPage,
                 containerColor = bgColor,
                 contentColor = primaryText,
                 edgePadding = 16.dp,
-                indicator = { tabPositions ->
-                    if (pagerState.currentPage < tabPositions.size) {
-                        TabRowDefaults.Indicator(
-                            modifier = Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
-                            color = accentColor
-                        )
-                    }
+                indicator = {
+                    TabRowDefaults.SecondaryIndicator(
+                        modifier = Modifier.tabIndicatorOffset(pagerState.currentPage),
+                        color = accentColor
+                    )
                 },
                 divider = { HorizontalDivider(color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f)) }
             ) {

@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -130,17 +129,15 @@ fun ServerPluginsTab(
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        TabRow(
+        SecondaryTabRow(
             selectedTabIndex = selectedTabIndex,
             containerColor = Color.Transparent,
             contentColor = primaryText,
-            indicator = { tabPositions ->
-                if (selectedTabIndex < tabPositions.size) {
-                    TabRowDefaults.Indicator(
-                        modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                        color = accentColor
-                    )
-                }
+            indicator = {
+                TabRowDefaults.SecondaryIndicator(
+                    modifier = Modifier.tabIndicatorOffset(selectedTabIndex),
+                    color = accentColor
+                )
             },
             divider = { HorizontalDivider(color = SharkordTheme.colors.foregroundText.copy(alpha = 0.1f)) }
         ) {
