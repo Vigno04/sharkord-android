@@ -1,0 +1,2 @@
+- Initial release on F-Droid.
+- General improvements and bug fixes.

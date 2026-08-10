@@ -1,0 +1,2 @@
+This is the unofficial android client for the Sharkord server, a discord like selfhosted server.
+It has feature parity with the web app, supporting video, audio call, screen share and texting.

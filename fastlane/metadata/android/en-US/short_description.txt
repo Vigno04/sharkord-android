@@ -1,0 +1,1 @@
+Sharkord is a selfhosted communication app, discord-like.
