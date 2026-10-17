@@ -358,9 +358,11 @@
     <string name="permissions_serverDescriptions_PIN_MESSAGES">Grants the ability to pin messages.</string>
     <string name="permissions_serverDescriptions_REACT_TO_MESSAGES">Grants the ability to react to messages.</string>
     <string name="permissions_serverDescriptions_SEND_MESSAGES">Grants the ability to send messages in channels.</string>
+    <string name="permissions_serverDescriptions_SEND_VOICE_REACTION">Grants the ability to send emoji reactions in voice channels.</string>
     <string name="permissions_serverDescriptions_SHARE_SCREEN">Grants the ability to share the screen.</string>
     <string name="permissions_serverDescriptions_UPLOAD_FILES">Grants the ability to upload files in channels.</string>
     <string name="permissions_serverDescriptions_USE_PLUGINS">Grants the ability to use plugins, such as executing plugin commands or seeing UI elements added by plugins.</string>
+    <string name="permissions_serverDescriptions_MANAGE_PLUGIN_PERMISSIONS">Grants the ability to manage plugin permissions for roles.</string>
     <string name="permissions_serverDescriptions_VIEW_USER_SENSITIVE_DATA">Grants the ability to view user sensitive data like identity, IP address, and location.</string>
     <string name="permissions_server_ENABLE_WEBCAM">Enable webcam</string>
     <string name="permissions_server_JOIN_VOICE_CHANNELS">Join voice channels</string>
@@ -371,6 +373,7 @@
     <string name="permissions_server_MANAGE_INVITES">Manage invites</string>
     <string name="permissions_server_MANAGE_MESSAGES">Manage messages</string>
     <string name="permissions_server_MANAGE_PLUGINS">Manage plugins</string>
+    <string name="permissions_server_MANAGE_PLUGIN_PERMISSIONS">Manage plugin permissions</string>
     <string name="permissions_server_MANAGE_ROLES">Manage roles</string>
     <string name="permissions_server_MANAGE_SETTINGS">Manage server settings</string>
     <string name="permissions_server_MANAGE_STORAGE">Manage storage</string>
@@ -380,6 +383,7 @@
     <string name="permissions_server_PIN_MESSAGES">Pin messages</string>
     <string name="permissions_server_REACT_TO_MESSAGES">React to messages</string>
     <string name="permissions_server_SEND_MESSAGES">Send messages</string>
+    <string name="permissions_server_SEND_VOICE_REACTION">Send voice reaction</string>
     <string name="permissions_server_SHARE_SCREEN">Share screen</string>
     <string name="permissions_server_UPLOAD_FILES">Upload files</string>
     <string name="permissions_server_USE_PLUGINS">Use plugins</string>
@@ -1075,4 +1079,6 @@ Make it private in the General tab to manage specific permissions.</string>
     <string name="voice_joinVoice">Join Voice</string>
     <string name="voice_tapToReturn">Tap to return to call
 %1$s</string>
+    <string name="voice_deafen">Deafen</string>
+    <string name="voice_undeafen">Undeafen</string>
 </resources>

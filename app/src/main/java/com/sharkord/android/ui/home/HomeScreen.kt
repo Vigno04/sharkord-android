@@ -396,6 +396,7 @@ fun HomeScreen(
                                     dmUser = otherUser,
                                     users = data.users,
                                     roles = data.roles ?: emptyList(),
+                                    channels = data.channels,
                                     customEmojis = data.emojis ?: emptyList(),
                                     isActive = (uiState.activePanel == HomePanel.SERVER_CHAT || uiState.activePanel == HomePanel.DM_CHAT) && uiState.isViewingVoiceChat,
                                     isTablet = isTablet,
@@ -416,6 +417,7 @@ fun HomeScreen(
                                         }
                                     },
                                     onUserClick = { userId -> viewModel.showProfileSheet(userId) },
+                                    onChannelClick = { chId -> viewModel.selectChannel(chId) },
                                     modifier = Modifier
                                         .then(if (isTablet) Modifier.offset(x = voiceChatOffsetDp).width(voiceChatWidthDp).fillMaxHeight() else Modifier.fillMaxSize())
                                         .pointerInput(uiState.activePanel) {
@@ -494,7 +496,9 @@ fun HomeScreen(
                                                     } else {
                                                         voiceUiState.activeSpeakers.contains(user.id.toString())
                                                     }
-                                                    VoiceUserDisplay(user, state, isSpeaking)
+                                                    val userReactions = voiceUiState.activeReactions[user.id] ?: emptyList()
+                                                    val lastReaction = userReactions.lastOrNull()?.emoji
+                                                    VoiceUserDisplay(user, state, isSpeaking, reactionEmoji = lastReaction, reactions = userReactions)
                                                 } else null
                                             }
                                         } else emptyList(),
@@ -543,6 +547,9 @@ fun HomeScreen(
                                         },
                                         onSwitchCameraClick = {
                                             voiceViewModel.switchCamera(context)
+                                        },
+                                        onSendReaction = { emoji ->
+                                            voiceViewModel.sendVoiceReaction(emoji)
                                         },
                                         onOpenChatClick = {
                                             if (voiceSwipeOffset.value < 0f) {
@@ -692,6 +699,7 @@ fun HomeScreen(
                                 dmUser = otherUser,
                                 users = data.users,
                                 roles = data.roles ?: emptyList(),
+                                channels = data.channels,
                                 customEmojis = data.emojis ?: emptyList(),
                                 isActive = uiState.activePanel == HomePanel.SERVER_CHAT || uiState.activePanel == HomePanel.DM_CHAT,
                                 isTablet = isTablet,
@@ -705,6 +713,7 @@ fun HomeScreen(
                                     }
                                 },
                                 onUserClick = { userId -> viewModel.showProfileSheet(userId) },
+                                onChannelClick = { chId -> viewModel.selectChannel(chId) },
                                 modifier = Modifier
                                     .then(
                                         if (isTablet) {

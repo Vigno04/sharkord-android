@@ -298,8 +298,15 @@ fun ChannelItem(
     }
 }
 
+data class VoiceReaction(
+    val id: Long,
+    val emoji: String
+)
+
 data class VoiceUserDisplay(
     val user: User,
     val state: VoiceUserState,
-    val isSpeaking: Boolean = false
+    val isSpeaking: Boolean = false,
+    val reactionEmoji: String? = null,
+    val reactions: List<VoiceReaction> = emptyList()
 )

@@ -124,6 +124,12 @@ sealed class ServerEvent {
     // a producer stream was closed in the voice channel
     data class VoiceProducerClosed(val channelId: Int, val remoteId: Int, val kind: com.sharkord.android.data.model.StreamKind) : ServerEvent()
 
+    // a user was moved to another voice channel
+    data class UserVoiceMoved(val channelId: Int, val fromChannelId: Int) : ServerEvent()
+
+    // a user sent an emoji reaction in a voice channel
+    data class UserVoiceReaction(val channelId: Int, val userId: Int, val emoji: String) : ServerEvent()
+
     // server Settings
 
     // public server settings (name, description, feature flags, etc.) were updated
@@ -276,6 +282,19 @@ object ServerEventHandler {
                         channelId = event.data.get("channelId").asInt,
                         remoteId = event.data.get("remoteId").asInt,
                         kind = com.sharkord.android.data.model.StreamKind.fromValue(event.data.get("kind").asString)
+                    )
+
+                "voice.onMoved" ->
+                    ServerEvent.UserVoiceMoved(
+                        channelId = event.data.get("channelId").asInt,
+                        fromChannelId = event.data.get("fromChannelId").asInt
+                    )
+
+                "voice.onReaction" ->
+                    ServerEvent.UserVoiceReaction(
+                        channelId = event.data.get("channelId").asInt,
+                        userId = event.data.get("userId").asInt,
+                        emoji = event.data.get("emoji").asString
                     )
 
                 // server Settings

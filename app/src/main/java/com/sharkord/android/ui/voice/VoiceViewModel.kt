@@ -21,6 +21,7 @@ data class VoiceUiState(
     val activeVoiceChannelId: Int? = null,
     val isConnectingToVoice: Boolean = false,
     val activeSpeakers: Set<String> = emptySet(),
+    val activeReactions: Map<Int, List<com.sharkord.android.ui.home.components.VoiceReaction>> = emptyMap(),
     val cameraEnabled: Boolean = false,
     val isScreenSharing: Boolean = false,
     val localVideoTrack: VideoTrack? = null,
@@ -49,6 +50,30 @@ class VoiceViewModel : ViewModel() {
     private var eventJob: Job? = null
 
     private var preDeafenMicMuted: Boolean = false
+    private var nextReactionId: Long = 0L
+    private val recentSentReactions = mutableListOf<Pair<String, Long>>()
+
+    fun triggerReaction(userId: Int, emoji: String) {
+        val id = ++nextReactionId
+        val reaction = com.sharkord.android.ui.home.components.VoiceReaction(id, emoji)
+        _uiState.update { current ->
+            val list = (current.activeReactions[userId] ?: emptyList()) + reaction
+            val trimmed = if (list.size > 5) list.takeLast(5) else list
+            current.copy(activeReactions = current.activeReactions + (userId to trimmed))
+        }
+        viewModelScope.launch {
+            delay(2600)
+            _uiState.update { current ->
+                val list = current.activeReactions[userId] ?: emptyList()
+                val remaining = list.filter { it.id != id }
+                if (remaining.isEmpty()) {
+                    current.copy(activeReactions = current.activeReactions - userId)
+                } else {
+                    current.copy(activeReactions = current.activeReactions + (userId to remaining))
+                }
+            }
+        }
+    }
 
     init {
         viewModelScope.launch {
@@ -59,6 +84,7 @@ class VoiceViewModel : ViewModel() {
                         it.copy(
                             activeVoiceChannelId = null, 
                             activeSpeakers = emptySet(), 
+                            activeReactions = emptyMap(),
                             cameraEnabled = false, 
                             isScreenSharing = false,
                             localVideoTrack = null, 
@@ -186,6 +212,7 @@ class VoiceViewModel : ViewModel() {
                     is ServerEvent.UserLeftVoice -> {
                         if (parsed.channelId == activeChannelId) {
                             SharkordClient.voiceEngine.clearRemoteProducersForUser(parsed.userId)
+                            _uiState.update { it.copy(activeReactions = it.activeReactions - parsed.userId) }
                         }
                     }
                     is ServerEvent.VoiceProducerClosed -> {
@@ -196,6 +223,22 @@ class VoiceViewModel : ViewModel() {
                     is ServerEvent.VoiceNewProducer -> {
                         if (parsed.channelId == activeChannelId) {
                             SharkordClient.voiceEngine.consumeRemoteProducer(parsed.remoteId, parsed.kind)
+                        }
+                    }
+                    is ServerEvent.UserVoiceReaction -> {
+                        if (parsed.channelId == activeChannelId) {
+                            val now = System.currentTimeMillis()
+                            recentSentReactions.removeAll { now - it.second > 4000 }
+                            val isOwnRecent = parsed.userId == SharkordClient.currentUserId &&
+                                recentSentReactions.any { it.first == parsed.emoji && now - it.second < 1500 }
+                            if (!isOwnRecent) {
+                                triggerReaction(parsed.userId, parsed.emoji)
+                            }
+                        }
+                    }
+                    is ServerEvent.UserVoiceMoved -> {
+                        if (activeChannelId == parsed.fromChannelId) {
+                            joinVoiceChannel(parsed.channelId, com.sharkord.android.SharkordApplication.instance, "")
                         }
                     }
                     else -> {}
@@ -435,6 +478,38 @@ class VoiceViewModel : ViewModel() {
                         Log.e(TAG, "Failed to stop screen share", e)
                     }
                 }
+            }
+        }
+    }
+
+    fun sendVoiceReaction(emoji: String) {
+        val ownUserId = SharkordClient.currentUserId
+        if (ownUserId != null) {
+            recentSentReactions.add(emoji to System.currentTimeMillis())
+            triggerReaction(ownUserId, emoji)
+        }
+        viewModelScope.launch {
+            try {
+                val input = JsonObject().apply {
+                    addProperty("emoji", emoji)
+                }
+                SharkordClient.webSocket.sendMutationAwait("voice.sendReaction", input)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send voice reaction", e)
+            }
+        }
+    }
+
+    fun moveUser(userId: Int, targetChannelId: Int) {
+        viewModelScope.launch {
+            try {
+                val input = JsonObject().apply {
+                    addProperty("userId", userId)
+                    addProperty("channelId", targetChannelId)
+                }
+                SharkordClient.webSocket.sendMutationAwait("voice.moveUser", input)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to move user", e)
             }
         }
     }

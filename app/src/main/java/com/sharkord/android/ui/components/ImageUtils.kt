@@ -546,7 +546,7 @@ fun rememberAsyncImagePainter(
     val imageState = rememberAsyncImageState(url)
     return when (imageState) {
         is AsyncImageState.Success -> imageState.painter
-        is AsyncImageState.Failure -> fallbackResourceId?.let { painterResource(id = it) }
+        is AsyncImageState.Failure -> fallbackResourceId?.takeIf { it > 0 }?.let { painterResource(id = it) }
         is AsyncImageState.Loading -> null   // caller shows spinner
         is AsyncImageState.Empty   -> null   // caller shows initials / icon
     }

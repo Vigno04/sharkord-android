@@ -1,0 +1,4 @@
+- Voice channel emoji reactions with real-time floating animations.
+- Reorganized voice controls and added silence toggle to audio menu.
+- Profile color customization and compatibility fixes.
+- General improvements, performance optimizations, and bug fixes.

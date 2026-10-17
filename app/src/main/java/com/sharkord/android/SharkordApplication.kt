@@ -10,9 +10,15 @@ import java.util.Date
 import java.util.Locale
 
 class SharkordApplication : Application() {
+
+    companion object {
+        lateinit var instance: SharkordApplication
+            private set
+    }
     
     override fun onCreate() {
         super.onCreate()
+        instance = this
         setupCrashHandler()
     }
 

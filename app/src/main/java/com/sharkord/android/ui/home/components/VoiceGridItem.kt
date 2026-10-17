@@ -1,7 +1,11 @@
 package com.sharkord.android.ui.home.components
 
 import com.sharkord.android.ui.theme.SharkordTheme
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,7 +23,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -27,8 +33,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -259,6 +270,176 @@ fun VoiceGridItem(
                     }
                 }
             }
+        }
+
+        val allReactions = voiceUser.reactions.ifEmpty {
+            voiceUser.reactionEmoji?.let { listOf(VoiceReaction(1L, it)) } ?: emptyList()
+        }
+
+        if (allReactions.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 28.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                allReactions.forEach { reaction ->
+                    key(reaction.id) {
+                        VoiceReactionItem(reaction = reaction)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun VoiceReactionItem(
+    reaction: VoiceReaction,
+    modifier: Modifier = Modifier
+) {
+    val density = LocalDensity.current.density
+
+    // Random styling seeded by reaction id, matching server reference
+    val (driftDp, maxRotation, baseScale) = remember(reaction.id) {
+        val rand = kotlin.random.Random(reaction.id)
+        val signX = if (rand.nextBoolean()) 1f else -1f
+        val drift = (12f + rand.nextFloat() * (46f - 12f)) * signX
+        val signRot = if (rand.nextBoolean()) 1f else -1f
+        val rot = (5f + rand.nextFloat() * (14f - 5f)) * signRot
+        val scale = 0.85f + rand.nextFloat() * 0.3f
+        Triple(drift, rot, scale)
+    }
+
+    val animProgress = remember(reaction.id) { Animatable(0f) }
+    LaunchedEffect(reaction.id) {
+        animProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(
+                durationMillis = 2600,
+                easing = LinearEasing
+            )
+        )
+    }
+
+    val progress = animProgress.value
+
+    // Opacity: 0% -> 0, 12% -> 1, 65% -> 1, 100% -> 0
+    val alpha = when {
+        progress < 0.12f -> (progress / 0.12f).coerceIn(0f, 1f)
+        progress <= 0.65f -> 1f
+        else -> ((1f - progress) / (1f - 0.65f)).coerceIn(0f, 1f)
+    }
+
+    // Rise animation easing: cubic-bezier(0.19, 0.72, 0.34, 1)
+    val riseEasing = remember { CubicBezierEasing(0.19f, 0.72f, 0.34f, 1f) }
+    val riseT = riseEasing.transform(progress)
+
+    // Translate Y: starts at +15dp, rises to -140dp
+    val translateY = 15f + riseT * (-140f - 15f)
+    val translateX = driftDp * progress
+
+    // Pop animation: cubic-bezier(0.34, 1.56, 0.64, 1)
+    val popEasing = remember { CubicBezierEasing(0.34f, 1.56f, 0.64f, 1f) }
+    val scale = when {
+        progress < 0.14f -> {
+            val t = popEasing.transform((progress / 0.14f).coerceIn(0f, 1f))
+            0.2f + t * (baseScale - 0.2f)
+        }
+        progress <= 0.78f -> baseScale
+        else -> {
+            val t = ((progress - 0.78f) / (1f - 0.78f)).coerceIn(0f, 1f)
+            baseScale - t * (baseScale * 0.3f)
+        }
+    }
+
+    // Rotation wobble
+    val rotation = when {
+        progress < 0.14f -> {
+            (progress / 0.14f) * maxRotation
+        }
+        progress < 0.48f -> {
+            val t = (progress - 0.14f) / (0.48f - 0.14f)
+            maxRotation + t * (-maxRotation - maxRotation)
+        }
+        progress < 0.78f -> {
+            val t = (progress - 0.48f) / (0.78f - 0.48f)
+            -maxRotation + t * (maxRotation - (-maxRotation))
+        }
+        else -> {
+            val t = (progress - 0.78f) / (1f - 0.78f)
+            maxRotation - t * maxRotation
+        }
+    }
+
+    val customEmoji = remember(reaction.emoji) {
+        val trimmed = reaction.emoji.trim(':')
+        SharkordClient.webSocket.serverData.replayCache.firstOrNull()?.emojis?.find { it.name == trimmed }
+    }
+
+    val emojiText = remember(reaction.emoji) {
+        when (reaction.emoji.trim(':')) {
+            "sparkling_heart" -> "💖"
+            "+1", "thumbsup" -> "👍"
+            "-1", "thumbsdown" -> "👎"
+            "tada" -> "🎉"
+            "clap" -> "👏"
+            "smile" -> "😄"
+            "open_mouth" -> "😮"
+            "cry" -> "😢"
+            "thinking" -> "🤔"
+            "fire" -> "🔥"
+            "heart" -> "❤️"
+            else -> reaction.emoji
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                this.translationX = translateX * density
+                this.translationY = translateY * density
+                this.scaleX = scale
+                this.scaleY = scale
+                this.rotationZ = rotation
+                this.alpha = alpha
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        if (customEmoji?.file != null) {
+            val emojiUrl = SharkordClient.getFileUrl(customEmoji.file)
+            val painter = rememberAsyncImagePainter(emojiUrl)
+            if (painter != null) {
+                Image(
+                    painter = painter,
+                    contentDescription = customEmoji.name,
+                    modifier = Modifier.size(48.dp)
+                )
+            } else {
+                Text(
+                    text = emojiText,
+                    fontSize = 44.sp,
+                    style = TextStyle(
+                        shadow = Shadow(
+                            color = Color.Black.copy(alpha = 0.5f),
+                            offset = Offset(2f, 4f),
+                            blurRadius = 8f
+                        )
+                    )
+                )
+            }
+        } else {
+            Text(
+                text = emojiText,
+                fontSize = 44.sp,
+                style = TextStyle(
+                    shadow = Shadow(
+                        color = Color.Black.copy(alpha = 0.5f),
+                        offset = Offset(2f, 4f),
+                        blurRadius = 8f
+                    )
+                )
+            )
         }
     }
 }

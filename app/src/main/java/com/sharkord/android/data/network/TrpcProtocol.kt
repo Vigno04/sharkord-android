@@ -156,7 +156,8 @@ object TrpcProtocol {
 
                 if (root.has("error")) {
                     val errorJson = root.getAsJsonObject("error")
-                    val message = errorJson.get("message")?.asString ?: "Unknown error"
+                    val rawMessage = errorJson.get("message")?.asString ?: "Unknown error"
+                    val message = formatTrpcErrorMessage(rawMessage)
                     val code = errorJson.get("code")?.asString
                     return TrpcResponse.Error(id, TrpcError(message, code))
                 }
@@ -165,7 +166,8 @@ object TrpcProtocol {
             // top-level error without id
             if (root.has("error")) {
                 val errorJson = root.getAsJsonObject("error")
-                val message = errorJson.get("message")?.asString ?: "Unknown error"
+                val rawMessage = errorJson.get("message")?.asString ?: "Unknown error"
+                val message = formatTrpcErrorMessage(rawMessage)
                 val code = errorJson.get("code")?.asString
                 return TrpcResponse.Error(null, TrpcError(message, code))
             }
@@ -175,6 +177,42 @@ object TrpcProtocol {
             Log.w(TAG, "Failed to parse tRPC response: ${e.message}")
             TrpcResponse.Unknown(text)
         }
+    }
+
+    fun formatTrpcErrorMessage(raw: String): String {
+        val trimmed = raw.trim()
+        if ((trimmed.startsWith("[") && trimmed.endsWith("]")) || (trimmed.startsWith("{") && trimmed.endsWith("}"))) {
+            try {
+                val parsed = JsonParser.parseString(trimmed)
+                if (parsed.isJsonArray) {
+                    val list = mutableListOf<String>()
+                    for (elem in parsed.asJsonArray) {
+                        if (elem.isJsonObject) {
+                            val obj = elem.asJsonObject
+                            val msg = obj.get("message")?.asString
+                            val path = obj.get("path")?.asJsonArray?.mapNotNull {
+                                if (it.isJsonPrimitive) it.asString else null
+                            }?.joinToString(".")
+                            if (!msg.isNullOrBlank()) {
+                                if (!path.isNullOrBlank()) {
+                                    list.add("$path: $msg")
+                                } else {
+                                    list.add(msg)
+                                }
+                            }
+                        }
+                    }
+                    if (list.isNotEmpty()) {
+                        return list.joinToString("\n")
+                    }
+                } else if (parsed.isJsonObject) {
+                    val obj = parsed.asJsonObject
+                    val msg = obj.get("message")?.asString
+                    if (!msg.isNullOrBlank()) return msg
+                }
+            } catch (_: Exception) {}
+        }
+        return raw
     }
 }
 

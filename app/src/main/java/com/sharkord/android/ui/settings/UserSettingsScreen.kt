@@ -330,8 +330,7 @@ fun ProfileTabContent(
                     .weight(1f)
                     .clip(RoundedCornerShape(8.dp))
                     .background(
-                        try { Color(android.graphics.Color.parseColor(bannerColor)) } 
-                        catch (e: Exception) { SharkordTheme.colors.cardColor }
+                        com.sharkord.android.utils.ColorUtils.parseColorOrNull(bannerColor) ?: SharkordTheme.colors.cardColor
                     )
                     .border(1.dp, SharkordTheme.colors.dividerColor, RoundedCornerShape(8.dp))
                     .clickable { showBannerPicker = true },
@@ -403,11 +402,7 @@ fun ProfileTabContent(
                         .size(40.dp)
                         .clip(CircleShape)
                         .background(
-                            try {
-                                Color(android.graphics.Color.parseColor(colorHex))
-                            } catch (e: Exception) {
-                                Color.Transparent
-                            }
+                            com.sharkord.android.utils.ColorUtils.parseColorOrNull(colorHex) ?: Color.Transparent
                         )
                         .clickable { viewModel.bannerColor.value = colorHex }
                         .border(

@@ -54,6 +54,8 @@ object ServerEvent {
     const val USER_JOIN_VOICE = "userJoinVoice"
     const val USER_LEAVE_VOICE = "userLeaveVoice"
     const val USER_VOICE_STATE_UPDATE = "userVoiceStateUpdate"
+    const val USER_VOICE_MOVED = "userVoiceMoved"
+    const val USER_VOICE_REACTION = "userVoiceReaction"
 
     // emojis
     const val EMOJI_CREATE = "emojiCreate"
@@ -75,4 +77,33 @@ object ServerEvent {
 
     // dMs
     const val DM_CONVERSATION_OPEN = "dmConversationOpen"
+}
+
+// permission names matching packages/shared/src/statics/permissions.ts
+object Permission {
+    const val SEND_MESSAGES = "SEND_MESSAGES"
+    const val REACT_TO_MESSAGES = "REACT_TO_MESSAGES"
+    const val PIN_MESSAGES = "PIN_MESSAGES"
+    const val UPLOAD_FILES = "UPLOAD_FILES"
+    const val JOIN_VOICE_CHANNELS = "JOIN_VOICE_CHANNELS"
+    const val SHARE_SCREEN = "SHARE_SCREEN"
+    const val ENABLE_WEBCAM = "ENABLE_WEBCAM"
+    const val SEND_VOICE_REACTION = "SEND_VOICE_REACTION"
+
+    const val MANAGE_CHANNELS = "MANAGE_CHANNELS"
+    const val MANAGE_CHANNEL_PERMISSIONS = "MANAGE_CHANNEL_PERMISSIONS"
+    const val MANAGE_CATEGORIES = "MANAGE_CATEGORIES"
+    const val MANAGE_ROLES = "MANAGE_ROLES"
+    const val MANAGE_EMOJIS = "MANAGE_EMOJIS"
+    const val MANAGE_SETTINGS = "MANAGE_SETTINGS"
+    const val MANAGE_USERS = "MANAGE_USERS"
+    const val MOVE_MEMBERS = "MOVE_MEMBERS"
+    const val MANAGE_MESSAGES = "MANAGE_MESSAGES"
+    const val MANAGE_STORAGE = "MANAGE_STORAGE"
+    const val MANAGE_INVITES = "MANAGE_INVITES"
+    const val MANAGE_UPDATES = "MANAGE_UPDATES"
+    const val MANAGE_PLUGINS = "MANAGE_PLUGINS"
+    const val MANAGE_PLUGIN_PERMISSIONS = "MANAGE_PLUGIN_PERMISSIONS"
+    const val USE_PLUGINS = "USE_PLUGINS"
+    const val VIEW_USER_SENSITIVE_DATA = "VIEW_USER_SENSITIVE_DATA"
 }

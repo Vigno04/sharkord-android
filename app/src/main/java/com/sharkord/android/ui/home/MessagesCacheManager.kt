@@ -2,10 +2,11 @@ package com.sharkord.android.ui.home
 
 import android.util.LruCache
 import com.sharkord.android.data.model.Message
+import com.sharkord.android.data.model.MessagesCursor
 
 data class ChannelCacheEntry(
     val messages: List<Message>,
-    val nextCursor: Long?,
+    val nextCursor: MessagesCursor?,
     val hasReachedTop: Boolean
 )
 

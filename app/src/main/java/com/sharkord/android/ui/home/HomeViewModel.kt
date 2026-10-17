@@ -591,9 +591,9 @@ class HomeViewModel : ViewModel() {
                 // read States
                 is ServerEvent.ChannelReadStateUpdate -> {
                     Log.d(TAG, "[EVENT] channels.onReadStateUpdate: channelId=${event.channelId}, count=${event.count}")
-                    // if the channel is actively viewed, ignore updates and instantly mark as read
-                    if ((state.selectedServerChannelId == event.channelId && state.activePanel == HomePanel.SERVER_CHAT) || 
-                        (state.selectedDmChannelId == event.channelId && state.activePanel == HomePanel.DM_CHAT)) {
+                    // if the channel is actively viewed, ignore updates and mark as read only if count > 0
+                    if (event.count > 0 && ((state.selectedServerChannelId == event.channelId && state.activePanel == HomePanel.SERVER_CHAT) || 
+                        (state.selectedDmChannelId == event.channelId && state.activePanel == HomePanel.DM_CHAT))) {
                         viewModelScope.launch { repository.markChannelAsRead(event.channelId) }
                         return@update state
                     }
@@ -604,8 +604,8 @@ class HomeViewModel : ViewModel() {
 
                 is ServerEvent.ChannelReadStateDelta -> {
                     Log.d(TAG, "[EVENT] channels.onReadStateDelta: channelId=${event.channelId}, delta=${event.delta}")
-                    if ((state.selectedServerChannelId == event.channelId && state.activePanel == HomePanel.SERVER_CHAT) || 
-                        (state.selectedDmChannelId == event.channelId && state.activePanel == HomePanel.DM_CHAT)) {
+                    if (event.delta > 0 && ((state.selectedServerChannelId == event.channelId && state.activePanel == HomePanel.SERVER_CHAT) || 
+                        (state.selectedDmChannelId == event.channelId && state.activePanel == HomePanel.DM_CHAT))) {
                         viewModelScope.launch { repository.markChannelAsRead(event.channelId) }
                         return@update state
                     }
@@ -628,6 +628,11 @@ class HomeViewModel : ViewModel() {
                         )
                     )
                 }
+
+                is ServerEvent.UserVoiceMoved -> state
+                is ServerEvent.UserVoiceReaction -> state
+
+                else -> state
             }
         }
     }

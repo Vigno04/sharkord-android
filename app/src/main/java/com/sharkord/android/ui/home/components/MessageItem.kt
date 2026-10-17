@@ -70,6 +70,68 @@ private val altRegex = Regex("""alt=["']([^"']+)["']""")
 private val srcRegex = Regex("""src=["']([^"']+)["']""")
 private val tokenRegex = Regex("""\[\[EMOJI\|(.*?)\|(.*?)\]\]""")
 
+private fun androidx.compose.ui.text.AnnotatedString.Builder.appendSegmentWithMentions(
+    segment: String,
+    roles: List<Role>,
+    users: List<User>,
+    accentColor: Color,
+    accentBgColor: Color
+) {
+    if (segment.isEmpty()) return
+    if (!segment.contains("@")) {
+        append(segment)
+        return
+    }
+
+    val sortedRoles = roles.filter { it.name.isNotBlank() }.sortedByDescending { it.name.length }
+    val sortedUsers = users.filter { it.name.isNotBlank() }.sortedByDescending { it.name.length }
+
+    val rolePatterns = sortedRoles.map { "(?<=^|\\s)@${Regex.escape(it.name)}(?=\\s|$|\\p{Punct})" }
+    val userPatterns = sortedUsers.map { "(?<=^|\\s)@${Regex.escape(it.name)}(?=\\s|$|\\p{Punct})" }
+
+    val allPatterns = (rolePatterns + userPatterns)
+    if (allPatterns.isEmpty()) {
+        append(segment)
+        return
+    }
+
+    val combinedMentionRegex = Regex(allPatterns.joinToString("|"), RegexOption.IGNORE_CASE)
+    var cur = 0
+    combinedMentionRegex.findAll(segment).forEach { m ->
+        append(segment.substring(cur, m.range.first))
+        val mentionText = m.value
+        val rawName = mentionText.removePrefix("@")
+        val role = sortedRoles.find { it.name.equals(rawName, ignoreCase = true) }
+        if (role != null) {
+            val roleColor = com.sharkord.android.utils.ColorUtils.parseColorOrNull(role.color) ?: accentColor
+            pushStringAnnotation(tag = "role_mention", annotation = role.id.toString())
+            pushStyle(androidx.compose.ui.text.SpanStyle(
+                color = roleColor,
+                background = roleColor.copy(alpha = 0.18f),
+                fontWeight = FontWeight.Bold
+            ))
+            append(mentionText)
+            pop()
+        } else {
+            val user = sortedUsers.find { it.name.equals(rawName, ignoreCase = true) }
+            if (user != null) {
+                pushStringAnnotation(tag = "mention", annotation = user.id.toString())
+                pushStyle(androidx.compose.ui.text.SpanStyle(
+                    color = accentColor,
+                    background = accentBgColor,
+                    fontWeight = FontWeight.Bold
+                ))
+                append(mentionText)
+                pop()
+            } else {
+                append(mentionText)
+            }
+        }
+        cur = m.range.last + 1
+    }
+    append(segment.substring(cur))
+}
+
 // renders a single chat message in the message list
 // groups consecutive messages from the same author (compact mode) to mirror
 // discord's visual style — only the first message in a run shows the avatar + name
@@ -90,6 +152,7 @@ fun MessageItem(
     onMediaClick: (com.sharkord.android.data.model.FileInfo) -> Unit = {},
     onMediaLongClick: (com.sharkord.android.data.model.FileInfo) -> Unit = {},
     onUserClick: (Int) -> Unit = {},
+    onChannelClick: (Int) -> Unit = {},
     onLinkLongClick: (String) -> Unit = {}
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -115,7 +178,7 @@ fun MessageItem(
             .maxByOrNull { it.position }
         val hex = topRole?.color?.takeIf { it.isNotBlank() && it != "#99AAB5" }
         if (hex != null) {
-            val rawColor = runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrDefault(textPrimary)
+            val rawColor = com.sharkord.android.utils.ColorUtils.parseColorOrNull(hex) ?: textPrimary
             // In light mode, if the role color is very bright (e.g. white or yellow), fallback to the default text color for contrast
             if (isLight && rawColor.luminance() > 0.8f) {
                 textPrimary
@@ -131,13 +194,31 @@ fun MessageItem(
     val preProcessedHtml = remember(message.content) {
         var raw = message.content ?: ""
         
-        val mentionRegex1 = Regex("""<span[^>]*data-type=["']mention["'][^>]*data-user-id=["'](\d+)["'][^>]*>(.*?)</span>""")
+        val mentionRegex1 = Regex("""<span[^>]*data-type=["']mention["'][^>]*data-user-id=["'](\d+)["'][^>]*>(.*?)</span>""", RegexOption.IGNORE_CASE)
         raw = mentionRegex1.replace(raw) { matchResult ->
             "[[MENTION|${matchResult.groupValues[1]}|${matchResult.groupValues[2]}]]"
         }
-        val mentionRegex2 = Regex("""<span[^>]*data-user-id=["'](\d+)["'][^>]*data-type=["']mention["'][^>]*>(.*?)</span>""")
+        val mentionRegex2 = Regex("""<span[^>]*data-user-id=["'](\d+)["'][^>]*data-type=["']mention["'][^>]*>(.*?)</span>""", RegexOption.IGNORE_CASE)
         raw = mentionRegex2.replace(raw) { matchResult ->
             "[[MENTION|${matchResult.groupValues[1]}|${matchResult.groupValues[2]}]]"
+        }
+
+        val roleMentionRegex1 = Regex("""<span[^>]*data-type=["']role-mention["'][^>]*data-role-id=["'](\d+)["'][^>]*>(.*?)</span>""", RegexOption.IGNORE_CASE)
+        raw = roleMentionRegex1.replace(raw) { matchResult ->
+            "[[ROLE_MENTION|${matchResult.groupValues[1]}|${matchResult.groupValues[2]}]]"
+        }
+        val roleMentionRegex2 = Regex("""<span[^>]*data-role-id=["'](\d+)["'][^>]*data-type=["']role-mention["'][^>]*>(.*?)</span>""", RegexOption.IGNORE_CASE)
+        raw = roleMentionRegex2.replace(raw) { matchResult ->
+            "[[ROLE_MENTION|${matchResult.groupValues[1]}|${matchResult.groupValues[2]}]]"
+        }
+
+        val channelRefRegex1 = Regex("""<span[^>]*data-type=["']channel-reference["'][^>]*data-channel-id=["'](\d+)["'][^>]*>(.*?)</span>""", RegexOption.IGNORE_CASE)
+        raw = channelRefRegex1.replace(raw) { matchResult ->
+            "[[CHANNEL_REF|${matchResult.groupValues[1]}|${matchResult.groupValues[2]}]]"
+        }
+        val channelRefRegex2 = Regex("""<span[^>]*data-channel-id=["'](\d+)["'][^>]*data-type=["']channel-reference["'][^>]*>(.*?)</span>""", RegexOption.IGNORE_CASE)
+        raw = channelRefRegex2.replace(raw) { matchResult ->
+            "[[CHANNEL_REF|${matchResult.groupValues[1]}|${matchResult.groupValues[2]}]]"
         }
         
         val linkRegex = Regex("""<a\b[^>]*href=["']([^"']+)["'][^>]*>(.*?)</a>""", RegexOption.IGNORE_CASE)
@@ -168,13 +249,13 @@ fun MessageItem(
     val accentColor = SharkordTheme.colors.accentColor
     val accentBgColor = SharkordTheme.colors.accentColor.copy(alpha = 0.15f)
 
-    val annotatedContent = remember(textWithTokens, accentColor, accentBgColor) {
+    val annotatedContent = remember(textWithTokens, accentColor, accentBgColor, roles, users) {
         buildAnnotatedString {
-            val combinedRegex = Regex("""\[\[(EMOJI|MENTION|LINK)\|(.*?)\|(.*?)\]\]""")
+            val combinedRegex = Regex("""\[\[(EMOJI|MENTION|ROLE_MENTION|CHANNEL_REF|LINK)\|(.*?)\|(.*?)\]\]""")
             var lastIndex = 0
             
             combinedRegex.findAll(textWithTokens).forEach { matchResult ->
-                append(textWithTokens.substring(lastIndex, matchResult.range.first))
+                appendSegmentWithMentions(textWithTokens.substring(lastIndex, matchResult.range.first), roles, users, accentColor, accentBgColor)
 
                 val type = matchResult.groupValues[1]
                 if (type == "EMOJI") {
@@ -211,6 +292,38 @@ fun MessageItem(
                     ))
                     append(usernameText)
                     pop()
+                } else if (type == "ROLE_MENTION") {
+                    val roleId = matchResult.groupValues[2]
+                    val roleNameText = matchResult.groupValues[3]
+                    val matchedRole = roles.find { it.id == roleId.toIntOrNull() }
+                        ?: roles.find { it.name.equals(roleNameText.removePrefix("@").trim(), ignoreCase = true) }
+                    val roleColor = com.sharkord.android.utils.ColorUtils.parseColorOrNull(matchedRole?.color) ?: accentColor
+
+                    pushStringAnnotation(tag = "role_mention", annotation = (matchedRole?.id ?: roleId).toString())
+                    pushStyle(androidx.compose.ui.text.SpanStyle(
+                        color = roleColor,
+                        background = roleColor.copy(alpha = 0.18f),
+                        fontWeight = FontWeight.Bold
+                    ))
+                    val displayText = if (roleNameText.isNotBlank()) {
+                        if (roleNameText.startsWith("@")) roleNameText else "@$roleNameText"
+                    } else {
+                        "@${matchedRole?.name ?: "Role"}"
+                    }
+                    append(displayText)
+                    pop()
+                } else if (type == "CHANNEL_REF") {
+                    val chId = matchResult.groupValues[2]
+                    val chNameText = matchResult.groupValues[3]
+
+                    pushStringAnnotation(tag = "channel_ref", annotation = chId)
+                    pushStyle(androidx.compose.ui.text.SpanStyle(
+                        color = accentColor,
+                        background = accentBgColor,
+                        fontWeight = FontWeight.SemiBold
+                    ))
+                    append(chNameText.ifEmpty { "#channel" })
+                    pop()
                 } else if (type == "LINK") {
                     val url = matchResult.groupValues[2]
                     val linkText = matchResult.groupValues[3]
@@ -226,7 +339,7 @@ fun MessageItem(
 
                 lastIndex = matchResult.range.last + 1
             }
-            append(textWithTokens.substring(lastIndex))
+            appendSegmentWithMentions(textWithTokens.substring(lastIndex), roles, users, accentColor, accentBgColor)
         }
     }
 
@@ -538,6 +651,15 @@ fun MessageItem(
                                                         handled = true
                                                     }
                                                 }
+                                            if (!handled) {
+                                                annotatedContent.getStringAnnotations(tag = "channel_ref", start = offset, end = offset)
+                                                    .firstOrNull()?.let { annotation ->
+                                                        annotation.item.toIntOrNull()?.let { chId ->
+                                                            onChannelClick(chId)
+                                                            handled = true
+                                                        }
+                                                    }
+                                            }
                                             if (!handled) {
                                                 annotatedContent.getStringAnnotations(tag = "URL", start = offset, end = offset)
                                                     .firstOrNull()?.let { annotation ->

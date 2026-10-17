@@ -68,6 +68,8 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import com.sharkord.android.R
+import com.sharkord.android.data.model.Channel
+import com.sharkord.android.data.model.Role
 import com.sharkord.android.data.model.User
 import com.sharkord.android.ui.components.AsyncImageState
 import com.sharkord.android.ui.components.rememberAsyncImageState
@@ -80,6 +82,8 @@ import kotlinx.coroutines.launch
 fun ChatInputBar(
     channelName: String,
     users: List<User>,
+    roles: List<Role> = emptyList(),
+    channels: List<Channel> = emptyList(),
     uiState: ChatUiState,
     inputText: TextFieldValue,
     onInputTextChanged: (TextFieldValue) -> Unit,
@@ -283,24 +287,61 @@ fun ChatInputBar(
 
     val textBeforeCursor = inputText.text.substring(0, inputText.selection.start)
     val lastAtSymbolIndex = textBeforeCursor.lastIndexOf('@')
+    val lastHashSymbolIndex = textBeforeCursor.lastIndexOf('#')
     val lastSpaceIndex = textBeforeCursor.lastIndexOf(' ')
     val isValidMentionStart = lastAtSymbolIndex == 0 || (lastAtSymbolIndex > 0 && textBeforeCursor[lastAtSymbolIndex - 1].isWhitespace())
     val mentionQuery = if (lastAtSymbolIndex != -1 && isValidMentionStart && lastAtSymbolIndex >= lastSpaceIndex) {
         textBeforeCursor.substring(lastAtSymbolIndex + 1)
     } else null
 
+    val isValidChannelStart = lastHashSymbolIndex == 0 || (lastHashSymbolIndex > 0 && textBeforeCursor[lastHashSymbolIndex - 1].isWhitespace())
+    val channelQuery = if (lastHashSymbolIndex != -1 && isValidChannelStart && lastHashSymbolIndex >= lastSpaceIndex) {
+        textBeforeCursor.substring(lastHashSymbolIndex + 1)
+    } else null
+
     val filteredUsers = remember(mentionQuery, users) {
         if (mentionQuery != null) {
-            users.filter { it.name.contains(mentionQuery, ignoreCase = true) }.take(10)
+            users.filter { it.name.contains(mentionQuery, ignoreCase = true) }.take(8)
+        } else emptyList()
+    }
+
+    val filteredRoles = remember(mentionQuery, roles) {
+        if (mentionQuery != null) {
+            roles.filter { it.name.contains(mentionQuery, ignoreCase = true) }.take(5)
+        } else emptyList()
+    }
+
+    val filteredChannels = remember(channelQuery, channels) {
+        if (channelQuery != null) {
+            channels.filter { !it.isDm && it.name.contains(channelQuery, ignoreCase = true) }.take(8)
         } else emptyList()
     }
 
     val processMentionsAndSend: (String) -> Unit = { rawText ->
         var processedText = rawText
+        // Replace role mentions first
+        val sortedRoles = roles.sortedByDescending { it.name.length }
+        sortedRoles.forEach { role ->
+            val roleRegex = Regex("(?<=^|\\s)@${Regex.escape(role.name)}(?=\\s|$|\\p{Punct})", RegexOption.IGNORE_CASE)
+            processedText = processedText.replace(roleRegex) { matchResult ->
+                """<span data-type="role-mention" class="role-mention" data-role-id="${role.id}">${matchResult.value}</span>"""
+            }
+        }
+        // Replace user mentions
         val sortedUsers = users.sortedByDescending { it.name.length }
         sortedUsers.forEach { user ->
-            val mentionRegex = Regex("(?<=^|\\s)@${Regex.escape(user.name)}(?=\\s|$|\\p{Punct})")
-            processedText = processedText.replace(mentionRegex, """<span data-type="mention" class="mention" data-user-id="${user.id}">@${user.name}</span>""")
+            val mentionRegex = Regex("(?<=^|\\s)@${Regex.escape(user.name)}(?=\\s|$|\\p{Punct})", RegexOption.IGNORE_CASE)
+            processedText = processedText.replace(mentionRegex) { matchResult ->
+                """<span data-type="mention" class="mention" data-user-id="${user.id}">${matchResult.value}</span>"""
+            }
+        }
+        // Replace channel references
+        val sortedChannels = channels.filter { !it.isDm }.sortedByDescending { it.name.length }
+        sortedChannels.forEach { channel ->
+            val channelRegex = Regex("(?<=^|\\s)#${Regex.escape(channel.name)}(?=\\s|$|\\p{Punct})", RegexOption.IGNORE_CASE)
+            processedText = processedText.replace(channelRegex) { matchResult ->
+                """<span data-type="channel-reference" class="channel-reference" data-channel-id="${channel.id}">${matchResult.value}</span>"""
+            }
         }
         onSend(processedText)
     }
@@ -639,9 +680,9 @@ fun ChatInputBar(
             )
         }
 
-        // Mention List
+        // Mention List (@users and @roles)
         AnimatedVisibility(
-            visible = filteredUsers.isNotEmpty(),
+            visible = filteredUsers.isNotEmpty() || filteredRoles.isNotEmpty(),
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically()
         ) {
@@ -662,49 +703,156 @@ fun ChatInputBar(
                     .padding(bottom = 8.dp)
             ) {
                 LazyColumn {
-                    items(filteredUsers) { user ->
+                    if (filteredRoles.isNotEmpty()) {
+                        items(filteredRoles) { role ->
+                            val roleColor = com.sharkord.android.utils.ColorUtils.parseColorOrNull(role.color) ?: accentColor
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        val textBeforeAt = textBeforeCursor.substring(0, lastAtSymbolIndex)
+                                        val textAfterCursor = inputText.text.substring(inputText.selection.start)
+                                        val newText = "$textBeforeAt@${role.name} $textAfterCursor"
+                                        val newCursor = textBeforeAt.length + role.name.length + 2
+                                        onInputTextChanged(TextFieldValue(newText, TextRange(newCursor)))
+                                    }
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(roleColor.copy(alpha = 0.2f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "@",
+                                        color = roleColor,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = role.name,
+                                    color = roleColor,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                    if (filteredUsers.isNotEmpty()) {
+                        items(filteredUsers) { user ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        val textBeforeAt = textBeforeCursor.substring(0, lastAtSymbolIndex)
+                                        val textAfterCursor = inputText.text.substring(inputText.selection.start)
+                                        val newText = "$textBeforeAt@${user.name} $textAfterCursor"
+                                        val newCursor = textBeforeAt.length + user.name.length + 2
+                                        onInputTextChanged(TextFieldValue(newText, TextRange(newCursor)))
+                                    }
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val avatarUrl = com.sharkord.android.data.network.SharkordClient.getFileUrl(user.avatar)
+                                val avatarPainter = com.sharkord.android.ui.components.rememberAsyncImagePainter(avatarUrl, fallbackResourceId = null)
+                                
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(SharkordTheme.colors.bgColor),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (avatarPainter != null) {
+                                        Image(
+                                            painter = avatarPainter,
+                                            contentDescription = "User Avatar",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Text(
+                                            text = user.name.take(1).uppercase(),
+                                            color = SharkordTheme.colors.foregroundText,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 10.sp
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = user.name,
+                                    color = textPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Channel Reference List (#channel)
+        AnimatedVisibility(
+            visible = filteredChannels.isNotEmpty(),
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 200.dp)
+                    .background(
+                        color = cardColor,
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = textPrimary.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .padding(8.dp)
+                    .padding(bottom = 8.dp)
+            ) {
+                LazyColumn {
+                    items(filteredChannels) { channel ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    val textBeforeAt = textBeforeCursor.substring(0, lastAtSymbolIndex)
+                                    val textBeforeHash = textBeforeCursor.substring(0, lastHashSymbolIndex)
                                     val textAfterCursor = inputText.text.substring(inputText.selection.start)
-                                    val newText = "$textBeforeAt@${user.name} $textAfterCursor"
-                                    val newCursor = textBeforeAt.length + user.name.length + 2
+                                    val newText = "$textBeforeHash#${channel.name} $textAfterCursor"
+                                    val newCursor = textBeforeHash.length + channel.name.length + 2
                                     onInputTextChanged(TextFieldValue(newText, TextRange(newCursor)))
                                 }
                                 .padding(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            val avatarUrl = com.sharkord.android.data.network.SharkordClient.getFileUrl(user.avatar)
-                            val avatarPainter = com.sharkord.android.ui.components.rememberAsyncImagePainter(avatarUrl, fallbackResourceId = null)
-                            
                             Box(
                                 modifier = Modifier
                                     .size(24.dp)
                                     .clip(CircleShape)
-                                    .background(SharkordTheme.colors.bgColor),
+                                    .background(accentColor.copy(alpha = 0.15f)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (avatarPainter != null) {
-                                    Image(
-                                        painter = avatarPainter,
-                                        contentDescription = "User Avatar",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                } else {
-                                    Text(
-                                        text = user.name.take(1).uppercase(),
-                                        color = SharkordTheme.colors.foregroundText,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 10.sp
-                                    )
-                                }
+                                Text(
+                                    text = if (channel.isVoice) "🔊" else "#",
+                                    color = accentColor,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                text = user.name,
+                                text = channel.name,
                                 color = textPrimary,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold

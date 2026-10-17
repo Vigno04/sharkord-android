@@ -80,6 +80,7 @@ fun VoicePanel(
     onToggleCameraClick: () -> Unit = {},
     onToggleScreenShareClick: (Boolean, android.content.Intent?) -> Unit = { _, _ -> },
     onSwitchCameraClick: () -> Unit = {},
+    onSendReaction: (String) -> Unit = {},
     onOpenChatClick: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -106,6 +107,7 @@ val colors = SharkordTheme.colors
     var selectedInputDeviceId by remember { mutableStateOf<Int?>(null) }
     var deviceListTrigger by remember { mutableStateOf(0) }
     var isNear by remember { mutableStateOf(false) }
+    var showReactionsMenu by remember { mutableStateOf(false) }
 
     var enlargedId by remember { mutableStateOf<String?>(null) }
     var fullscreenTrack by remember { mutableStateOf<VideoTrack?>(null) }
@@ -307,7 +309,9 @@ val colors = SharkordTheme.colors
                                       (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && (currentDevice?.type == 26 || currentDevice?.type == 27)) ||
                                       currentDevice?.type == 23 // TYPE_HEARING_AID
                                       
-                    if (selectedOutputDeviceId == null) {
+                    if (isConnected && isDeafened) {
+                        Icon(Icons.Default.HeadsetOff, contentDescription = "Deafened", tint = Color(0xFFED4245))
+                    } else if (selectedOutputDeviceId == null) {
                         Text(
                             text = "A",
                             color = colors.foregroundText,
@@ -368,6 +372,32 @@ val colors = SharkordTheme.colors
                             },
                             onClick = {
                                 selectedOutputDeviceId = device.id
+                                showOutputDropdown = false
+                            }
+                        )
+                    }
+                    if (isConnected) {
+                        HorizontalDivider(color = colors.bgColor.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 4.dp))
+                        DropdownMenuItem(
+                            leadingIcon = {
+                                Icon(
+                                    if (isDeafened) Icons.Default.HeadsetOff else Icons.Default.Headset,
+                                    contentDescription = null,
+                                    tint = if (isDeafened) Color(0xFFED4245) else colors.foregroundText
+                                )
+                            },
+                            text = {
+                                Text(
+                                    if (isDeafened) {
+                                        androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.voice_undeafen)
+                                    } else {
+                                        androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.voice_deafen)
+                                    },
+                                    color = if (isDeafened) Color(0xFFED4245) else colors.foregroundText
+                                )
+                            },
+                            onClick = {
+                                onToggleDeafenClick(!isDeafened)
                                 showOutputDropdown = false
                             }
                         )
@@ -604,20 +634,6 @@ val colors = SharkordTheme.colors
                             )
                         }
 
-                        // deafen Toggle
-                        FloatingActionButton(
-                            onClick = { onToggleDeafenClick(!isDeafened) },
-                            containerColor = if (isDeafened) colors.bgColor else colors.foregroundText,
-                            contentColor = if (isDeafened) colors.foregroundText else colors.bgColor,
-                            shape = CircleShape,
-                            modifier = Modifier.size(56.dp)
-                        ) {
-                            Icon(
-                                if (isDeafened) Icons.Default.HeadsetOff else Icons.Default.Headset, 
-                                contentDescription = if (isDeafened) "Undeafen" else "Deafen"
-                            )
-                        }
-
                         // camera Toggle
                         FloatingActionButton(
                             onClick = onToggleCameraClick,
@@ -644,6 +660,39 @@ val colors = SharkordTheme.colors
                             modifier = Modifier.size(56.dp)
                         ) {
                             Icon(if (!isScreenSharing) Icons.Default.ScreenShare else Icons.Default.StopScreenShare, contentDescription = if (!isScreenSharing) "Share Screen" else "Stop Screen Share")
+                        }
+
+                        // voice reaction
+                        Box {
+                            FloatingActionButton(
+                                onClick = { showReactionsMenu = true },
+                                containerColor = colors.bgColor,
+                                contentColor = colors.foregroundText,
+                                shape = CircleShape,
+                                modifier = Modifier.size(56.dp)
+                            ) {
+                                Icon(Icons.Default.AddReaction, contentDescription = "Send Reaction")
+                            }
+                            DropdownMenu(
+                                expanded = showReactionsMenu,
+                                onDismissRequest = { showReactionsMenu = false },
+                                modifier = Modifier.background(colors.cardColor)
+                            ) {
+                                Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    listOf("👍", "❤️", "🎉", "👏", "🔥", "😮", "😢", "🤔").forEach { emoji ->
+                                        Text(
+                                            text = emoji,
+                                            fontSize = 24.sp,
+                                            modifier = Modifier
+                                                .clickable {
+                                                    onSendReaction(emoji)
+                                                    showReactionsMenu = false
+                                                }
+                                                .padding(4.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -716,7 +765,9 @@ val colors = SharkordTheme.colors
                                       (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && (currentDevice?.type == 26 || currentDevice?.type == 27)) ||
                                       currentDevice?.type == 23 // TYPE_HEARING_AID
                                       
-                    if (selectedOutputDeviceId == null) {
+                    if (isConnected && isDeafened) {
+                        Icon(Icons.Default.HeadsetOff, contentDescription = "Deafened", tint = Color(0xFFED4245))
+                    } else if (selectedOutputDeviceId == null) {
                         Text(
                             text = "A",
                             color = colors.foregroundText,
@@ -777,6 +828,32 @@ val colors = SharkordTheme.colors
                             },
                             onClick = {
                                 selectedOutputDeviceId = device.id
+                                showOutputDropdown = false
+                            }
+                        )
+                    }
+                    if (isConnected) {
+                        HorizontalDivider(color = colors.bgColor.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 4.dp))
+                        DropdownMenuItem(
+                            leadingIcon = {
+                                Icon(
+                                    if (isDeafened) Icons.Default.HeadsetOff else Icons.Default.Headset,
+                                    contentDescription = null,
+                                    tint = if (isDeafened) Color(0xFFED4245) else colors.foregroundText
+                                )
+                            },
+                            text = {
+                                Text(
+                                    if (isDeafened) {
+                                        androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.voice_undeafen)
+                                    } else {
+                                        androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.voice_deafen)
+                                    },
+                                    color = if (isDeafened) Color(0xFFED4245) else colors.foregroundText
+                                )
+                            },
+                            onClick = {
+                                onToggleDeafenClick(!isDeafened)
                                 showOutputDropdown = false
                             }
                         )
@@ -993,7 +1070,7 @@ val colors = SharkordTheme.colors
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // mic Toggle
@@ -1007,20 +1084,6 @@ val colors = SharkordTheme.colors
                             Icon(
                                 if (isMuted) Icons.Default.MicOff else Icons.Default.Mic, 
                                 contentDescription = if (isMuted) "Unmute" else "Mute"
-                            )
-                        }
-
-                        // deafen Toggle
-                        FloatingActionButton(
-                            onClick = { onToggleDeafenClick(!isDeafened) },
-                            containerColor = if (isDeafened) colors.bgColor else colors.foregroundText,
-                            contentColor = if (isDeafened) colors.foregroundText else colors.bgColor,
-                            shape = CircleShape,
-                            modifier = Modifier.size(56.dp)
-                        ) {
-                            Icon(
-                                if (isDeafened) Icons.Default.HeadsetOff else Icons.Default.Headset, 
-                                contentDescription = if (isDeafened) "Undeafen" else "Deafen"
                             )
                         }
 
@@ -1050,6 +1113,39 @@ val colors = SharkordTheme.colors
                             modifier = Modifier.size(56.dp)
                         ) {
                             Icon(if (!isScreenSharing) Icons.Default.ScreenShare else Icons.Default.StopScreenShare, contentDescription = if (!isScreenSharing) "Share Screen" else "Stop Screen Share")
+                        }
+
+                        // voice reaction
+                        Box {
+                            FloatingActionButton(
+                                onClick = { showReactionsMenu = true },
+                                containerColor = colors.bgColor,
+                                contentColor = colors.foregroundText,
+                                shape = CircleShape,
+                                modifier = Modifier.size(56.dp)
+                            ) {
+                                Icon(Icons.Default.AddReaction, contentDescription = "Send Reaction")
+                            }
+                            DropdownMenu(
+                                expanded = showReactionsMenu,
+                                onDismissRequest = { showReactionsMenu = false },
+                                modifier = Modifier.background(colors.cardColor)
+                            ) {
+                                Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    listOf("👍", "❤️", "🎉", "👏", "🔥", "😮", "😢", "🤔").forEach { emoji ->
+                                        Text(
+                                            text = emoji,
+                                            fontSize = 24.sp,
+                                            modifier = Modifier
+                                                .clickable {
+                                                    onSendReaction(emoji)
+                                                    showReactionsMenu = false
+                                                }
+                                                .padding(4.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
 

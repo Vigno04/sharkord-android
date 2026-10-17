@@ -134,7 +134,8 @@ data class User(
     val id: Int,
     val name: String,
     val bio: String? = null,
-    val bannerColor: String? = null,
+    @SerializedName("profileColor", alternate = ["profile_color", "bannerColor", "banner_color"])
+    val profileColor: String? = null,
     val banned: Boolean = false,
     val avatar: FileInfo? = null,
     val avatarId: Int? = null,
@@ -146,6 +147,8 @@ data class User(
     val roleIds: List<Int>? = null,
     val createdAt: Long? = null
 ) {
+    val bannerColor: String?
+        get() = profileColor
     val userStatus: UserStatus
         get() = UserStatus.fromValue(status ?: "offline")
 
@@ -225,10 +228,58 @@ data class Message(
     val metadata: List<MessageMetadata>? = null
 )
 
+// messages cursor for pagination (matching TMessagesCursor in shared/types.ts)
+@com.google.gson.annotations.JsonAdapter(MessagesCursorAdapter::class)
+data class MessagesCursor(
+    val createdAt: Long,
+    val id: Int? = null
+)
+
+class MessagesCursorAdapter :
+    com.google.gson.JsonDeserializer<MessagesCursor>,
+    com.google.gson.JsonSerializer<MessagesCursor> {
+    override fun deserialize(
+        json: com.google.gson.JsonElement?,
+        typeOfT: java.lang.reflect.Type?,
+        context: com.google.gson.JsonDeserializationContext?
+    ): MessagesCursor? {
+        if (json == null || json.isJsonNull) return null
+        return when {
+            json.isJsonObject -> {
+                val obj = json.asJsonObject
+                val createdAt = obj.get("createdAt")?.asLong ?: 0L
+                val id = if (obj.has("id") && !obj.get("id").isJsonNull) obj.get("id").asInt else null
+                MessagesCursor(createdAt, id)
+            }
+            json.isJsonPrimitive && json.asJsonPrimitive.isNumber -> {
+                MessagesCursor(json.asLong, null)
+            }
+            else -> null
+        }
+    }
+
+    override fun serialize(
+        src: MessagesCursor?,
+        typeOfSrc: java.lang.reflect.Type?,
+        context: com.google.gson.JsonSerializationContext?
+    ): com.google.gson.JsonElement {
+        if (src == null) return com.google.gson.JsonNull.INSTANCE
+        return if (src.id != null) {
+            com.google.gson.JsonObject().apply {
+                addProperty("createdAt", src.createdAt)
+                addProperty("id", src.id)
+            }
+        } else {
+            com.google.gson.JsonPrimitive(src.createdAt)
+        }
+    }
+}
+
 // paginated messages response from messages.get tRPC query
 data class MessagesPage(
     val messages: List<Message>,
-    val nextCursor: Long? = null
+    val nextCursor: MessagesCursor? = null,
+    val hasNewer: Boolean = false
 )
 
 // public Settings

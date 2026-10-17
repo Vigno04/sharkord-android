@@ -237,7 +237,10 @@ class ServerSettingsViewModel(
             if (result.isSuccess) {
                 _uiState.value = _uiState.value.copy(isLoading = false, successMessage = "Role updated")
             } else {
-                _uiState.value = _uiState.value.copy(isLoading = false, error = "Failed to update role")
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = result.exceptionOrNull()?.message ?: "Failed to update role"
+                )
             }
         }
     }

@@ -109,7 +109,7 @@ class UserSettingsViewModel : ViewModel() {
                 if (currentUser != null && _uiState.value.user?.id != currentUser.id) {
                     name.value = currentUser.name
                     bio.value = currentUser.bio ?: ""
-                    bannerColor.value = currentUser.bannerColor ?: "#FFFFFF"
+                    bannerColor.value = currentUser.profileColor ?: currentUser.bannerColor ?: "#FFFFFF"
                 }
                 _uiState.value = _uiState.value.copy(
                     user = currentUser,
@@ -127,10 +127,12 @@ class UserSettingsViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSavingProfile = true, error = null, successMessage = null)
             try {
+                val normalizedColor = com.sharkord.android.utils.ColorUtils.normalizeHexColor(bannerColor.value)
                 val input = JsonObject().apply {
                     addProperty("name", name.value)
                     addProperty("bio", bio.value)
-                    addProperty("bannerColor", bannerColor.value)
+                    addProperty("profileColor", normalizedColor)
+                    addProperty("bannerColor", normalizedColor)
                 }
                 SharkordClient.webSocket.sendMutationAwait("users.update", input)
                 _uiState.value = _uiState.value.copy(successMessage = "Profile updated successfully")

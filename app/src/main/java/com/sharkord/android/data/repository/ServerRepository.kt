@@ -695,7 +695,7 @@ class ServerRepository {
             val input = com.google.gson.JsonObject().apply {
                 addProperty("roleId", id)
                 addProperty("name", name)
-                addProperty("color", color)
+                addProperty("color", com.sharkord.android.utils.ColorUtils.normalizeHexColor(color, defaultColor = "#99AAB5"))
                 val permsArray = com.google.gson.JsonArray()
                 permissions.forEach { permsArray.add(it) }
                 add("permissions", permsArray)

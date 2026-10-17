@@ -71,6 +71,7 @@ class VideoEngine(
     private var cachedScreenRes = "1280x720"
     private var cachedScreenFps = 30
     private var cachedDefaultCamera = "Front"
+    private var isSwitchingCamera = false
 
     // updates cached resolution and fps settings from the active session
     fun refreshSettings() {
@@ -281,7 +282,8 @@ class VideoEngine(
     ) {
         scope.launch {
             cameraMutex.withLock {
-                if (!cameraEnabled || localVideoTrack == null || videoCapturer !is org.webrtc.CameraVideoCapturer) return@withLock
+                if (!cameraEnabled || localVideoTrack == null || videoCapturer !is org.webrtc.CameraVideoCapturer || isSwitchingCamera) return@withLock
+                isSwitchingCamera = true
                 val current = cachedDefaultCamera
                 cachedDefaultCamera = if (current == "Front") "Back" else "Front"
                 SharkordClient.session.defaultCamera = cachedDefaultCamera
@@ -298,9 +300,11 @@ class VideoEngine(
 
                 (videoCapturer as org.webrtc.CameraVideoCapturer).switchCamera(object : org.webrtc.CameraVideoCapturer.CameraSwitchHandler {
                     override fun onCameraSwitchDone(isFrontFacing: Boolean) {
+                        isSwitchingCamera = false
                         videoCapturer?.changeCaptureFormat(targetWidth, targetHeight, targetFps)
                     }
                     override fun onCameraSwitchError(errorDescription: String?) {
+                        isSwitchingCamera = false
                         Log.e(TAG, "Camera switch error: $errorDescription")
                     }
                 })
@@ -321,6 +325,7 @@ class VideoEngine(
         videoCapturer = null
         localVideoSource = null
         surfaceTextureHelper = null
+        isSwitchingCamera = false
 
         if (oldVideoCapturer == null) return
 

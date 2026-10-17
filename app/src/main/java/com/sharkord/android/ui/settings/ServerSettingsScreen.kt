@@ -525,7 +525,7 @@ fun ServerRolesTab(
 
 @Composable
 fun RoleItemRow(role: Role, onClick: () -> Unit, cardColor: Color, foregroundText: Color, primaryText: Color) {
-    val roleColorInt = try { android.graphics.Color.parseColor(role.color) } catch (e: Exception) { android.graphics.Color.GRAY }
+    val roleColor = com.sharkord.android.utils.ColorUtils.parseColorOrNull(role.color) ?: Color.Gray
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -538,7 +538,7 @@ fun RoleItemRow(role: Role, onClick: () -> Unit, cardColor: Color, foregroundTex
             modifier = Modifier
                 .size(16.dp)
                 .clip(CircleShape)
-                .background(Color(roleColorInt))
+                .background(roleColor)
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(role.name, color = foregroundText, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -568,11 +568,11 @@ fun RoleEditor(
 
     val allPermissions = listOf(
         "SEND_MESSAGES", "REACT_TO_MESSAGES", "PIN_MESSAGES", "UPLOAD_FILES", 
-        "JOIN_VOICE_CHANNELS", "SHARE_SCREEN", "ENABLE_WEBCAM",
+        "JOIN_VOICE_CHANNELS", "SHARE_SCREEN", "ENABLE_WEBCAM", "SEND_VOICE_REACTION",
         "MANAGE_CHANNELS", "MANAGE_CHANNEL_PERMISSIONS", "MANAGE_CATEGORIES", 
-        "MANAGE_ROLES", "MANAGE_EMOJIS", "MANAGE_SETTINGS", "MANAGE_USERS", 
+        "MANAGE_ROLES", "MANAGE_EMOJIS", "MANAGE_SETTINGS", "MANAGE_USERS", "MOVE_MEMBERS",
         "MANAGE_MESSAGES", "MANAGE_STORAGE", "MANAGE_INVITES", "MANAGE_UPDATES", 
-        "MANAGE_PLUGINS", "USE_PLUGINS", "VIEW_USER_SENSITIVE_DATA"
+        "MANAGE_PLUGINS", "MANAGE_PLUGIN_PERMISSIONS", "USE_PLUGINS", "VIEW_USER_SENSITIVE_DATA"
     )
 
     val colorPresets = listOf(
@@ -604,7 +604,7 @@ fun RoleEditor(
                         }
                     }
                     Button(
-                        onClick = { onSave(role.id, editName, editColor, editPermissions.toList()) },
+                        onClick = { onSave(role.id, editName, com.sharkord.android.utils.ColorUtils.normalizeHexColor(editColor, defaultColor = "#99AAB5"), editPermissions.toList()) },
                         colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                     ) {
                         Text(stringResource(R.string.common_save))
@@ -633,7 +633,7 @@ fun RoleEditor(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape)
-                                .background(try { Color(android.graphics.Color.parseColor(hex)) } catch (e: Exception) { Color.Transparent })
+                                .background(com.sharkord.android.utils.ColorUtils.parseColorOrNull(hex) ?: Color.Transparent)
                                 .clickable { editColor = hex }
                                 .border(
                                     width = if (editColor.equals(hex, ignoreCase = true)) 2.dp else 0.dp,

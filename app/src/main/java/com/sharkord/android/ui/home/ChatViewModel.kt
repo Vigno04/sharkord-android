@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sharkord.android.data.model.Message
+import com.sharkord.android.data.model.MessagesCursor
 import com.sharkord.android.data.model.User
 import com.sharkord.android.data.model.Role
 import com.sharkord.android.data.network.ServerEvent
@@ -34,7 +35,7 @@ data class ChatUiState(
     // non-null when an error occurred that should be surfaced to the user
     val errorMessage: String? = null,
     // cursor for the next older page. Null when there are no more older messages
-    val nextCursor: Long? = null,
+    val nextCursor: MessagesCursor? = null,
     // true once we've loaded all the way to the top (no more older messages)
     val hasReachedTop: Boolean = false,
     // active reply target message

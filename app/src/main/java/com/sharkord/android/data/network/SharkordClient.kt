@@ -60,6 +60,9 @@ object SharkordClient {
     // exposed as a Compose reactive state so components automatically recompose when updated
     var currentServerLogoUrl: String? by mutableStateOf(null)
 
+    val currentUserId: Int?
+        get() = webSocket.serverData.replayCache.firstOrNull()?.ownUserId
+
     fun getFileUrl(file: com.sharkord.android.data.model.FileInfo?): String? {
         if (file == null || file.name == null) return null
         val baseUrl = "$currentServerUrl/public/${android.net.Uri.encode(file.name)}"

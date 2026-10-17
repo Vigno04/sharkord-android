@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import com.sharkord.android.R
+import com.sharkord.android.data.model.Channel
 import com.sharkord.android.data.model.Emoji
 import com.sharkord.android.data.model.Message
 import com.sharkord.android.data.model.Role
@@ -81,6 +82,7 @@ fun ChatPanel(
     dmUser: User? = null,
     users: List<User>,
     roles: List<Role>,
+    channels: List<Channel> = emptyList(),
     customEmojis: List<Emoji>,
     isActive: Boolean = true,
     isTablet: Boolean = false,
@@ -88,6 +90,7 @@ fun ChatPanel(
     onToggleFullScreen: (() -> Unit)? = null,
     onBackClick: () -> Unit,
     onUserClick: (Int) -> Unit = {},
+    onChannelClick: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ChatViewModel = viewModel(key = "chat_$channelId")
 ) {
@@ -472,6 +475,7 @@ fun ChatPanel(
                                     isHighlighted = message.id == playingHighlightId,
                                     fullscreenMediaId = uiState.viewingMediaFile?.id,
                                     onUserClick = onUserClick,
+                                    onChannelClick = onChannelClick,
                                     onLinkLongClick = { url -> showLinkMenuUrl = url },
                                     onLongClick = { target -> showMenuMessage = target },
                                     onReplyClick = { parentId ->
@@ -558,6 +562,8 @@ fun ChatPanel(
             ChatInputBar(
                 channelName = channelName,
                 users = users,
+                roles = roles,
+                channels = channels,
                 uiState = uiState,
                 inputText = inputText,
                 onInputTextChanged = { textVal ->

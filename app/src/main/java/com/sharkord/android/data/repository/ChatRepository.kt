@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.sharkord.android.data.model.MessagesCursor
 import com.sharkord.android.data.model.MessagesPage
 import com.sharkord.android.data.network.SharkordClient
 import com.sharkord.android.data.network.TrpcCallException
@@ -27,15 +28,24 @@ class ChatRepository {
 
     // fetches a page of messages for [channelId]
     // @param channelId  The channel to load messages for
-    // @param cursor     Timestamp cursor for pagination (from [MessagesPage.nextCursor])
+    // @param cursor     Cursor for pagination (from [MessagesPage.nextCursor])
     // pass `null` to fetch the newest page
     // @return [Result.success] with [MessagesPage] on success, [Result.failure] on error
-    suspend fun getMessages(channelId: Int, cursor: Long? = null, targetMessageId: Int? = null): Result<MessagesPage> {
+    suspend fun getMessages(channelId: Int, cursor: MessagesCursor? = null, targetMessageId: Int? = null): Result<MessagesPage> {
         return try {
             val input = JsonObject().apply {
                 addProperty("channelId", channelId)
                 addProperty("limit", DEFAULT_LIMIT)
-                if (cursor != null) addProperty("cursor", cursor)
+                if (cursor != null) {
+                    if (cursor.id != null) {
+                        add("cursor", JsonObject().apply {
+                            addProperty("createdAt", cursor.createdAt)
+                            addProperty("id", cursor.id)
+                        })
+                    } else {
+                        addProperty("cursor", cursor.createdAt)
+                    }
+                }
                 if (targetMessageId != null) addProperty("targetMessageId", targetMessageId)
             }
             val response = webSocket.sendQueryAwait("messages.get", input)

@@ -508,6 +508,8 @@ class WebSocketManager(
         subscribe("voice.onJoin")
         subscribe("voice.onLeave")
         subscribe("voice.onUpdateState")
+        subscribe("voice.onMoved")
+        subscribe("voice.onReaction")
 
         // server Settings
         subscribe("others.onServerSettingsUpdate")
@@ -571,7 +573,7 @@ data class IncomingEvent(
 
 // thrown by [WebSocketManager.sendQueryAwait] / [WebSocketManager.sendMutationAwait]
 // when the server responds with a tRPC error frame
-class TrpcCallException(message: String, val code: String? = null) : Exception(message)
+class TrpcCallException(message: String, val code: String? = null) : Exception(TrpcProtocol.formatTrpcErrorMessage(message))
 
 // thrown by [WebSocketManager.sendQueryAwait] / [WebSocketManager.sendMutationAwait]
 // when the WebSocket is not currently open

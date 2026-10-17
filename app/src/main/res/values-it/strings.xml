@@ -1071,4 +1071,6 @@ Rendilo privato nella scheda Generale per gestire i permessi specifici.</string>
     <string name="voice_joinVoice">Join Voice</string>
     <string name="voice_tapToReturn">Tocca per tornare alla chiamata
 %1$s</string>
+    <string name="voice_deafen">Silenzia audio</string>
+    <string name="voice_undeafen">Riattiva audio</string>
 </resources>
