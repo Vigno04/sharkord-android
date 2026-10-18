@@ -372,7 +372,7 @@
     <string name="settings_diskSystemUsed">Espace utilisé par le système</string>
     <string name="settings_diskTotalSpace">Espace disque total</string>
     <string name="settings_diskUsage">Utilisation du disque</string>
-    <string name="settings_diskUsedPercent">%1$s% utilisé</string>
+    <string name="settings_diskUsedPercent">%1$s%% utilisé</string>
     <string name="settings_dmNotificationsDesc">Envoyer une notification pour chaque nouveau message privé.</string>
     <string name="settings_dmNotificationsLabel">Messages privés</string>
     <string name="settings_echoCancellationLabel">Annulation d\'écho</string>

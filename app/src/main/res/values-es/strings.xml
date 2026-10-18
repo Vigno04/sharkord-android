@@ -370,7 +370,7 @@
     <string name="settings_diskSystemUsed">Usado por el sistema</string>
     <string name="settings_diskTotalSpace">Espacio total en disco</string>
     <string name="settings_diskUsage">Uso de disco</string>
-    <string name="settings_diskUsedPercent">%1$s% usado</string>
+    <string name="settings_diskUsedPercent">%1$s%% usado</string>
     <string name="settings_dmNotificationsDesc">Enviar una notificación por cada mensaje directo nuevo.</string>
     <string name="settings_dmNotificationsLabel">Mensajes directos</string>
     <string name="settings_echoCancellationLabel">Cancelación de eco</string>

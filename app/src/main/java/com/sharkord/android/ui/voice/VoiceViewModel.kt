@@ -77,12 +77,15 @@ class VoiceViewModel : ViewModel() {
 
     init {
         viewModelScope.launch {
-            SharkordClient.voiceEngine.isConnected.collect { connected ->
-                if (!connected && _uiState.value.activeVoiceChannelId != null) {
-                    // voiceEngine disconnected but UI is still active (e.g. from Notification)
+            SharkordClient.voiceEngine.connectionState.collect { state ->
+                val isDisconnected = state == com.sharkord.android.data.network.VoiceConnectionState.DISCONNECTED ||
+                        state == com.sharkord.android.data.network.VoiceConnectionState.FAILED
+                if (isDisconnected && (_uiState.value.activeVoiceChannelId != null || _uiState.value.isConnectingToVoice)) {
+                    // voiceEngine disconnected/failed but UI is still active
                     _uiState.update { 
                         it.copy(
                             activeVoiceChannelId = null, 
+                            isConnectingToVoice = false,
                             activeSpeakers = emptySet(), 
                             activeReactions = emptyMap(),
                             cameraEnabled = false, 
@@ -282,14 +285,20 @@ class VoiceViewModel : ViewModel() {
                 
                 viewModelScope.launch {
                     delay(800) // wait for hardware audio routing to settle into MODE_IN_COMMUNICATION
-                    com.sharkord.android.audio.SoundEngine.playSound(com.sharkord.android.audio.SoundType.OWN_USER_JOINED_VOICE_CHANNEL)
-                    
-                    _uiState.update { 
-                        it.copy(
-                            activeVoiceChannelId = channelId,
-                            isConnectingToVoice = false,
-                            eglBaseContext = SharkordClient.voiceEngine.eglBaseContext
-                        ) 
+                    val state = SharkordClient.voiceEngine.connectionState.value
+                    if (state != com.sharkord.android.data.network.VoiceConnectionState.FAILED &&
+                        state != com.sharkord.android.data.network.VoiceConnectionState.DISCONNECTED
+                    ) {
+                        com.sharkord.android.audio.SoundEngine.playSound(com.sharkord.android.audio.SoundType.OWN_USER_JOINED_VOICE_CHANNEL)
+                        _uiState.update { 
+                            it.copy(
+                                activeVoiceChannelId = channelId,
+                                isConnectingToVoice = false,
+                                eglBaseContext = SharkordClient.voiceEngine.eglBaseContext
+                            ) 
+                        }
+                    } else {
+                        _uiState.update { it.copy(isConnectingToVoice = false) }
                     }
                 }
                 

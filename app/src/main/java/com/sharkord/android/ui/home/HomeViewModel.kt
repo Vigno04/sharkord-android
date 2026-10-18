@@ -210,13 +210,24 @@ class HomeViewModel : ViewModel() {
                 }?.toMap() ?: emptyMap()
 
                 val restoredVoiceChannelId = SharkordClient.voiceEngine.currentChannelId
+                val effectiveVoiceMap = if (restoredVoiceChannelId != null) {
+                    val currentChannelVoice = _uiState.value.serverData?.voiceMap?.get(restoredVoiceChannelId.toString())
+                    val newMap = data.voiceMap?.toMutableMap() ?: mutableMapOf()
+                    if (currentChannelVoice != null && newMap[restoredVoiceChannelId.toString()] == null) {
+                        newMap[restoredVoiceChannelId.toString()] = currentChannelVoice
+                    }
+                    newMap
+                } else {
+                    data.voiceMap
+                }
+                val effectiveServerData = if (effectiveVoiceMap != null) data.copy(voiceMap = effectiveVoiceMap) else data
 
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         errorMessage = null,
                         reconnectAttempts = 0,
-                        serverData = data,
+                        serverData = effectiveServerData,
                         readStates = initialReadStates,
                         selectedServerChannelId = it.selectedServerChannelId
                             ?: restoredVoiceChannelId

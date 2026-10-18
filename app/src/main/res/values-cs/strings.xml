@@ -370,7 +370,7 @@
     <string name="settings_diskSystemUsed">Využito systémem</string>
     <string name="settings_diskTotalSpace">Celková kapacita disku</string>
     <string name="settings_diskUsage">Využití disku</string>
-    <string name="settings_diskUsedPercent">%1$s % využito</string>
+    <string name="settings_diskUsedPercent">%1$s %% využito</string>
     <string name="settings_dmNotificationsDesc">Posílat upozornění pro každou novou přímou zprávu.</string>
     <string name="settings_dmNotificationsLabel">Přímé zprávy</string>
     <string name="settings_echoCancellationLabel">Potlačení ozvěny</string>

@@ -370,7 +370,7 @@
     <string name="settings_diskSystemUsed">系统占用</string>
     <string name="settings_diskTotalSpace">总磁盘空间</string>
     <string name="settings_diskUsage">磁盘使用情况</string>
-    <string name="settings_diskUsedPercent">已使用 %1$s%</string>
+    <string name="settings_diskUsedPercent">已使用 %1$s%%</string>
     <string name="settings_dmNotificationsDesc">每收到一条新私信时发送通知。</string>
     <string name="settings_dmNotificationsLabel">私信</string>
     <string name="settings_echoCancellationLabel">回声消除</string>

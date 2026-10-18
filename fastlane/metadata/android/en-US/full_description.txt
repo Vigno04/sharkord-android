@@ -1,2 +1,13 @@
-This is the unofficial android client for the Sharkord server, a discord like selfhosted server.
-It has feature parity with the web app, supporting video, audio call, screen share and texting.
+Sharkord is an open-source, self-hosted communication client designed as an independent alternative to proprietary chat platforms. Connect to your own Sharkord server and take full ownership of your data, voice, and conversations.
+
+Features:
+• Real-time Text Chat: Chat in public or private text channels with markdown formatting, mentions, and custom emoji support.
+• Media & Attachments: Share images, videos, audio notes, and documents with built-in playback and media previews.
+• Low-Latency Voice Channels: Powered by WebRTC and Mediasoup for crisp, low-latency group voice communication.
+• Video Calling & Camera Sharing: Join video conversations with multi-user grid views and front/rear camera switching.
+• Screen Sharing: Watch high-definition desktop or mobile screen broadcasts, or stream your own screen directly from Android.
+• Picture-in-Picture (PiP): Keep watching screen shares and video streams in a floating window while using other apps.
+• Background Voice: Stay connected in voice channels while browsing channels or using other applications with background audio service.
+• Server & Channel Administration: Manage server settings, roles, permissions, invitations, and channel hierarchies on the go.
+• Biometric Security: Secure access to the application using fingerprint or biometric authentication.
+• Privacy-Focused: No third-party trackers, no analytics SDKs, and completely decentralized communication under your control.

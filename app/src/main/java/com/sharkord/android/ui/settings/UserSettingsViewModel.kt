@@ -42,7 +42,7 @@ class UserSettingsViewModel : ViewModel() {
     var alwaysRequireBiometrics = MutableStateFlow(false)
     var hasBiometrics = MutableStateFlow(false)
 
-    var enableFloatingPip = MutableStateFlow(true)
+    var enableFloatingPip = MutableStateFlow(false)
 
     // media compression
     var compressMedia = MutableStateFlow(false)

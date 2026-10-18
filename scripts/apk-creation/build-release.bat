@@ -43,20 +43,29 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo Copying APK to scripts\apk-creation...
-if exist "app\build\outputs\apk\release\app-release.apk" (
-    copy /y "app\build\outputs\apk\release\app-release.apk" "scripts\apk-creation\sharkord-release.apk"
-) else if exist "app\build\outputs\apk\release\app-release-unsigned.apk" (
-    copy /y "app\build\outputs\apk\release\app-release-unsigned.apk" "scripts\apk-creation\sharkord-release-unsigned.apk"
+echo Copying and renaming APKs to scripts\apk-creation...
+for %%f in ("app\build\outputs\apk\release\*.apk") do (
+    set "fname=%%~nxf"
+    if not "!fname:arm64-v8a=!"=="!fname!" (
+        copy /y "%%f" "scripts\apk-creation\sharkord-v8a.apk" >nul
+    ) else if not "!fname:armeabi-v7a=!"=="!fname!" (
+        copy /y "%%f" "scripts\apk-creation\sharkord-v7a.apk" >nul
+    ) else if not "!fname:universal=!"=="!fname!" (
+        copy /y "%%f" "scripts\apk-creation\sharkord-universal.apk" >nul
+    ) else if not "!fname:x86_64=!"=="!fname!" (
+        copy /y "%%f" "scripts\apk-creation\sharkord-x86_64.apk" >nul
+    )
 )
 
 if %errorlevel% neq 0 (
-    echo [ERROR] Failed to copy release APK!
+    echo [ERROR] Failed to copy release APKs!
     pause
     exit /b %errorlevel%
 )
 
 echo.
-echo [SUCCESS] Release APK built and copied to scripts\apk-creation!
+echo [SUCCESS] Release APKs built and copied to scripts\apk-creation:
+dir /b "scripts\apk-creation\sharkord-*.apk"
 echo.
 pause
+

@@ -1187,13 +1187,39 @@ fun AppSettingsTabContent(viewModel: UserSettingsViewModel, cardColor: Color, fo
 
     Spacer(modifier = Modifier.height(16.dp))
 
+    val context = LocalContext.current
+    val overlayPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        val granted = android.provider.Settings.canDrawOverlays(context)
+        viewModel.saveEnableFloatingPip(granted)
+    }
+
     SettingsSection(title = "App Features", cardColor = cardColor, foregroundText = foregroundText) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_pipWindow), color = foregroundText)
                 Text(androidx.compose.ui.res.stringResource(com.sharkord.android.R.string.settings_pipWindowDesc), color = primaryText, fontSize = 12.sp)
             }
-            Switch(checked = enableFloatingPip, onCheckedChange = { viewModel.saveEnableFloatingPip(it) }, colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f)))
+            Switch(
+                checked = enableFloatingPip && android.provider.Settings.canDrawOverlays(context),
+                onCheckedChange = { checked ->
+                    if (checked) {
+                        if (!android.provider.Settings.canDrawOverlays(context)) {
+                            val intent = Intent(
+                                android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:${context.packageName}")
+                            )
+                            overlayPermissionLauncher.launch(intent)
+                        } else {
+                            viewModel.saveEnableFloatingPip(true)
+                        }
+                    } else {
+                        viewModel.saveEnableFloatingPip(false)
+                    }
+                },
+                colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f))
+            )
         }
     }
 

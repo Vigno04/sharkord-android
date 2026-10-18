@@ -222,7 +222,7 @@ class SessionManager(context: Context) {
         set(value) = prefs.edit().putString(KEY_MEDIA_QUALITY, value).apply()
 
     var enableFloatingPip: Boolean
-        get() = prefs.getBoolean(KEY_ENABLE_FLOATING_PIP, true)
+        get() = prefs.getBoolean(KEY_ENABLE_FLOATING_PIP, false)
         set(value) = prefs.edit().putBoolean(KEY_ENABLE_FLOATING_PIP, value).apply()
 
     companion object {

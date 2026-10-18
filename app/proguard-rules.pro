@@ -1,21 +1,40 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Sharkord ProGuard / R8 Rules
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# WebRTC and Mediasoup (JNI methods and callbacks)
+-keep class org.webrtc.** { *; }
+-dontwarn org.webrtc.**
+-keep class org.mediasoup.droid.** { *; }
+-dontwarn org.mediasoup.droid.**
+-keep class io.github.haiyangwu.mediasoup.** { *; }
+-dontwarn io.github.haiyangwu.mediasoup.**
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Data Models used with Gson
+-keep class com.sharkord.android.data.model.** { *; }
+-keepclassmembers class com.sharkord.android.data.model.** { *; }
+-keepattributes Signature
+-keepattributes *Annotation*
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Gson
+-keepattributes EnclosingMethod
+-keepclassmembers enum * { *; }
+-dontwarn com.google.gson.**
+
+# OkHttp & Okio
+-dontwarn okhttp3.**
+-dontwarn okio.**
+
+# Media3
+-keep class androidx.media3.** { *; }
+-dontwarn androidx.media3.**
+
+# AndroidX WorkManager and Room (reflection-instantiated database & workers)
+-keep class androidx.work.** { *; }
+-keep class * extends androidx.work.ListenableWorker { *; }
+-keep class * extends androidx.room.RoomDatabase { *; }
+-keep class androidx.work.impl.WorkDatabase_Impl {
+    public <init>();
+}
+-keep class com.sharkord.android.data.network.MessageSyncWorker { *; }
+
+# Keep line numbers for stack traces
+-keepattributes SourceFile,LineNumberTable

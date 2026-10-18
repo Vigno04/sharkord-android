@@ -13,17 +13,17 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo Copying APK to scripts\apk-creation...
-copy /y "app\build\outputs\apk\debug\app-debug.apk" "scripts\apk-creation\sharkord-debug.apk"
+echo Copying APKs to scripts\apk-creation...
+copy /y "app\build\outputs\apk\debug\*.apk" "scripts\apk-creation\"
 
 if %errorlevel% neq 0 (
-    echo [ERROR] Failed to copy the APK!
+    echo [ERROR] Failed to copy the APKs!
     pause
     exit /b %errorlevel%
 )
 
 echo.
-echo [SUCCESS] APK built and copied to:
-echo %~dp0sharkord-debug.apk
+echo [SUCCESS] Debug APKs built and copied to scripts\apk-creation:
+dir /b "%~dp0app-*-debug.apk"
 echo.
 pause

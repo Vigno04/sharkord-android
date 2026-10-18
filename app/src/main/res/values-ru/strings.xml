@@ -372,7 +372,7 @@
     <string name="settings_diskSystemUsed">Использовано системой</string>
     <string name="settings_diskTotalSpace">Общее дисковое пространство</string>
     <string name="settings_diskUsage">Использование диска</string>
-    <string name="settings_diskUsedPercent">%1$s% использовано</string>
+    <string name="settings_diskUsedPercent">%1$s%% использовано</string>
     <string name="settings_dmNotificationsDesc">Отправлять уведомление о каждом новом личном сообщении.</string>
     <string name="settings_dmNotificationsLabel">Личные сообщения</string>
     <string name="settings_echoCancellationLabel">Эхоподавление</string>

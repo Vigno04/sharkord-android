@@ -362,9 +362,11 @@
     <string name="permissions_serverDescriptions_SHARE_SCREEN">Grants the ability to share the screen.</string>
     <string name="permissions_serverDescriptions_UPLOAD_FILES">Grants the ability to upload files in channels.</string>
     <string name="permissions_serverDescriptions_USE_PLUGINS">Grants the ability to use plugins, such as executing plugin commands or seeing UI elements added by plugins.</string>
+    <string name="permissions_serverDescriptions_EXECUTE_PLUGIN_COMMANDS">Grants the ability to execute plugin commands.</string>
     <string name="permissions_serverDescriptions_MANAGE_PLUGIN_PERMISSIONS">Grants the ability to manage plugin permissions for roles.</string>
     <string name="permissions_serverDescriptions_VIEW_USER_SENSITIVE_DATA">Grants the ability to view user sensitive data like identity, IP address, and location.</string>
     <string name="permissions_server_ENABLE_WEBCAM">Enable webcam</string>
+    <string name="permissions_server_EXECUTE_PLUGIN_COMMANDS">Execute plugin commands</string>
     <string name="permissions_server_JOIN_VOICE_CHANNELS">Join voice channels</string>
     <string name="permissions_server_MANAGE_CATEGORIES">Manage categories</string>
     <string name="permissions_server_MANAGE_CHANNELS">Manage channels</string>
@@ -1081,4 +1083,13 @@ Make it private in the General tab to manage specific permissions.</string>
 %1$s</string>
     <string name="voice_deafen">Deafen</string>
     <string name="voice_undeafen">Undeafen</string>
+    <string name="settings_failedRotateToken">Failed to rotate access token</string>
+    <string name="settings_fileAccessTokenDesc">The file access token is used to protect access to files in this channel. Rotating the token will invalidate all existing file links, meaning previously shared files will no longer be accessible.</string>
+    <string name="settings_fileAccessTokenHelp">Only used for private channels</string>
+    <string name="settings_fileAccessTokenLabel">File Access Token</string>
+    <string name="settings_rotateTokenBtn">Rotate Token</string>
+    <string name="settings_securityDesc">Manage security settings for this channel.</string>
+    <string name="settings_securityTab">Security</string>
+    <string name="settings_securityTitle">Security</string>
+    <string name="settings_tokenRotatedSuccess">Access token rotated successfully</string>
 </resources>

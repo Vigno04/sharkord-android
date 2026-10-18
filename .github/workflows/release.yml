@@ -1,8 +1,9 @@
-name: Build and Release Universal APK
+name: Build and Release Split APKs
 
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -27,10 +28,13 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Decode Keystore
+        if: env.HAS_KEYSTORE == 'true'
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > ${{ runner.temp }}/release.keystore
+        env:
+          HAS_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 != '' }}
 
-      - name: Build and Sign Release APK
+      - name: Build and Sign Release APKs
         run: ./gradlew assembleRelease
         env:
           SIGNING_STORE_PATH: ${{ runner.temp }}/release.keystore
@@ -38,9 +42,39 @@ jobs:
           SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      - name: Upload APK to Release
+      - name: Organize and Rename Release APKs
+        run: |
+          mkdir -p release-artifacts
+          for f in app/build/outputs/apk/release/*.apk; do
+            case "$f" in
+              *arm64-v8a*)
+                cp "$f" release-artifacts/sharkord-v8a.apk
+                ;;
+              *armeabi-v7a*)
+                cp "$f" release-artifacts/sharkord-v7a.apk
+                ;;
+              *universal*)
+                cp "$f" release-artifacts/sharkord-universal.apk
+                ;;
+              *x86_64*)
+                cp "$f" release-artifacts/sharkord-x86_64.apk
+                ;;
+            esac
+          done
+          echo "Organized release artifacts:"
+          ls -la release-artifacts
+
+      - name: Upload APKs as Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apks
+          path: release-artifacts/*.apk
+
+      - name: Upload APKs to Release
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/outputs/apk/release/*.apk
+          files: release-artifacts/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

@@ -59,29 +59,7 @@ class MainActivity : FragmentActivity() {
             val voiceUiState by voiceViewModel.uiState.collectAsState()
             val context = androidx.compose.ui.platform.LocalContext.current
             
-            val overlayPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-                androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
-            ) {
-                if (android.provider.Settings.canDrawOverlays(context)) {
-                    com.sharkord.android.data.network.SharkordClient.session.enableFloatingPip = true
-                }
-            }
 
-            val isConnected = voiceUiState.activeVoiceChannelId != null
-
-            androidx.compose.runtime.LaunchedEffect(isConnected) {
-                if (isConnected && com.sharkord.android.data.network.SharkordClient.session.enableFloatingPip) {
-                    if (!android.provider.Settings.canDrawOverlays(context)) {
-                        com.sharkord.android.data.network.SharkordClient.session.enableFloatingPip = false
-                        val intent = Intent(
-                            android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                            android.net.Uri.parse("package:${context.packageName}")
-                        )
-                        overlayPermissionLauncher.launch(intent)
-                    }
-                }
-            }
-            
             SharkordTheme {
                 val prefs = remember { context.getSharedPreferences("SharkordSettings", android.content.Context.MODE_PRIVATE) }
                 var updateInfo by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<com.sharkord.android.utils.UpdateInfo?>(null) }
@@ -194,7 +172,9 @@ class MainActivity : FragmentActivity() {
     override fun onPause() {
         super.onPause()
         val isCallGoing = if (com.sharkord.android.data.network.SharkordClient.isVoiceEngineInitialized) {
-            com.sharkord.android.data.network.SharkordClient.voiceEngine.isConnected.value
+            com.sharkord.android.data.network.SharkordClient.voiceEngine.isConnected.value ||
+            com.sharkord.android.data.network.SharkordClient.voiceEngine.currentChannelId != null ||
+            com.sharkord.android.data.network.SharkordClient.voiceEngine.connectionState.value == com.sharkord.android.data.network.VoiceConnectionState.CONNECTING
         } else false
 
         if (!isCallGoing) {
