@@ -11,11 +11,22 @@
 # Data Models used with Gson
 -keep class com.sharkord.android.data.model.** { *; }
 -keepclassmembers class com.sharkord.android.data.model.** { *; }
--keepattributes Signature
--keepattributes *Annotation*
+-keep class com.sharkord.android.ui.emojipicker.domain.model.** { *; }
+-keepclassmembers class com.sharkord.android.ui.emojipicker.domain.model.** { *; }
 
 # Gson
+-keepattributes Signature
+-keepattributes *Annotation*
 -keepattributes EnclosingMethod
+-keepattributes InnerClasses
+-dontwarn sun.misc.**
+-keep class com.google.gson.** { *; }
+-keep class * extends com.google.gson.reflect.TypeToken
+-keepclassmembers class * extends com.google.gson.reflect.TypeToken {
+    void <init>();
+    <fields>;
+    <methods>;
+}
 -keepclassmembers enum * { *; }
 -dontwarn com.google.gson.**
 
